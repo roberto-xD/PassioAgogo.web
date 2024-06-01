@@ -17,6 +17,7 @@ allprojects {
         google()
         mavenCentral()
         gradlePluginPortal()
+        maven("https://repo1.maven.org/maven2/")
     }
 
     afterEvaluate {

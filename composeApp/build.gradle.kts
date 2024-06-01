@@ -43,33 +43,38 @@ kotlin {
     }
 
     sourceSets {
-        val jsWasmMain by creating {
-            dependencies {
-                implementation(compose.runtime)
-                implementation(compose.ui)
-                implementation(compose.foundation)
-                implementation(compose.material)
-                implementation(compose.components.resources)
-                implementation(compose.components.uiToolingPreview)
-            }
-        }
-        val jsMain by getting {
-            dependsOn(jsWasmMain)
-            dependencies {
-                // Ktor
-                implementation(libs.ktor.client.core)
-                implementation(libs.ktor.client.serialization)
-                implementation(libs.ktor.client.content.negotiation)
-                // Coroutines
-                implementation(libs.kotlinx.coroutines.core)
-                // Koin
-                implementation(libs.koin.core)
-            }
-        }
-        val wasmJsMain by getting {
-            dependsOn(jsWasmMain)
-        }
+//        val jsWasmMain by creating {
+//            dependencies {
+//                implementation(compose.runtime)
+//                implementation(compose.ui)
+//                implementation(compose.foundation)
+//                implementation(compose.material)
+//                implementation(compose.components.resources)
+//                implementation(compose.components.uiToolingPreview)
+//            }
+//        }
+//        val jsMain by getting {
+//            dependsOn(jsWasmMain)
+//            dependencies {
+//                // Ktor
+//                implementation(libs.ktor.client.core)
+//                implementation(libs.ktor.client.serialization)
+//                implementation(libs.ktor.client.content.negotiation)
+//                // Coroutines
+//                implementation(libs.kotlinx.coroutines.core)
+//                // Koin
+//                implementation(libs.koin.core)
+//            }
+//        }
+//        val wasmJsMain by getting {
+//            dependsOn(jsWasmMain)
+//        }
 
+        wasmJsMain.dependencies {
+
+
+
+        }
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
@@ -78,6 +83,14 @@ kotlin {
             @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
+            // Coroutines
+            implementation(libs.kotlinx.coroutines.core)
+            // Koin
+            implementation(libs.koin.core)
+            // Ktor
+            //implementation(libs.ktor.client.core)
+            //implementation(libs.ktor.client.serialization)
+            //implementation(libs.ktor.client.content.negotiation)
         }
     }
 }
