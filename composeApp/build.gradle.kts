@@ -7,13 +7,30 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+val copyWasmResources = tasks.create("copyWasmResourcesWorkaround", Copy::class.java) {
+    into("build/processedResources/wasmJs/main")
+}
+
+afterEvaluate {
+    project.tasks.getByName("wasmJsProcessResources").finalizedBy(copyWasmResources)
+    project.tasks.getByName("wasmJsDevelopmentExecutableCompileSync").dependsOn(copyWasmResources)
+}
+
 kotlin {
+    js(IR) {
+        moduleName = "composeApp"
+        browser {
+            commonWebpackConfig {
+                outputFileName = "composeApp.js"
+            }
+        }
+        binaries.executable()
+    }
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs{
         moduleName = "composeApp"
         browser {
             commonWebpackConfig {
-                outputFileName = "composeApp.js"
                 devServer = (devServer ?: KotlinWebpackConfig.DevServer()).apply {
                     static = (static ?: mutableListOf()).apply {
                         // Serve sources to debug inside browser
@@ -36,14 +53,24 @@ kotlin {
                 implementation(compose.components.uiToolingPreview)
             }
         }
+        val jsMain by getting {
+            dependsOn(jsWasmMain)
+            dependencies {
+                // Ktor
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.serialization)
+                implementation(libs.ktor.client.content.negotiation)
+                // Coroutines
+                implementation(libs.kotlinx.coroutines.core)
+                // Koin
+                implementation(libs.koin.core)
+            }
+        }
         val wasmJsMain by getting {
             dependsOn(jsWasmMain)
         }
 
         commonMain.dependencies {
-//            implementation("io.kvision:kvision:$kvisionVersion")
-//            implementation("io.kvision:kvision-rest:$kvisionVersion")
-//            implementation("io.kvision:kvision-state-flow:$kvisionVersion")
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material)
@@ -53,8 +80,4 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
         }
     }
-}
-
-compose.experimental{
-    web.application{}
 }
