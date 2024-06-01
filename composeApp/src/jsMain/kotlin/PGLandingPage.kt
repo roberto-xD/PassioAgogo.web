@@ -11,13 +11,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
 import passionagogo.composeapp.generated.resources.Res
 import passionagogo.composeapp.generated.resources.pg_ic_mainlogo
 
-
-@OptIn(ExperimentalResourceApi::class)
 @Composable
 fun Landing(){
     MaterialTheme {
