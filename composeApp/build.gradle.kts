@@ -87,10 +87,12 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             // Koin
             implementation(libs.koin.core)
+            //implementation(libs.koin.compose)
             // Ktor
             //implementation(libs.ktor.client.core)
             //implementation(libs.ktor.client.serialization)
             //implementation(libs.ktor.client.content.negotiation)
+            implementation ("com.squareup.picasso:picasso:2.71828")
         }
     }
 }
