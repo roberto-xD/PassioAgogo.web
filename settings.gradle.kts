@@ -22,7 +22,14 @@ pluginManagement {
         id("com.android.application").version(agpVersion)
         id("com.android.library").version(agpVersion)
         id("org.jetbrains.compose").version(composeVersion)
-        id("io.insert-koin").version("3.4.1")
+//        id("io.insert-koin").version("3.4.1")
+//        id("io.ktor").version("2.3.11")
+
+        kotlin("plugin.spring") version "1.8.22"
+        id("org.springframework.boot") version "3.1.4"
+        id("io.spring.dependency-management") version "1.1.3"
     }
+
 }
+
 include(":composeApp")

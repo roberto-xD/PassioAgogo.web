@@ -17,15 +17,15 @@ afterEvaluate {
 }
 
 kotlin {
-    js(IR) {
-        moduleName = "composeApp"
-        browser {
-            commonWebpackConfig {
-                outputFileName = "composeApp.js"
-            }
-        }
-        binaries.executable()
-    }
+//    js(IR) {
+//        moduleName = "composeApp"
+//        browser {
+//            commonWebpackConfig {
+//                outputFileName = "composeApp.js"
+//            }
+//        }
+//        binaries.executable()
+//    }
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs{
         moduleName = "composeApp"
@@ -43,36 +43,21 @@ kotlin {
     }
 
     sourceSets {
-//        val jsWasmMain by creating {
-//            dependencies {
-//                implementation(compose.runtime)
-//                implementation(compose.ui)
-//                implementation(compose.foundation)
-//                implementation(compose.material)
-//                implementation(compose.components.resources)
-//                implementation(compose.components.uiToolingPreview)
-//            }
-//        }
-//        val jsMain by getting {
-//            dependsOn(jsWasmMain)
-//            dependencies {
-//                // Ktor
-//                implementation(libs.ktor.client.core)
-//                implementation(libs.ktor.client.serialization)
-//                implementation(libs.ktor.client.content.negotiation)
-//                // Coroutines
-//                implementation(libs.kotlinx.coroutines.core)
-//                // Koin
-//                implementation(libs.koin.core)
-//            }
-//        }
-//        val wasmJsMain by getting {
-//            dependsOn(jsWasmMain)
-//        }
-
         wasmJsMain.dependencies {
+            // Coroutines
+            implementation(libs.kotlinx.coroutines.core)
+            // Koin
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose)
+            // Ktor
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.serialization)
+            implementation(libs.ktor.client.content.negotiation)
 
-
+            implementation ("com.squareup.picasso:picasso:2.71828")
+            implementation(libs.paypal.core)
+            implementation(libs.paypal.api)
+            implementation ("com.shopify.mobilebuysdk:buy3:17.0.0")
 
         }
         commonMain.dependencies {
@@ -83,16 +68,6 @@ kotlin {
             @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
-            // Coroutines
-            implementation(libs.kotlinx.coroutines.core)
-            // Koin
-            implementation(libs.koin.core)
-            //implementation(libs.koin.compose)
-            // Ktor
-            //implementation(libs.ktor.client.core)
-            //implementation(libs.ktor.client.serialization)
-            //implementation(libs.ktor.client.content.negotiation)
-            implementation ("com.squareup.picasso:picasso:2.71828")
         }
     }
 }
