@@ -3,7 +3,7 @@ import androidx.compose.runtime.Composable
 import di.appModule
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.koin.compose.KoinApplication
-import ui.HomeScreen
+import ui.screens.HomeScreen
 
 @OptIn(ExperimentalResourceApi::class)
 @Composable

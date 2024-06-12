@@ -1,13 +1,14 @@
 package network
 
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import kotlinx.coroutines.flow.Flow
+import models.PGCatalog
 
 class NetworkRepository(private val httpClient: HttpClient) {
 
@@ -26,7 +27,9 @@ class NetworkRepository(private val httpClient: HttpClient) {
                             append(HttpHeaders.Host,"bjlgneijbl.execute-api.us-east-2.amazonaws.com")
                         }
                     }
-            NetWorkResult.Success(response.bodyAsText())
+            val cuac = response.body<PGCatalog>()
+            print("response $cuac ")
+            NetWorkResult.Success(cuac.toString())
         }
     }
 }

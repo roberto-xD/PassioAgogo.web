@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.compose.compiler)
+    id("kotlinx-serialization")
+
 }
 
 val copyWasmResources = tasks.create("copyWasmResourcesWorkaround", Copy::class.java) {
@@ -53,12 +55,13 @@ kotlin {
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.serialization)
             implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.client.logging)
+            implementation(libs.ktor.client.encoding)
 
-            implementation ("com.squareup.picasso:picasso:2.71828")
-            implementation(libs.paypal.core)
-            implementation(libs.paypal.api)
-            implementation ("com.shopify.mobilebuysdk:buy3:17.0.0")
-
+            implementation(libs.coil.compose.core)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.mp)
+            implementation(libs.coil.network.ktor)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
