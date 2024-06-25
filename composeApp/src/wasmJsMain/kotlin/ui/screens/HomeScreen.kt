@@ -1,7 +1,6 @@
 package ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,19 +23,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import org.jetbrains.compose.resources.painterResource
+import models.toPGDataCard
 import org.koin.compose.getKoin
-import passionagogo.composeapp.generated.resources.Res
-import passionagogo.composeapp.generated.resources.compose_multiplatform
+import ui.wigets.ItemCard
 import ui.wigets.Navigation
 import viewmodel.HomeViewModel
+
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun HomeScreen(){
 
     val viewModel: HomeViewModel = getKoin().get()
-    val homeScreenState by viewModel.homeViewState.collectAsState()
-    val cuac by viewModel.homeState.collectAsState()
+    val dataProduct by viewModel.productState.collectAsState()
 
     /*LaunchedEffect(Unit){
         viewModel.getProduts()
@@ -66,7 +64,7 @@ fun HomeScreen(){
                     Button(
                         onClick = {
                             showContent = !showContent
-                            viewModel.getProduts()
+                            viewModel.getProduts("sexshop")
                         }
                     ) {
                         Text("Hola Papu!")
@@ -78,9 +76,10 @@ fun HomeScreen(){
                                 .horizontalScroll( state= rememberScrollState(), enabled = true ),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Image(painterResource(Res.drawable.compose_multiplatform), null)
-                            Text("> {cuac.responseData} <")
-
+                            dataProduct.items?.forEach {
+                                val dataCard = it.toPGDataCard()
+                                ItemCard(dataCard)
+                            }
                         }
                     }
                 }
