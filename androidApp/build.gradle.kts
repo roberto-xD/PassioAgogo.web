@@ -44,3 +44,6 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     debugImplementation(libs.compose.ui.tooling)
 }
+repositories {
+    google()
+}

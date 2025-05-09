@@ -1,20 +1,31 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.androidLibrary)
 }
 
-kotlin {
-    androidTarget {
-        compilations.all {
-            compileTaskProvider.configure {
-                compilerOptions {
-                    jvmTarget.set(JvmTarget.JVM_1_8)
-                }
-            }
-        }
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
     }
+    dependencies {
+        // ... otras dependencias
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+        // Si usas un repositorio específico de JetBrains, podrías agregar algo como:
+        // maven("https://maven.pkg.jetbrains.space/public/p/kotlin/p/runtime")
+    }
+}
+
+kotlin {
+    androidTarget()
     
     listOf(
         iosX64(),
@@ -37,14 +48,3 @@ kotlin {
     }
 }
 
-android {
-    namespace = "com.smartbe.passioagogo"
-    compileSdk = 35
-    defaultConfig {
-        minSdk = 24
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
-}

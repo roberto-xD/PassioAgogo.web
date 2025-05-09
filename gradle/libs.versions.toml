@@ -1,6 +1,6 @@
 [versions]
 agp = "8.9.2"
-kotlin = "2.0.0"
+kotlin = "2.1.20"
 compose = "1.5.4"
 compose-material3 = "1.1.2"
 androidx-activityCompose = "1.8.0"
@@ -12,18 +12,20 @@ junit = "1.2.1"
 ktor = "3.0.0"
 koin = "3.6.1"
 coroutines = "1.8.0"
-jetbrains-compose = "1.6.10"
+jetbrains-compose = "1.6.20"
+androidx-compose = "1.6.4"
 paypal-core = "1.7.2"
 paypal-api = "1.14.0"
 coil3 = "3.0.0-alpha06"
-compose-plugin = "1.6.20"
+compose-plugin = "2.1.20"
+runtimeAndroid = "1.8.1"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
-compose-ui = { module = "androidx.compose.ui:ui", version.ref = "compose" }
-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = "compose" }
-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "compose" }
+compose-ui = { module = "androidx.compose.ui:ui", version.ref = "androidx-compose" }
+compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = "androidx-compose" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "androidx-compose" }
 compose-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "compose" }
 compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "compose-material3" }
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlinStdlib" }
@@ -48,13 +50,16 @@ paypal-api = { module = "com.paypal.sdk:rest-api-sdk", version.ref = "paypal-api
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-compose = {module="io.insert-koin:koin-compose", version.ref = "koin"}
+androidx-runtime-android = { group = "androidx.compose.runtime", name = "runtime-android", version.ref = "runtimeAndroid" }
+jetbrains-compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "jetbrains-compose" }
+jetbrains-compose-material3 = { module = "org.jetbrains.compose.material3:material3", version = "1.2.1" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-jetbrainsCompose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+jetbrains-compose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
 kotlinCocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
