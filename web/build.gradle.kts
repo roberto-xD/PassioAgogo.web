@@ -8,7 +8,7 @@ kotlin {
     js(IR) {
         browser {
             commonWebpackConfig {
-                outputFileName = "app.js"
+                outputFileName = "agogo.js"
             }
         }
         binaries.executable()
@@ -35,8 +35,8 @@ kotlin {
 //                implementation(libs.androidx.ui.android)
 //
 //                // Dependencias específicas para JS (Compose Multiplatform)
-//                implementation(libs.jetbrains.compose.ui)
-//                implementation(libs.jetbrains.compose.material3)
+                implementation(libs.jetbrains.compose.ui)
+                implementation(libs.jetbrains.compose.material3)
 //
 //                // Coroutines
 //                implementation(libs.kotlinx.coroutines.core)
@@ -50,10 +50,10 @@ kotlin {
 //                implementation(libs.ktor.client.logging)
 //                implementation(libs.ktor.client.encoding)
 //
-//                implementation(libs.coil.compose.core)
-//                implementation(libs.coil.compose)
-//                implementation(libs.coil.mp)
-//                implementation(libs.coil.network.ktor)
+                implementation(libs.coil.compose.core)
+                implementation(libs.coil.compose)
+                implementation(libs.coil.mp)
+                implementation(libs.coil.network.ktor)
 
             }
         }
