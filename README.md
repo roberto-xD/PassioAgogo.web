@@ -7,10 +7,10 @@ página web (`:web`), con módulos adicionales para Android e iOS.
 
 | Módulo        | En el build¹ | Estado                                                        |
 |---------------|:------------:|---------------------------------------------------------------|
-| `web`         | ✅           | **Target de producción.** Landing page en Compose (JS/IR).    |
+| `web`         | ✅           | **Target de producción.** Catálogo en Compose (JS/IR): modelos, red (Ktor), ViewModel y UI con estados. |
 | `androidApp`  | ✅           | App Android (actualmente plantilla, sin funcionalidad real).  |
 | `shared`      | ✅           | Módulo compartido KMP (vacío por ahora).                      |
-| `composeApp`  | ❌           | Implementación WASM del catálogo. **No incluido** en el build y aún incompleto (ver más abajo). |
+| `composeApp`  | ❌           | Implementación WASM previa. **No incluido** en el build; su lógica se portó a `web`. Candidato a eliminarse. |
 
 ¹ Según `settings.gradle.kts`.
 
@@ -33,26 +33,34 @@ página web (`:web`), con módulos adicionales para Android e iOS.
 ```
 
 El punto de entrada es `web/src/commonMain/kotlin/com/smartbe/web/Main.kt`
-(`LandingPage`). El HTML/CSS estáticos están en `web/src/commonMain/resources/`.
+(`App`). El HTML/CSS estáticos están en `web/src/commonMain/resources/`.
 
-## Estado del catálogo (pendiente)
+## Catálogo
 
-La funcionalidad de catálogo (consumo de la API, tarjetas, navegación) vive en el
-módulo `composeApp`, que hoy **no forma parte del build** y está incompleto:
+El módulo `web` implementa el flujo completo del catálogo:
 
-- No está incluido en `settings.gradle.kts`.
-- Su `build.gradle.kts` referencia plugins que no están declarados en el catálogo.
-- `wasmJsMain/App.kt` está vacío mientras `main.kt` invoca `App()`.
+- `models/` — DTOs serializables (`PGCatalog`, `PGCatalogItem`).
+- `network/` — cliente Ktor, `CatalogRepository` y `ApiConfig`.
+- `viewmodel/CatalogViewModel` — expone `CatalogUiState` (carga / error / productos).
+- `ui/CatalogScreen` + `ui/ProductCard` — UI con grid adaptable y estados vacíos.
 
-Para habilitarlo hay que decidir si se recupera como módulo WASM o se porta su lógica
-al módulo `web`, y luego cablear la UI al `HomeViewModel`.
+Mientras `ApiConfig.API_KEY` esté vacía, el repositorio devuelve un catálogo vacío y la
+UI muestra "Catálogo próximamente" en lugar de fallar. Al proveer la clave, la pantalla
+carga los productos reales.
+
+Pendientes conocidos:
+
+- **Imágenes**: `ProductCard` usa un placeholder. Falta integrar carga remota (Coil)
+  una vez validada en el target JS.
+- **`composeApp`**: su lógica ya se portó aquí; puede archivarse/eliminarse.
 
 ## ⚠️ Seguridad
 
-El repositorio contuvo una **API key de AWS API Gateway hardcodeada** en
-`NetworkRepository`. Se removió del código fuente, pero **sigue en el historial de git
-y debe rotarse** antes de exponer nada a producción. Ver
-[`composeApp/.../network/ApiConfig.kt`](composeApp/src/wasmJsMain/kotlin/network/ApiConfig.kt).
+El repositorio contuvo una **API key de AWS API Gateway hardcodeada** en el código de
+red. Se removió del código fuente, pero **sigue en el historial de git y debe rotarse**
+antes de exponer nada a producción. Ver
+[`web/.../network/ApiConfig.kt`](web/src/commonMain/kotlin/network/ApiConfig.kt).
 
-En una app web/WASM cualquier secreto embebido es visible para el cliente; lo correcto
-es exponer el catálogo mediante un endpoint público o un backend/proxy propio.
+En una app web cualquier secreto embebido es visible para el cliente; lo correcto es
+exponer el catálogo mediante un endpoint público o un backend/proxy propio, o inyectar
+la clave en tiempo de build.
