@@ -4,4 +4,17 @@ html, body {
     margin: 0;
     padding: 0;
     overflow: hidden;
+    background: #1a1035;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Mensaje de carga que se muestra hasta que Compose monta la UI sobre <body>. */
+#loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    color: #c9bef0;
+    font-size: 18px;
+    letter-spacing: 1px;
 }
