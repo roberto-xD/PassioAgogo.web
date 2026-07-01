@@ -15,7 +15,7 @@ import network.CatalogRepository
 import ui.pgmodels.PGDataCard
 
 data class CatalogUiState(
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val products: List<PGDataCard> = emptyList(),
 )

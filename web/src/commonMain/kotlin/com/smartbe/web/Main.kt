@@ -16,6 +16,10 @@ import viewmodel.CatalogViewModel
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
+    // ComposeViewport añade su canvas al <body> sin borrar el contenido existente.
+    // Quitamos el placeholder de carga para que no ocupe el viewport (height:100vh)
+    // y empuje el canvas de Compose fuera de la vista.
+    document.getElementById("loading")?.remove()
     ComposeViewport(document.body!!) {
         App()
     }
