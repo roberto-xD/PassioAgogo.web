@@ -4,7 +4,7 @@ kotlin = "2.1.20"
 compose = "1.5.4"
 compose-material3 = "1.1.2"
 androidx-activityCompose = "1.8.0"
-kotlinStdlib = "2.0.0"
+kotlinStdlib = "2.1.20"
 runner = "1.6.2"
 core = "1.6.1"
 junit = "1.2.1"
@@ -12,12 +12,12 @@ junit = "1.2.1"
 ktor = "3.0.0"
 koin = "3.6.1"
 coroutines = "1.8.0"
+serialization = "1.7.3"
 jetbrains-compose = "1.6.20"
 androidx-compose = "1.6.4"
 paypal-core = "1.7.2"
 paypal-api = "1.14.0"
 coil3 = "3.0.0-alpha06"
-compose-plugin = "2.1.20"
 runtimeAndroid = "1.8.1"
 animationCoreAndroid = "1.8.1"
 uiAndroid = "1.8.1"
@@ -46,9 +46,11 @@ compose-html-core = { module = "org.jetbrains.compose.html:html-core", version.r
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-client-serialization = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
 ktor-client-encoding = { module = "io.ktor:ktor-client-encoding", version.ref = "ktor" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3" }
 coil-compose-core = { module = "io.coil-kt.coil3:coil-compose-core", version.ref = "coil3" }
@@ -68,6 +70,7 @@ androidx-animation-core-android = { group = "androidx.compose.animation", name =
 [plugins]
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
 
 
