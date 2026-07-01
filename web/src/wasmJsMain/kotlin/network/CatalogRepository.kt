@@ -9,7 +9,12 @@ import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.flow.Flow
 import models.PGCatalog
 
-class CatalogRepository(private val httpClient: HttpClient) {
+class CatalogRepository(
+    httpClientProvider: () -> HttpClient = ::createHttpClient,
+) {
+    // Se construye solo la primera vez que se necesita (es decir, cuando hay API key
+    // y se hace una llamada real). Con la key vacía el motor de Ktor nunca se instancia.
+    private val httpClient: HttpClient by lazy(httpClientProvider)
 
     fun getCatalog(store: String? = null): Flow<NetworkResult<PGCatalog>> = toResultFlow {
         // Sin API key no tiene sentido llamar al servicio (respondería 403); se

@@ -10,7 +10,6 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
 import kotlinx.browser.document
 import network.CatalogRepository
-import network.createHttpClient
 import ui.CatalogScreen
 import viewmodel.CatalogViewModel
 
@@ -30,7 +29,7 @@ fun App() {
     // Composición manual de dependencias (sin framework de DI) para mantener el
     // módulo simple y estable en el target web.
     val viewModel = remember {
-        CatalogViewModel(CatalogRepository(createHttpClient()))
+        CatalogViewModel(CatalogRepository())
     }
 
     LaunchedEffect(Unit) {

@@ -24,16 +24,22 @@ página web (`:web`), con módulos adicionales para Android e iOS.
 
 ## Build y ejecución (web)
 
+El módulo `web` usa el target **wasmJs** (Compose para Web con Skia/skiko), que es
+el camino soportado y estable para Compose UI en el navegador. Requiere un navegador
+moderno con WebAssembly GC (Chrome/Edge 119+, Firefox 120+, Safari 18+).
+
 ```bash
 # Servidor de desarrollo con recarga
-./gradlew :web:jsBrowserDevelopmentRun
+./gradlew :web:wasmJsBrowserDevelopmentRun
 
-# Artefacto de producción (queda en web/build/dist/js/productionExecutable)
-./gradlew :web:jsBrowserDistribution
+# Artefacto de producción (queda en web/build/dist/wasmJs/productionExecutable)
+./gradlew :web:wasmJsBrowserDistribution
 ```
 
-El punto de entrada es `web/src/commonMain/kotlin/com/smartbe/web/Main.kt`
-(`App`). El HTML/CSS estáticos están en `web/src/commonMain/resources/`.
+> Nota de hosting: sirve los `.wasm` con el MIME `application/wasm`.
+
+El punto de entrada es `web/src/wasmJsMain/kotlin/com/smartbe/web/Main.kt`
+(`App`). El HTML/CSS estáticos están en `web/src/wasmJsMain/resources/`.
 
 ## Catálogo
 
@@ -59,7 +65,7 @@ Pendientes conocidos:
 El repositorio contuvo una **API key de AWS API Gateway hardcodeada** en el código de
 red. Se removió del código fuente, pero **sigue en el historial de git y debe rotarse**
 antes de exponer nada a producción. Ver
-[`web/.../network/ApiConfig.kt`](web/src/commonMain/kotlin/network/ApiConfig.kt).
+[`web/.../network/ApiConfig.kt`](web/src/wasmJsMain/kotlin/network/ApiConfig.kt).
 
 En una app web cualquier secreto embebido es visible para el cliente; lo correcto es
 exponer el catálogo mediante un endpoint público o un backend/proxy propio, o inyectar
