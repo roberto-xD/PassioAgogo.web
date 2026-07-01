@@ -7,10 +7,9 @@ página web (`:web`), con módulos adicionales para Android e iOS.
 
 | Módulo        | En el build¹ | Estado                                                        |
 |---------------|:------------:|---------------------------------------------------------------|
-| `web`         | ✅           | **Target de producción.** Catálogo en Compose (JS/IR): modelos, red (Ktor), ViewModel y UI con estados. |
+| `web`         | ✅           | **Target de producción.** Catálogo en Compose (wasmJs): modelos, red (Ktor), ViewModel y UI con estados. |
 | `androidApp`  | ✅           | App Android (actualmente plantilla, sin funcionalidad real).  |
 | `shared`      | ✅           | Módulo compartido KMP (vacío por ahora).                      |
-| `composeApp`  | ❌           | Implementación WASM previa. **No incluido** en el build; su lógica se portó a `web`. Candidato a eliminarse. |
 
 ¹ Según `settings.gradle.kts`.
 
@@ -56,9 +55,7 @@ carga los productos reales.
 
 Pendientes conocidos:
 
-- **Imágenes**: `ProductCard` usa un placeholder. Falta integrar carga remota (Coil)
-  una vez validada en el target JS.
-- **`composeApp`**: su lógica ya se portó aquí; puede archivarse/eliminarse.
+- **Imágenes**: `ProductCard` usa un placeholder. Falta integrar carga remota (Coil).
 
 ## ⚠️ Seguridad
 
