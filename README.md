@@ -1,17 +1,13 @@
 # Passio Agogo
 
-Proyecto Kotlin Multiplatform (Compose Multiplatform). El objetivo principal es la
-página web (`:web`), con módulos adicionales para Android e iOS.
+Aplicación **web** hecha con Compose Multiplatform (target wasmJs). Es un proyecto
+de un único módulo, `:web`.
 
-## Módulos
+## Módulo
 
-| Módulo        | En el build¹ | Estado                                                        |
-|---------------|:------------:|---------------------------------------------------------------|
-| `web`         | ✅           | **Target de producción.** Catálogo en Compose (wasmJs): modelos, red (Ktor), ViewModel y UI con estados. |
-| `androidApp`  | ✅           | App Android (actualmente plantilla, sin funcionalidad real).  |
-| `shared`      | ✅           | Módulo compartido KMP (vacío por ahora).                      |
-
-¹ Según `settings.gradle.kts`.
+| Módulo | Estado                                                                                   |
+|--------|------------------------------------------------------------------------------------------|
+| `web`  | **Target de producción.** Catálogo en Compose (wasmJs): modelos, red (Ktor), ViewModel y UI con estados e imágenes (Coil). |
 
 ## Requisitos
 
@@ -47,15 +43,12 @@ El módulo `web` implementa el flujo completo del catálogo:
 - `models/` — DTOs serializables (`PGCatalog`, `PGCatalogItem`).
 - `network/` — cliente Ktor, `CatalogRepository` y `ApiConfig`.
 - `viewmodel/CatalogViewModel` — expone `CatalogUiState` (carga / error / productos).
-- `ui/CatalogScreen` + `ui/ProductCard` — UI con grid adaptable y estados vacíos.
+- `ui/CatalogScreen` + `ui/ProductCard` — UI con grid adaptable, estados vacíos e
+  imágenes remotas vía Coil (con placeholder cuando no hay URL).
 
 Mientras `ApiConfig.API_KEY` esté vacía, el repositorio devuelve un catálogo vacío y la
 UI muestra "Catálogo próximamente" en lugar de fallar. Al proveer la clave, la pantalla
 carga los productos reales.
-
-Pendientes conocidos:
-
-- **Imágenes**: `ProductCard` usa un placeholder. Falta integrar carga remota (Coil).
 
 ## ⚠️ Seguridad
 

@@ -16,10 +16,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import ui.pgmodels.PGDataCard
 
 @Composable
@@ -30,8 +33,7 @@ fun ProductCard(product: PGDataCard) {
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
         Column(Modifier.padding(12.dp)) {
-            // Placeholder de imagen. La carga real de imágenes (Coil) se añadirá una
-            // vez validada la integración con el target JS de Compose.
+            // Imagen del producto vía Coil. Si no hay URL, se muestra un placeholder.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -39,11 +41,23 @@ fun ProductCard(product: PGDataCard) {
                     .background(Color(0xFFEDE7FB), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = product.productStore.ifBlank { "Passio Agogo" },
-                    color = Color(0xFF6C5CE7),
-                    fontWeight = FontWeight.SemiBold,
-                )
+                if (product.urlImage.isNotBlank()) {
+                    AsyncImage(
+                        model = product.urlImage,
+                        contentDescription = product.productTittle,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .clip(RoundedCornerShape(10.dp)),
+                    )
+                } else {
+                    Text(
+                        text = product.productStore.ifBlank { "Passio Agogo" },
+                        color = Color(0xFF6C5CE7),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
 
             Text(
