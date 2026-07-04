@@ -27,6 +27,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "PassioAgogo"
-include(":androidApp")
-include(":shared")
 include(":web")

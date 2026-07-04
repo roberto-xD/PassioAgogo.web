@@ -1,37 +1,38 @@
 package models
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ui.pgmodels.PGDataCard
 
-@Serializable
+/** Contenedor simple del catálogo para la UI (se construye desde la lista de Postgrest). */
 data class PGCatalog(
-    val items: List<PGCatalogItem>? = null,
-    val amount: Int? = 0,
-    val next_key: PGNextKey? = null,
+    val items: List<PGCatalogItem> = emptyList(),
 )
 
+/**
+ * Fila de la tabla de productos en Supabase.
+ *
+ * Los nombres deben coincidir con las columnas de tu tabla. Para columnas snake_case que
+ * no calzan con el nombre del campo Kotlin, se usa @SerialName. Ajusta esto a tu esquema
+ * final. Todos los campos tienen valor por defecto para tolerar columnas ausentes.
+ */
 @Serializable
 data class PGCatalogItem(
+    val id: String? = "",
     val category: String? = "",
     val code: String? = "",
-    val description: String? = "",
-    val hasOffer: Boolean? = null,
-    val id: String? = "",
-    val image: String? = "",
-    val isActive: Boolean? = null,
-    val price_discount: Double? = null,
-    val price_discount_label: String? = "",
-    val price_label: String? = "",
-    val price_normal: Double? = null,
-    val price_normal_label: String? = "",
-    val store: String? = "",
     val title: String? = "",
+    val description: String? = "",
+    val store: String? = "",
+    val image: String? = "",
     val url: String? = "",
-)
-
-@Serializable
-data class PGNextKey(
-    val id: String? = ""
+    @SerialName("has_offer") val hasOffer: Boolean? = null,
+    @SerialName("is_active") val isActive: Boolean? = null,
+    @SerialName("price_normal") val priceNormal: Double? = null,
+    @SerialName("price_normal_label") val priceNormalLabel: String? = "",
+    @SerialName("price_discount") val priceDiscount: Double? = null,
+    @SerialName("price_discount_label") val priceDiscountLabel: String? = "",
+    @SerialName("price_label") val priceLabel: String? = "",
 )
 
 fun PGCatalogItem.toPGDataCard(): PGDataCard {
@@ -39,8 +40,8 @@ fun PGCatalogItem.toPGDataCard(): PGDataCard {
         productTittle = title.orEmpty(),
         productDescription = description.orEmpty(),
         productStore = store.orEmpty(),
-        productRealPrice = price_normal_label.orEmpty(),
-        productDiscountPrice = price_discount_label.orEmpty(),
+        productRealPrice = priceNormalLabel.orEmpty(),
+        productDiscountPrice = priceDiscountLabel.orEmpty(),
         productCode = code.orEmpty(),
         hasOffert = hasOffer ?: false,
         urlImage = image.orEmpty(),

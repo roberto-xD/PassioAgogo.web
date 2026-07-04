@@ -29,13 +29,22 @@ kotlin {
                 implementation(compose.material3)
                 implementation(compose.ui)
                 implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.serialization.json)
 
-                // Consumo del catálogo: cliente HTTP Ktor (motor JS/Wasm) + JSON.
+                // Backend remoto: SDK oficial de Supabase (datos, auth, realtime, storage).
+                implementation(project.dependencies.platform(libs.supabase.bom))
+                implementation(libs.supabase.postgrest)
+                implementation(libs.supabase.auth)
+                implementation(libs.supabase.realtime)
+                implementation(libs.supabase.storage)
+
+                // Motor Ktor requerido por Supabase y por Coil en el target JS/Wasm.
                 implementation(libs.ktor.client.core)
                 implementation(libs.ktor.client.js)
-                implementation(libs.ktor.client.content.negotiation)
-                implementation(libs.ktor.client.serialization)
-                implementation(libs.kotlinx.serialization.json)
+
+                // Carga de imágenes remotas (Coil sobre Ktor).
+                implementation(libs.coil.compose)
+                implementation(libs.coil.network.ktor)
             }
         }
     }

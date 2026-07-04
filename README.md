@@ -1,17 +1,13 @@
 # Passio Agogo
 
-Proyecto Kotlin Multiplatform (Compose Multiplatform). El objetivo principal es la
-página web (`:web`), con módulos adicionales para Android e iOS.
+Aplicación **web** hecha con Compose Multiplatform (target wasmJs). Es un proyecto
+de un único módulo, `:web`.
 
-## Módulos
+## Módulo
 
-| Módulo        | En el build¹ | Estado                                                        |
-|---------------|:------------:|---------------------------------------------------------------|
-| `web`         | ✅           | **Target de producción.** Catálogo en Compose (wasmJs): modelos, red (Ktor), ViewModel y UI con estados. |
-| `androidApp`  | ✅           | App Android (actualmente plantilla, sin funcionalidad real).  |
-| `shared`      | ✅           | Módulo compartido KMP (vacío por ahora).                      |
-
-¹ Según `settings.gradle.kts`.
+| Módulo | Estado                                                                                   |
+|--------|------------------------------------------------------------------------------------------|
+| `web`  | **Target de producción.** Catálogo en Compose (wasmJs): modelos, red (Ktor), ViewModel y UI con estados e imágenes (Coil). |
 
 ## Requisitos
 
@@ -44,26 +40,41 @@ El punto de entrada es `web/src/wasmJsMain/kotlin/com/smartbe/web/Main.kt`
 
 El módulo `web` implementa el flujo completo del catálogo:
 
-- `models/` — DTOs serializables (`PGCatalog`, `PGCatalogItem`).
-- `network/` — cliente Ktor, `CatalogRepository` y `ApiConfig`.
+- `models/` — DTOs (`PGCatalog`, `PGCatalogItem` serializable con `@SerialName`).
+- `network/` — `SupabaseConfig`, `SupabaseClientProvider` y `CatalogRepository`.
 - `viewmodel/CatalogViewModel` — expone `CatalogUiState` (carga / error / productos).
-- `ui/CatalogScreen` + `ui/ProductCard` — UI con grid adaptable y estados vacíos.
+- `ui/CatalogScreen` + `ui/ProductCard` — UI con grid adaptable, estados vacíos e
+  imágenes remotas vía Coil (con placeholder cuando no hay URL).
 
-Mientras `ApiConfig.API_KEY` esté vacía, el repositorio devuelve un catálogo vacío y la
-UI muestra "Catálogo próximamente" en lugar de fallar. Al proveer la clave, la pantalla
-carga los productos reales.
+## Backend: Supabase
 
-Pendientes conocidos:
+Se usa el SDK oficial [supabase-kt](https://github.com/supabase-community/supabase-kt).
+El cliente (`SupabaseClientProvider`) instala **Postgrest** (datos), **Storage**
+(imágenes), **Auth** y **Realtime** — estos dos últimos quedan listos para sesiones de
+usuario y suscripciones en tiempo real a futuro.
 
-- **Imágenes**: `ProductCard` usa un placeholder. Falta integrar carga remota (Coil).
+Puesta en marcha:
+
+1. Crea el proyecto en Supabase y pon `URL` y `ANON_KEY` reales en
+   [`network/SupabaseConfig.kt`](web/src/wasmJsMain/kotlin/network/SupabaseConfig.kt)
+   (idealmente inyectados por build, no fijos en el código).
+2. Crea la tabla del catálogo y **activa RLS** con una política de lectura pública:
+   ```sql
+   alter table products enable row level security;
+   create policy "lectura publica" on products for select to anon using (true);
+   ```
+3. Ajusta los nombres de columnas a los `@SerialName` de `PGCatalogItem` (o al revés).
+4. Sube las imágenes a un bucket **público** de Storage y guarda su URL pública en la
+   columna `image` (Coil las carga directamente).
+
+Mientras `SupabaseConfig` tenga los valores placeholder, `isConfigured` es `false`: el
+repositorio devuelve un catálogo vacío (la UI muestra "Catálogo próximamente") y el
+cliente de Supabase **no se instancia**.
 
 ## ⚠️ Seguridad
 
-El repositorio contuvo una **API key de AWS API Gateway hardcodeada** en el código de
-red. Se removió del código fuente, pero **sigue en el historial de git y debe rotarse**
-antes de exponer nada a producción. Ver
-[`web/.../network/ApiConfig.kt`](web/src/wasmJsMain/kotlin/network/ApiConfig.kt).
-
-En una app web cualquier secreto embebido es visible para el cliente; lo correcto es
-exponer el catálogo mediante un endpoint público o un backend/proxy propio, o inyectar
-la clave en tiempo de build.
+- La **`ANON_KEY` de Supabase es pública por diseño** (va en el cliente web); la
+  protección de datos se hace con **RLS** en la base de datos. **Nunca** uses la
+  `service_role` key en el cliente.
+- Nota histórica: el repo contuvo una **API key de AWS hardcodeada** (ya eliminada del
+  código). Sigue en el historial de git, así que **debe rotarse** en AWS.
