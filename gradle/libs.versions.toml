@@ -1,11 +1,14 @@
 [versions]
 kotlin = "2.1.20"
 compose-multiplatform = "1.7.3"
-ktor = "3.2.0"
+# supabase-kt 3.1.4 está construido con Kotlin 2.1.20 (igual que este proyecto) y
+# Ktor 3.1.2. Versiones más nuevas de supabase-kt usan Kotlin 2.2.x, cuyos klibs no
+# puede leer el compilador 2.1.20 (falla con "Symbol for Any not found").
+ktor = "3.1.2"
 coroutines = "1.8.0"
 serialization = "1.7.3"
 coil3 = "3.0.4"
-supabase = "3.6.0"
+supabase = "3.1.4"
 
 [libraries]
 # Engine de Ktor (lo usa Coil para descargar imágenes; supabase-kt trae su propio cliente).
