@@ -46,6 +46,23 @@ El módulo `web` implementa el flujo completo del catálogo:
 - `ui/CatalogScreen` + `ui/ProductCard` — UI con grid adaptable, estados vacíos e
   imágenes remotas vía Coil (con placeholder cuando no hay URL).
 
+## Navegación
+
+Landing multipágina con navegación propia (sin Navigation Compose, para evitar
+dependencias con versiones acopladas a Compose 1.7.3):
+
+- `ui/navigation/Screen` — enum de pantallas (Inicio, Catálogo, Nosotros, Términos,
+  Privacidad, Ayuda) con su ruta.
+- `ui/navigation/rememberScreenState` — estado de la pantalla **sincronizado con el hash
+  de la URL** (`#/inicio`, `#/catalogo`, …): enlaces compartibles y botón atrás/adelante
+  del navegador funcionando.
+- `ui/components/NavBar` (barra superior) y `ui/components/Footer` (enlaces legales).
+- `ui/screens/` — pantallas de contenido; los textos de Términos y Privacidad son
+  **placeholder** y deben reemplazarse por el contenido legal real.
+
+Migrar a `org.jetbrains.androidx.navigation:navigation-compose` más adelante es directo
+si se necesitan rutas anidadas o argumentos complejos.
+
 ## Backend: Supabase
 
 Se usa el SDK oficial [supabase-kt](https://github.com/supabase-community/supabase-kt).
