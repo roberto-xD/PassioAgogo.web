@@ -100,11 +100,11 @@ especificidad variante > producto > categoría (incluyendo subcategorías, como
 `fn_promotion_variants`). Tipos soportados: `porcentaje`, `monto_fijo` y
 `precio_especial`. Con oferta, la tarjeta muestra el precio final y el original tachado.
 
-El catálogo incluye **filtro por categoría**: chips con las categorías raíz que tienen
-productos ("Todas" + una por categoría); seleccionar una incluye sus subcategorías. El
-filtrado es en cliente (los datos ya están cargados), instantáneo y recalcula promos.
-
-Pendiente conocido: búsqueda por texto en el catálogo.
+El catálogo incluye **filtro por categoría** (chips: "Todas" + categorías raíz con
+productos; seleccionar una incluye sus subcategorías) y **búsqueda por texto**
+(insensible a mayúsculas/acentos, sobre nombre, descripción, marca, categoría y SKU;
+combinable con el filtro). Ambos operan en cliente sobre los datos ya cargados —
+instantáneos — y recalculan promociones.
 
 ## ⚠️ Seguridad
 

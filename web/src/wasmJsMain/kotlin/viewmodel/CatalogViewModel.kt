@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import models.CatalogBundle
+import models.ProductDto
 import models.buildCatalogCards
 import models.childrenIndex
 import models.expandCategoryIds
@@ -24,6 +25,7 @@ data class CatalogUiState(
     val products: List<PGDataCard> = emptyList(),
     val categories: List<CategoryOption> = emptyList(),
     val selectedCategoryId: String? = null,
+    val searchQuery: String = "",
 )
 
 class CatalogViewModel(
@@ -33,7 +35,7 @@ class CatalogViewModel(
     private val _uiState = MutableStateFlow(CatalogUiState())
     val uiState: StateFlow<CatalogUiState> = _uiState.asStateFlow()
 
-    // Última carga completa; el filtrado por categoría es en cliente sobre este bundle.
+    // Última carga completa; filtro y búsqueda son en cliente sobre este bundle.
     private var bundle: CatalogBundle = CatalogBundle()
 
     fun loadCatalog() {
@@ -52,9 +54,10 @@ class CatalogViewModel(
                             it.copy(
                                 isLoading = false,
                                 errorMessage = null,
-                                products = cardsFor(categoryId = null),
+                                products = visibleCards(categoryId = null, query = ""),
                                 categories = categoryOptions(),
                                 selectedCategoryId = null,
+                                searchQuery = "",
                             )
                         }
                     }
@@ -66,18 +69,43 @@ class CatalogViewModel(
     /** Filtra por categoría (incluyendo subcategorías); null = todas. */
     fun selectCategory(categoryId: String?) {
         _uiState.update {
-            it.copy(selectedCategoryId = categoryId, products = cardsFor(categoryId))
+            it.copy(
+                selectedCategoryId = categoryId,
+                products = visibleCards(categoryId, it.searchQuery),
+            )
         }
     }
 
-    private fun cardsFor(categoryId: String?): List<PGDataCard> {
-        if (categoryId == null) return buildCatalogCards(bundle)
-        val ids = expandCategoryIds(categoryId, childrenIndex(bundle.categoryRefs))
-        val filtered = bundle.products.filter { product ->
-            val cid = product.categoryId
-            cid != null && cid in ids
+    /** Búsqueda por texto sobre nombre, descripción, marca, categoría y SKU. */
+    fun setSearchQuery(query: String) {
+        _uiState.update {
+            it.copy(
+                searchQuery = query,
+                products = visibleCards(it.selectedCategoryId, query),
+            )
         }
-        return buildCatalogCards(bundle.copy(products = filtered))
+    }
+
+    private fun visibleCards(categoryId: String?, query: String): List<PGDataCard> {
+        var products = bundle.products
+
+        if (categoryId != null) {
+            val ids = expandCategoryIds(categoryId, childrenIndex(bundle.categoryRefs))
+            products = products.filter { product ->
+                val cid = product.categoryId
+                cid != null && cid in ids
+            }
+        }
+
+        val terms = normalize(query).split(' ').filter { it.isNotBlank() }
+        if (terms.isNotEmpty()) {
+            products = products.filter { product ->
+                val haystack = normalize(product.searchableText())
+                terms.all { it in haystack }
+            }
+        }
+
+        return buildCatalogCards(bundle.copy(products = products))
     }
 
     /** Chips: categorías raíz cuyo subárbol tiene al menos un producto. */
@@ -91,3 +119,17 @@ class CatalogViewModel(
             .sortedBy { it.nombre }
     }
 }
+
+private fun ProductDto.searchableText(): String = listOfNotNull(
+    nombre,
+    descripcion,
+    marca,
+    categoria?.nombre,
+    variantes.mapNotNull { it.sku }.joinToString(" ").ifBlank { null },
+).joinToString(" ")
+
+/** Minúsculas y sin acentos, para búsqueda tolerante ("categoria" == "categoría"). */
+private fun normalize(text: String): String = text.lowercase()
+    .replace('á', 'a').replace('é', 'e').replace('í', 'i')
+    .replace('ó', 'o').replace('ú', 'u').replace('ü', 'u')
+    .replace('ñ', 'n')

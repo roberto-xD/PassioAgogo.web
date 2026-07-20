@@ -85,6 +85,7 @@ fun App() {
                     Screen.Catalog -> CatalogScreen(
                         state = catalogState,
                         onSelectCategory = catalogViewModel::selectCategory,
+                        onSearchChange = catalogViewModel::setSearchQuery,
                     )
                     Screen.About -> AboutScreen()
                     Screen.Terms -> TermsScreen()

@@ -18,6 +18,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,8 +33,15 @@ import viewmodel.CatalogUiState
 import viewmodel.CategoryOption
 
 @Composable
-fun CatalogScreen(state: CatalogUiState, onSelectCategory: (String?) -> Unit) {
+fun CatalogScreen(
+    state: CatalogUiState,
+    onSelectCategory: (String?) -> Unit,
+    onSearchChange: (String) -> Unit,
+) {
     Column(modifier = Modifier.fillMaxSize()) {
+        if (!state.isLoading && state.errorMessage == null) {
+            SearchField(query = state.searchQuery, onQueryChange = onSearchChange)
+        }
         if (state.categories.isNotEmpty()) {
             CategoryChips(
                 categories = state.categories,
@@ -50,6 +59,10 @@ fun CatalogScreen(state: CatalogUiState, onSelectCategory: (String?) -> Unit) {
                     title = "No se pudo cargar el catálogo",
                     detail = state.errorMessage,
                 )
+                state.products.isEmpty() && state.searchQuery.isNotBlank() -> Message(
+                    title = "Sin resultados para \"${state.searchQuery}\"",
+                    detail = "Prueba con otras palabras o quita el filtro.",
+                )
                 state.products.isEmpty() && state.selectedCategoryId != null -> Message(
                     title = "Sin productos en esta categoría",
                     detail = "Prueba con otra categoría.",
@@ -62,6 +75,39 @@ fun CatalogScreen(state: CatalogUiState, onSelectCategory: (String?) -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        singleLine = true,
+        placeholder = { Text("Buscar productos…", color = Color(0xFF8F84B8)) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                Text(
+                    text = "✕",
+                    color = Color(0xFFC9BEF0),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onQueryChange("") }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
+        },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            cursorColor = Color(0xFF9C7BFF),
+            focusedBorderColor = Color(0xFF6C5CE7),
+            unfocusedBorderColor = Color(0x66FFFFFF),
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    )
 }
 
 @Composable
