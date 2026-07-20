@@ -61,9 +61,9 @@ class CatalogRepository(
             }
             .decodeList<PromotionDto>()
 
-        // Jerarquía de categorías (id, parent_id) para expandir promos por categoría.
+        // Categorías: jerarquía para expandir promos y nombres para el filtro de la UI.
         val categoryRefs = supabase.from(SupabaseConfig.CATEGORIES_TABLE)
-            .select(columns = Columns.raw("id, parent_id"))
+            .select(columns = Columns.raw("id, nombre, parent_id"))
             .decodeList<CategoryRefDto>()
 
         NetworkResult.Success(CatalogBundle(products, promotions, categoryRefs))

@@ -82,7 +82,10 @@ fun App() {
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 when (current) {
                     Screen.Home -> HomeScreen(onExploreCatalog = { navigate(Screen.Catalog) })
-                    Screen.Catalog -> CatalogScreen(catalogState)
+                    Screen.Catalog -> CatalogScreen(
+                        state = catalogState,
+                        onSelectCategory = catalogViewModel::selectCategory,
+                    )
                     Screen.About -> AboutScreen()
                     Screen.Terms -> TermsScreen()
                     Screen.Privacy -> PrivacyScreen()

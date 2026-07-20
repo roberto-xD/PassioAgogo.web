@@ -13,19 +13,25 @@ import kotlin.math.roundToLong
  * por especificidad: variante > producto > categoría (con subcategorías, replicando la
  * jerarquía recursiva de fn_promotion_variants).
  */
-fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
-    val childrenByParent: Map<String, List<String>> = bundle.categoryRefs
-        .mapNotNull { ref -> ref.parentId?.let { parent -> ref.id?.let { parent to it } } }
+/** Índice hijo-por-padre de la jerarquía de categorías. */
+fun childrenIndex(refs: List<CategoryRefDto>): Map<String, List<String>> =
+    refs.mapNotNull { ref -> ref.parentId?.let { parent -> ref.id?.let { parent to it } } }
         .groupBy({ it.first }, { it.second })
 
-    fun expandCategory(rootId: String): Set<String> {
-        val seen = mutableSetOf<String>()
-        fun visit(id: String) {
-            if (seen.add(id)) childrenByParent[id]?.forEach(::visit)
-        }
-        visit(rootId)
-        return seen
+/** Una categoría y todas sus subcategorías (recursivo, como fn_promotion_variants). */
+fun expandCategoryIds(rootId: String, childrenByParent: Map<String, List<String>>): Set<String> {
+    val seen = mutableSetOf<String>()
+    fun visit(id: String) {
+        if (seen.add(id)) childrenByParent[id]?.forEach(::visit)
     }
+    visit(rootId)
+    return seen
+}
+
+fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
+    val childrenByParent = childrenIndex(bundle.categoryRefs)
+
+    fun expandCategory(rootId: String): Set<String> = expandCategoryIds(rootId, childrenByParent)
 
     data class PromoScope(
         val promo: PromotionDto,

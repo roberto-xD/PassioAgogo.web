@@ -35,10 +35,11 @@ data class VariantDto(
     val activo: Boolean? = null,
 )
 
-/** Fila mínima de categories para reconstruir la jerarquía (promos por categoría). */
+/** Fila mínima de categories: jerarquía (promos/filtro) + nombre para los chips. */
 @Serializable
 data class CategoryRefDto(
     val id: String? = null,
+    val nombre: String? = null,
     @SerialName("parent_id") val parentId: String? = null,
 )
 
