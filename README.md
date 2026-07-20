@@ -94,8 +94,13 @@ Mientras `SupabaseConfig` tenga los valores placeholder, `isConfigured` es `fals
 repositorio devuelve un catálogo vacío (la UI muestra "Catálogo próximamente") y el
 cliente de Supabase **no se instancia**.
 
-Pendiente conocido: las **promociones** (scripts 05/10) aún no se reflejan en el precio
-mostrado; se integrarán en una iteración posterior.
+Las **promociones** vigentes (script 05) se aplican al precio mostrado: el cliente
+consulta promos activas dentro de su vigencia con sus targets y resuelve por
+especificidad variante > producto > categoría (incluyendo subcategorías, como
+`fn_promotion_variants`). Tipos soportados: `porcentaje`, `monto_fijo` y
+`precio_especial`. Con oferta, la tarjeta muestra el precio final y el original tachado.
+
+Pendiente conocido: filtro por categoría/búsqueda en el catálogo.
 
 ## ⚠️ Seguridad
 

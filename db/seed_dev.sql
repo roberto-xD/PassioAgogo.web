@@ -47,9 +47,33 @@ on conflict (sku) do nothing;
 commit;
 
 -- ============================================================
+-- (Opcional) Promoción de prueba: 20% a toda la categoría Demo,
+-- vigente 30 días. Descomentar para probar precios con oferta.
+-- ⚠ Requiere al menos un perfil (usuario registrado en Auth):
+--   la FK promotions.created_by referencia profiles(id).
+-- ============================================================
+-- begin;
+-- insert into promotions (id, nombre, tipo, valor, fecha_inicio, fecha_fin, created_by)
+-- values ('c0000000-0000-4000-8000-000000000001', 'Promo demo 20%', 'porcentaje', 20,
+--         now() - interval '1 hour', now() + interval '30 days',
+--         (select id from profiles limit 1))
+-- on conflict (id) do nothing;
+--
+-- insert into promotion_targets (promotion_id, category_id)
+-- select 'c0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001'
+-- where not exists (
+--   select 1 from promotion_targets
+--   where promotion_id = 'c0000000-0000-4000-8000-000000000001'
+--     and category_id  = 'a0000000-0000-4000-8000-000000000001'
+-- );
+-- commit;
+
+-- ============================================================
 -- LIMPIEZA (descomentar y correr cuando ya no se necesiten):
 -- ============================================================
 -- begin;
+-- delete from promotion_targets where promotion_id = 'c0000000-0000-4000-8000-000000000001';
+-- delete from promotions where id = 'c0000000-0000-4000-8000-000000000001';
 -- delete from product_variants where sku like 'DEMO-%';
 -- delete from products  where id::text like 'b0000000-%';
 -- delete from categories where id = 'a0000000-0000-4000-8000-000000000001';

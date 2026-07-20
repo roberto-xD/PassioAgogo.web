@@ -8,8 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import models.ProductDto
-import models.toPGDataCard
+import models.buildCatalogCards
 import network.ApiStatus
 import network.CatalogRepository
 import ui.pgmodels.PGDataCard
@@ -42,7 +41,7 @@ class CatalogViewModel(
                             isLoading = false,
                             errorMessage = null,
                             products = result.data
-                                ?.map(ProductDto::toPGDataCard)
+                                ?.let(::buildCatalogCards)
                                 .orEmpty(),
                         )
                     }

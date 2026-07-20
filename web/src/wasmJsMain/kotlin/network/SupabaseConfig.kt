@@ -18,8 +18,10 @@ object SupabaseConfig {
     const val URL: String = "https://YOUR-PROJECT-REF.supabase.co"
     const val ANON_KEY: String = "YOUR-SUPABASE-ANON-KEY"
 
-    /** Tabla del catálogo (01_catalog.sql). */
+    /** Tablas del catálogo (01_catalog.sql / 05_promotions.sql). */
     const val PRODUCTS_TABLE: String = "products"
+    const val CATEGORIES_TABLE: String = "categories"
+    const val PROMOTIONS_TABLE: String = "promotions"
 
     /** Bucket de Storage con las imágenes de producto. */
     const val IMAGES_BUCKET: String = "inventory"
