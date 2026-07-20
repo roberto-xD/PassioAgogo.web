@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import models.PGCatalogItem
+import models.ProductDto
 import models.toPGDataCard
 import network.ApiStatus
 import network.CatalogRepository
@@ -27,9 +27,9 @@ class CatalogViewModel(
     private val _uiState = MutableStateFlow(CatalogUiState())
     val uiState: StateFlow<CatalogUiState> = _uiState.asStateFlow()
 
-    fun loadCatalog(store: String? = null) {
+    fun loadCatalog() {
         scope.launch {
-            repository.getCatalog(store).collect { result ->
+            repository.getCatalog().collect { result ->
                 when (result.status) {
                     ApiStatus.LOADING -> _uiState.update {
                         it.copy(isLoading = true, errorMessage = null)
@@ -41,8 +41,8 @@ class CatalogViewModel(
                         it.copy(
                             isLoading = false,
                             errorMessage = null,
-                            products = result.data?.items
-                                ?.map(PGCatalogItem::toPGDataCard)
+                            products = result.data
+                                ?.map(ProductDto::toPGDataCard)
                                 .orEmpty(),
                         )
                     }

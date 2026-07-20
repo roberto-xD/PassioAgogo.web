@@ -2,9 +2,10 @@ package network
 
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.flow.Flow
-import models.PGCatalog
-import models.PGCatalogItem
+import models.ProductDto
 
 class CatalogRepository(
     supabaseProvider: () -> SupabaseClient = ::createSupabase,
@@ -13,20 +14,31 @@ class CatalogRepository(
     // placeholders el cliente de Supabase nunca se instancia.
     private val supabase: SupabaseClient by lazy(supabaseProvider)
 
-    fun getCatalog(store: String? = null): Flow<NetworkResult<PGCatalog>> = toResultFlow {
+    /**
+     * Productos activos con su categoría y variantes (embedding de PostgREST).
+     *
+     * Se piden columnas explícitas — nunca `*` — para no exponer campos sensibles
+     * como `product_variants.costo` en el tráfico del cliente. El RLS (10_rls.sql)
+     * ya limita a `anon` a registros activos.
+     */
+    fun getCatalog(): Flow<NetworkResult<List<ProductDto>>> = toResultFlow {
         if (!SupabaseConfig.isConfigured) {
-            return@toResultFlow NetworkResult.Success(PGCatalog(items = emptyList()))
+            return@toResultFlow NetworkResult.Success(emptyList())
         }
 
-        val items = supabase.from(SupabaseConfig.PRODUCTS_TABLE)
-            .select {
-                filter {
-                    eq("is_active", true)
-                    if (store != null) eq("store", store)
-                }
+        val products = supabase.from(SupabaseConfig.PRODUCTS_TABLE)
+            .select(
+                columns = Columns.raw(
+                    "id, nombre, descripcion, marca, imagenes, " +
+                        "categories(nombre), " +
+                        "product_variants(id, sku, precio_venta, activo)"
+                )
+            ) {
+                filter { eq("activo", true) }
+                order("nombre", Order.ASCENDING)
             }
-            .decodeList<PGCatalogItem>()
+            .decodeList<ProductDto>()
 
-        NetworkResult.Success(PGCatalog(items = items))
+        NetworkResult.Success(products)
     }
 }
