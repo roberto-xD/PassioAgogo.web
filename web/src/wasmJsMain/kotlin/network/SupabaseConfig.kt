@@ -22,7 +22,7 @@ object SupabaseConfig {
     const val PRODUCTS_TABLE: String = "products"
 
     /** Bucket de Storage con las imágenes de producto. */
-    const val IMAGES_BUCKET: String = "product-images"
+    const val IMAGES_BUCKET: String = "inventory"
 
     val isConfigured: Boolean
         get() = !URL.contains("YOUR-PROJECT-REF") && !ANON_KEY.startsWith("YOUR-")

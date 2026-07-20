@@ -85,9 +85,10 @@ Puesta en marcha:
 1. Pon `URL` y `ANON_KEY` reales en
    [`network/SupabaseConfig.kt`](web/src/wasmJsMain/kotlin/network/SupabaseConfig.kt)
    (idealmente inyectados por build, no fijos en el código).
-2. Sube las imágenes de producto al bucket **público** `product-images` de Storage.
+2. Sube las imágenes de producto al bucket **público** `inventory` de Storage.
    `products.imagenes` acepta URLs absolutas o paths relativos al bucket
-   (`SupabaseConfig.publicImageUrl` resuelve ambos).
+   (`SupabaseConfig.publicImageUrl` resuelve ambos). Datos de prueba:
+   [`db/seed_dev.sql`](db/seed_dev.sql).
 
 Mientras `SupabaseConfig` tenga los valores placeholder, `isConfigured` es `false`: el
 repositorio devuelve un catálogo vacío (la UI muestra "Catálogo próximamente") y el
