@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -87,21 +88,38 @@ fun ProductCard(product: PGDataCard) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = product.productRealPrice.ifBlank { "—" },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2D2350),
-                )
                 if (product.hasOffert && product.productDiscountPrice.isNotBlank()) {
+                    // Con oferta: precio final grande + original tachado al lado.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = product.productDiscountPrice,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE84393),
+                        )
+                        Text(
+                            text = product.productRealPrice,
+                            style = MaterialTheme.typography.bodySmall,
+                            textDecoration = TextDecoration.LineThrough,
+                            color = Color(0xFF999999),
+                            modifier = Modifier.padding(start = 6.dp),
+                        )
+                    }
                     Text(
-                        text = product.productDiscountPrice,
-                        style = MaterialTheme.typography.labelMedium,
+                        text = "OFERTA",
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         modifier = Modifier
                             .background(Color(0xFFE84393), RoundedCornerShape(8.dp))
                             .padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                } else {
+                    Text(
+                        text = product.productRealPrice.ifBlank { "—" },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2D2350),
                     )
                 }
             }

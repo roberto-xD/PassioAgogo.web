@@ -46,6 +46,23 @@ El módulo `web` implementa el flujo completo del catálogo:
 - `ui/CatalogScreen` + `ui/ProductCard` — UI con grid adaptable, estados vacíos e
   imágenes remotas vía Coil (con placeholder cuando no hay URL).
 
+## Navegación
+
+Landing multipágina con navegación propia (sin Navigation Compose, para evitar
+dependencias con versiones acopladas a Compose 1.7.3):
+
+- `ui/navigation/Screen` — enum de pantallas (Inicio, Catálogo, Nosotros, Términos,
+  Privacidad, Ayuda) con su ruta.
+- `ui/navigation/rememberScreenState` — estado de la pantalla **sincronizado con el hash
+  de la URL** (`#/inicio`, `#/catalogo`, …): enlaces compartibles y botón atrás/adelante
+  del navegador funcionando.
+- `ui/components/NavBar` (barra superior) y `ui/components/Footer` (enlaces legales).
+- `ui/screens/` — pantallas de contenido; los textos de Términos y Privacidad son
+  **placeholder** y deben reemplazarse por el contenido legal real.
+
+Migrar a `org.jetbrains.androidx.navigation:navigation-compose` más adelante es directo
+si se necesitan rutas anidadas o argumentos complejos.
+
 ## Backend: Supabase
 
 Se usa el SDK oficial [supabase-kt](https://github.com/supabase-community/supabase-kt).
@@ -53,28 +70,57 @@ El cliente (`SupabaseClientProvider`) instala **Postgrest** (datos), **Storage**
 (imágenes), **Auth** y **Realtime** — estos dos últimos quedan listos para sesiones de
 usuario y suscripciones en tiempo real a futuro.
 
+La base de datos está definida por los scripts SQL `00`–`11` (catálogo, inventario,
+ventas, compras, RLS y vistas), ya ejecutados en el proyecto Supabase. El catálogo
+consulta `products` con embedding de PostgREST (`categories(...)` +
+`product_variants(...)`); los DTOs viven en `models/PGCatalog.kt` y usan los nombres
+reales de columnas (`nombre`, `precio_venta`, `imagenes`, …).
+
+El RLS (script 10) permite al rol `anon` leer catálogo y promociones **sin login y solo
+registros activos**, por lo que la web pública no necesita autenticación para mostrar
+productos.
+
 Puesta en marcha:
 
-1. Crea el proyecto en Supabase y pon `URL` y `ANON_KEY` reales en
+1. Pon `URL` y `ANON_KEY` reales en
    [`network/SupabaseConfig.kt`](web/src/wasmJsMain/kotlin/network/SupabaseConfig.kt)
    (idealmente inyectados por build, no fijos en el código).
-2. Crea la tabla del catálogo y **activa RLS** con una política de lectura pública:
-   ```sql
-   alter table products enable row level security;
-   create policy "lectura publica" on products for select to anon using (true);
-   ```
-3. Ajusta los nombres de columnas a los `@SerialName` de `PGCatalogItem` (o al revés).
-4. Sube las imágenes a un bucket **público** de Storage y guarda su URL pública en la
-   columna `image` (Coil las carga directamente).
+2. Sube las imágenes de producto al bucket **público** `inventory` de Storage.
+   `products.imagenes` acepta URLs absolutas o paths relativos al bucket
+   (`SupabaseConfig.publicImageUrl` resuelve ambos). Datos de prueba:
+   [`db/seed_dev.sql`](db/seed_dev.sql).
 
 Mientras `SupabaseConfig` tenga los valores placeholder, `isConfigured` es `false`: el
 repositorio devuelve un catálogo vacío (la UI muestra "Catálogo próximamente") y el
 cliente de Supabase **no se instancia**.
+
+Las **promociones** vigentes (script 05) se aplican al precio mostrado: el cliente
+consulta promos activas dentro de su vigencia con sus targets y resuelve por
+especificidad variante > producto > categoría (incluyendo subcategorías, como
+`fn_promotion_variants`). Tipos soportados: `porcentaje`, `monto_fijo` y
+`precio_especial`. Con oferta, la tarjeta muestra el precio final y el original tachado.
+
+El catálogo incluye **filtro por categoría** (chips: "Todas" + categorías raíz con
+productos; seleccionar una incluye sus subcategorías) y **búsqueda por texto**
+(insensible a mayúsculas/acentos, sobre nombre, descripción, marca, categoría y SKU;
+combinable con el filtro). Ambos operan en cliente sobre los datos ya cargados —
+instantáneos — y recalculan promociones.
 
 ## ⚠️ Seguridad
 
 - La **`ANON_KEY` de Supabase es pública por diseño** (va en el cliente web); la
   protección de datos se hace con **RLS** en la base de datos. **Nunca** uses la
   `service_role` key en el cliente.
+- **`product_variants.costo` es legible por `anon`**: RLS filtra filas, no columnas, y
+  la política pública de variantes expone también el costo de compra (margen). La app
+  pide columnas explícitas y nunca lo solicita, pero cualquier cliente HTTP podría.
+  Recomendado ejecutar en Supabase:
+  ```sql
+  revoke select on product_variants from anon;
+  grant select (id, product_id, sku, attributes, precio_venta, activo, created_at, updated_at)
+    on product_variants to anon;
+  ```
+  (Tras esto, consultas `select=*` de `anon` sobre variantes fallarán; la app ya usa
+  columnas explícitas.)
 - Nota histórica: el repo contuvo una **API key de AWS hardcodeada** (ya eliminada del
   código). Sigue en el historial de git, así que **debe rotarse** en AWS.

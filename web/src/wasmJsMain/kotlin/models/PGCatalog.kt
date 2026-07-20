@@ -2,48 +2,65 @@ package models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import ui.pgmodels.PGDataCard
-
-/** Contenedor simple del catálogo para la UI (se construye desde la lista de Postgrest). */
-data class PGCatalog(
-    val items: List<PGCatalogItem> = emptyList(),
-)
 
 /**
- * Fila de la tabla de productos en Supabase.
+ * DTOs alineados al esquema real de Supabase (01_catalog.sql / 05_promotions.sql).
  *
- * Los nombres deben coincidir con las columnas de tu tabla. Para columnas snake_case que
- * no calzan con el nombre del campo Kotlin, se usa @SerialName. Ajusta esto a tu esquema
- * final. Todos los campos tienen valor por defecto para tolerar columnas ausentes.
+ * Las consultas usan embedding de PostgREST: `categories(...)` llega como objeto
+ * (FK many-to-one) y `product_variants(...)` / `promotion_targets(...)` como arreglo
+ * (one-to-many). Todos los campos tienen default para tolerar columnas ausentes.
  */
 @Serializable
-data class PGCatalogItem(
-    val id: String? = "",
-    val category: String? = "",
-    val code: String? = "",
-    val title: String? = "",
-    val description: String? = "",
-    val store: String? = "",
-    val image: String? = "",
-    val url: String? = "",
-    @SerialName("has_offer") val hasOffer: Boolean? = null,
-    @SerialName("is_active") val isActive: Boolean? = null,
-    @SerialName("price_normal") val priceNormal: Double? = null,
-    @SerialName("price_normal_label") val priceNormalLabel: String? = "",
-    @SerialName("price_discount") val priceDiscount: Double? = null,
-    @SerialName("price_discount_label") val priceDiscountLabel: String? = "",
-    @SerialName("price_label") val priceLabel: String? = "",
+data class ProductDto(
+    val id: String? = null,
+    val nombre: String? = null,
+    val descripcion: String? = null,
+    val marca: String? = null,
+    val imagenes: List<String> = emptyList(),
+    @SerialName("category_id") val categoryId: String? = null,
+    @SerialName("categories") val categoria: CategoryDto? = null,
+    @SerialName("product_variants") val variantes: List<VariantDto> = emptyList(),
 )
 
-fun PGCatalogItem.toPGDataCard(): PGDataCard {
-    return PGDataCard(
-        productTittle = title.orEmpty(),
-        productDescription = description.orEmpty(),
-        productStore = store.orEmpty(),
-        productRealPrice = priceNormalLabel.orEmpty(),
-        productDiscountPrice = priceDiscountLabel.orEmpty(),
-        productCode = code.orEmpty(),
-        hasOffert = hasOffer ?: false,
-        urlImage = image.orEmpty(),
-    )
-}
+@Serializable
+data class CategoryDto(
+    val nombre: String? = null,
+)
+
+@Serializable
+data class VariantDto(
+    val id: String? = null,
+    val sku: String? = null,
+    @SerialName("precio_venta") val precioVenta: Double? = null,
+    val activo: Boolean? = null,
+)
+
+/** Fila mínima de categories: jerarquía (promos/filtro) + nombre para los chips. */
+@Serializable
+data class CategoryRefDto(
+    val id: String? = null,
+    val nombre: String? = null,
+    @SerialName("parent_id") val parentId: String? = null,
+)
+
+@Serializable
+data class PromotionDto(
+    val id: String? = null,
+    val tipo: String? = null, // porcentaje | monto_fijo | precio_especial
+    val valor: Double? = null,
+    @SerialName("promotion_targets") val targets: List<PromotionTargetDto> = emptyList(),
+)
+
+@Serializable
+data class PromotionTargetDto(
+    @SerialName("category_id") val categoryId: String? = null,
+    @SerialName("product_id") val productId: String? = null,
+    @SerialName("variant_id") val variantId: String? = null,
+)
+
+/** Resultado completo de una carga de catálogo. */
+data class CatalogBundle(
+    val products: List<ProductDto> = emptyList(),
+    val promotions: List<PromotionDto> = emptyList(),
+    val categoryRefs: List<CategoryRefDto> = emptyList(),
+)
