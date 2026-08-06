@@ -106,6 +106,46 @@ productos; seleccionar una incluye sus subcategorías) y **búsqueda por texto**
 combinable con el filtro). Ambos operan en cliente sobre los datos ya cargados —
 instantáneos — y recalculan promociones.
 
+## Contacto (formulario + anti-bots)
+
+La pantalla **Contacto** (`#/contacto`) envía el mensaje a la Edge Function
+[`supabase/functions/contact`](supabase/functions/contact/index.ts), que **valida, verifica
+el captcha y limita envíos** antes de escribir con `service_role`. La tabla
+[`contact_messages`](db/12_contact_messages.sql) **no tiene política de INSERT**: la
+función es el único camino de entrada, así que nadie puede saltarse la verificación con
+la anon key. El staff lee los mensajes y los marca como atendidos.
+
+Anti-bots: **Cloudflare Turnstile en modo invisible** (gratis y sin tope de
+verificaciones). Como la app se dibuja en un `<canvas>`, el widget no puede vivir dentro
+de Compose: se monta en el DOM (`#turnstile-host`) mediante el helper `window.paTurnstile`
+de [`index.html`](web/src/wasmJsMain/resources/index.html), y
+[`network/Turnstile.kt`](web/src/wasmJsMain/kotlin/network/Turnstile.kt) dispara el reto y
+espera el token. Normalmente el usuario no ve nada; si Cloudflare pide interacción, el
+widget aparece centrado sobre el canvas.
+
+> No se usa *honeypot*: es una técnica contra bots que rellenan formularios del DOM, y
+> aquí no existe tal formulario (todo se dibuja en el canvas). La defensa efectiva es la
+> del servidor: token de Turnstile + límite por origen.
+
+Puesta en marcha:
+
+1. Ejecuta [`db/12_contact_messages.sql`](db/12_contact_messages.sql) en el SQL Editor.
+2. En [Cloudflare → Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile) crea un
+   widget (modo **Invisible**) con el dominio del sitio. Pon la **site key** en
+   `TurnstileConfig.SITE_KEY` y guarda la **secret key** para el paso 4.
+3. Despliega la función: `supabase functions deploy contact` (o pega el archivo en
+   Supabase → Edge Functions → *New function*).
+4. Configura los secrets de la función: `TURNSTILE_SECRET`, `CONTACT_IP_SALT` (cadena
+   aleatoria), `CONTACT_ALLOWED_ORIGINS` (tu dominio) y opcionalmente
+   `CONTACT_MAX_PER_HOUR` (default 5).
+
+Sin `SITE_KEY` configurada el formulario envía sin token, y sin `TURNSTILE_SECRET` la
+función omite la verificación: así funciona en local sin cuenta de Cloudflare. **Ambos
+deben estar configurados en producción.**
+
+El IP no se guarda: se almacena su **hash con sal** (`ip_hash`) solo para poder limitar
+los envíos por origen.
+
 ## ⚠️ Seguridad
 
 - La **`ANON_KEY` de Supabase es pública por diseño** (va en el cliente web); la

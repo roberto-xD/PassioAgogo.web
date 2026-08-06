@@ -22,17 +22,20 @@ import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import kotlinx.browser.document
 import network.CatalogRepository
+import network.ContactRepository
 import ui.CatalogScreen
 import ui.components.Footer
 import ui.components.NavBar
 import ui.navigation.Screen
 import ui.navigation.rememberScreenState
 import ui.screens.AboutScreen
+import ui.screens.ContactScreen
 import ui.screens.HelpScreen
 import ui.screens.HomeScreen
 import ui.screens.PrivacyScreen
 import ui.screens.TermsScreen
 import viewmodel.CatalogViewModel
+import viewmodel.ContactViewModel
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
@@ -67,6 +70,9 @@ fun App() {
     LaunchedEffect(Unit) { catalogViewModel.loadCatalog() }
     val catalogState by catalogViewModel.uiState.collectAsState()
 
+    val contactViewModel = remember { ContactViewModel(ContactRepository()) }
+    val contactState by contactViewModel.uiState.collectAsState()
+
     MaterialTheme {
         Column(
             modifier = Modifier
@@ -88,6 +94,14 @@ fun App() {
                         onSearchChange = catalogViewModel::setSearchQuery,
                     )
                     Screen.About -> AboutScreen()
+                    Screen.Contact -> ContactScreen(
+                        state = contactState,
+                        onNombreChange = contactViewModel::updateNombre,
+                        onEmailChange = contactViewModel::updateEmail,
+                        onMensajeChange = contactViewModel::updateMensaje,
+                        onSubmit = contactViewModel::submit,
+                        onReset = contactViewModel::reset,
+                    )
                     Screen.Terms -> TermsScreen()
                     Screen.Privacy -> PrivacyScreen()
                     Screen.Help -> HelpScreen()
