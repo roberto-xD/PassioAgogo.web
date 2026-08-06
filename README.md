@@ -135,6 +135,45 @@ productos; seleccionar una incluye sus subcategorías) y **búsqueda por texto**
 combinable con el filtro). Ambos operan en cliente sobre los datos ya cargados —
 instantáneos — y recalculan promociones.
 
+## Video (widget reutilizable)
+
+Compose para web dibuja todo en un `<canvas>`, así que un `<video>` no puede vivir dentro
+del árbol de composición. La solución es superponerlo:
+
+- [`ui/components/HtmlElementView`](web/src/wasmJsMain/kotlin/ui/components/HtmlElementView.kt)
+  — puente genérico Compose↔DOM: crea el elemento, lo posiciona sobre el canvas copiando
+  el rectángulo que Compose midió (convirtiendo píxeles físicos a CSS) y lo elimina al
+  salir. Sirve para cualquier elemento HTML: video, iframe, mapa…
+- [`ui/components/VideoPlayer`](web/src/wasmJsMain/kotlin/ui/components/VideoPlayer.kt) —
+  el widget: recibe la URL y los parámetros (`autoPlay`, `muted`, `loop`, `controls`,
+  `posterUrl`) y toma el tamaño del `Modifier`. Al ser un `<video>` nativo, trae gratis
+  los controles, el streaming por rangos y la pantalla completa.
+
+Colócalo donde quieras:
+
+```kotlin
+VideoPlayer(
+    url = MediaConfig.presentacionUrl,
+    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+)
+```
+
+Hoy se usa en la sección **Video** (`#/video`); reutilizarlo en el hero de Inicio o en una
+ficha de producto es solo colocar el composable.
+
+Como el elemento vive fuera del canvas, los contenedores de Compose no lo recortan: la app
+publica el área de contenido en `LocalHtmlOverlayClip` y el puente recorta contra ella, de
+modo que al hacer scroll el video no se dibuja sobre la barra ni el pie.
+
+Puesta en marcha: sube el archivo al bucket `inventory` de Storage y ajusta la ruta en
+[`network/MediaConfig.kt`](web/src/wasmJsMain/kotlin/network/MediaConfig.kt)
+(`video/presentacion.mp4` por defecto; también acepta una URL absoluta). Formato
+recomendado: **MP4 (H.264 + AAC)**, el de mayor compatibilidad entre navegadores.
+
+> El puente está inspirado en el `HtmlView` de
+> [KMP-ShaPlayer](https://github.com/shadmanadman/KMP-ShaPlayer) (Apache 2.0), que valida
+> el enfoque; la implementación es propia y solo para web.
+
 ## Contacto (formulario + anti-bots)
 
 La pantalla **Contacto** (`#/contacto`) envía el mensaje a la Edge Function

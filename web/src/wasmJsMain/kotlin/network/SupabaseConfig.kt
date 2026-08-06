@@ -34,7 +34,13 @@ object SupabaseConfig {
      * si ya es una URL absoluta se usa tal cual; si es un path relativo se asume
      * que vive en el bucket público [IMAGES_BUCKET] de Storage.
      */
-    fun publicImageUrl(pathOrUrl: String): String =
+    fun publicImageUrl(pathOrUrl: String): String = publicStorageUrl(pathOrUrl)
+
+    /**
+     * URL pública de un archivo de Storage. Acepta una URL absoluta (se devuelve tal
+     * cual) o un path relativo al bucket indicado.
+     */
+    fun publicStorageUrl(pathOrUrl: String, bucket: String = IMAGES_BUCKET): String =
         if (pathOrUrl.startsWith("http")) pathOrUrl
-        else "$URL/storage/v1/object/public/$IMAGES_BUCKET/${pathOrUrl.removePrefix("/")}"
+        else "$URL/storage/v1/object/public/$bucket/${pathOrUrl.removePrefix("/")}"
 }
