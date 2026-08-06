@@ -31,10 +31,39 @@ moderno con WebAssembly GC (Chrome/Edge 119+, Firefox 120+, Safari 18+).
 ./gradlew :web:wasmJsBrowserDistribution
 ```
 
-> Nota de hosting: sirve los `.wasm` con el MIME `application/wasm`.
-
 El punto de entrada es `web/src/wasmJsMain/kotlin/com/smartbe/web/Main.kt`
 (`App`). El HTML/CSS estáticos están en `web/src/wasmJsMain/resources/`.
+
+## Despliegue
+
+Sube **todo** el contenido de `web/build/dist/wasmJs/productionExecutable/` a la raíz
+pública del sitio (en cPanel, normalmente `public_html/`). No hace falta configurar
+reescrituras: la app usa hash routing (`#/catalogo`), así que el servidor solo sirve
+`index.html`.
+
+⚠️ **El servidor debe entregar los `.wasm` con el MIME `application/wasm`.** Si no, el
+navegador rechaza el módulo y la página se queda en "Cargando…" con este error en
+consola:
+
+```
+wasm streaming compile failed: TypeError: Failed to execute 'compile' on
+'WebAssembly': Incorrect response MIME type. Expected 'application/wasm'.
+```
+
+Para Apache/cPanel esto ya está resuelto: el repo incluye
+[`.htaccess`](web/src/wasmJsMain/resources/.htaccess) en `resources/`, que el build copia
+a la carpeta de distribución (MIME correctos, compresión y caché). **Verifica que el
+archivo llegue al servidor**: algunos clientes FTP y gestores de archivos ocultan los
+archivos que empiezan con punto — activa "mostrar archivos ocultos" o súbelo a mano.
+
+En otros hosts, configura el MIME equivalente:
+
+| Host | Dónde |
+|---|---|
+| Nginx | `types { application/wasm wasm; }` o añadirlo en `mime.types` |
+| Netlify | `_headers` → `/*.wasm` con `Content-Type: application/wasm` |
+| Vercel | `vercel.json` → `headers` |
+| IIS | `web.config` → `<staticContent><mimeMap fileExtension=".wasm" mimeType="application/wasm" /></staticContent>` |
 
 ## Catálogo
 

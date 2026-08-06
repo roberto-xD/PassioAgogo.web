@@ -1,0 +1,74 @@
+# ============================================================
+# Configuración de Apache para el sitio compilado (Kotlin/Wasm).
+#
+# Este archivo vive en `resources/`, así que el build lo copia al
+# directorio de distribución junto a index.html. Debe quedar en la
+# misma carpeta que agogo.js y los .wasm en el servidor.
+# ============================================================
+
+# --- MIME types -------------------------------------------------------------
+# Sin `application/wasm` el navegador rechaza el módulo con
+# "Incorrect response response MIME type. Expected 'application/wasm'"
+# y la app se queda en la pantalla de carga.
+<IfModule mod_mime.c>
+    AddType application/wasm .wasm
+    AddType text/javascript .js
+    AddType text/javascript .mjs
+    AddType application/json .json
+    AddType image/svg+xml .svg
+    AddType font/woff2 .woff2
+</IfModule>
+
+# --- Compresión -------------------------------------------------------------
+# El .wasm de Compose/skiko pesa varios MB sin comprimir; comprimirlo reduce
+# mucho el tiempo de la primera carga.
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE application/wasm
+    AddOutputFilterByType DEFLATE text/javascript application/javascript
+    AddOutputFilterByType DEFLATE text/html text/css application/json
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# Si el build genera .wasm.br / .wasm.gz, sirve la versión precomprimida.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteCond %{HTTP:Accept-Encoding} br
+    RewriteCond %{REQUEST_FILENAME}.br -f
+    RewriteRule ^(.*)$ $1.br [QSA,L]
+
+    RewriteCond %{HTTP:Accept-Encoding} gzip
+    RewriteCond %{REQUEST_FILENAME}.gz -f
+    RewriteRule ^(.*)$ $1.gz [QSA,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.wasm\.br$">
+        Header set Content-Encoding br
+        Header set Content-Type application/wasm
+    </FilesMatch>
+    <FilesMatch "\.wasm\.gz$">
+        Header set Content-Encoding gzip
+        Header set Content-Type application/wasm
+    </FilesMatch>
+</IfModule>
+
+# --- Caché ------------------------------------------------------------------
+# Los artefactos de la app (agogo.js y los .wasm) conservan el mismo nombre
+# entre builds, así que se revalidan siempre: de lo contrario, el navegador
+# seguiría sirviendo una versión vieja tras cada despliegue.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(html|js|mjs|wasm)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+    <FilesMatch "\.(css|png|jpg|jpeg|gif|svg|ico|woff2?)$">
+        Header set Cache-Control "public, max-age=604800"
+    </FilesMatch>
+</IfModule>
+
+# --- Navegación -------------------------------------------------------------
+# La app usa hash routing (#/catalogo), así que el servidor solo necesita
+# entregar index.html en la raíz: no hacen falta reglas de reescritura SPA.
+<IfModule mod_dir.c>
+    DirectoryIndex index.html
+</IfModule>
