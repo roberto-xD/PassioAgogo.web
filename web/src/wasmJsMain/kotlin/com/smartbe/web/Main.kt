@@ -39,6 +39,7 @@ import ui.screens.AboutScreen
 import ui.screens.ContactScreen
 import ui.screens.HelpScreen
 import ui.screens.HomeScreen
+import ui.screens.PodcastScreen
 import ui.screens.PrivacyScreen
 import ui.screens.TermsScreen
 import ui.screens.VideoScreen
@@ -115,6 +116,7 @@ fun App() {
                         )
                         Screen.About -> AboutScreen()
                         Screen.Video -> VideoScreen()
+                        Screen.Podcast -> PodcastScreen()
                         Screen.Contact -> ContactScreen(
                             state = contactState,
                             onNombreChange = contactViewModel::updateNombre,

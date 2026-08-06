@@ -25,6 +25,7 @@ private val PrimaryItems = listOf(
     Screen.Catalog,
     Screen.About,
     Screen.Video,
+    Screen.Podcast,
     Screen.Contact,
     Screen.Help,
 )

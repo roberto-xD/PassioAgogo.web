@@ -58,6 +58,9 @@ fun HtmlElementView(
     )
 }
 
+/** Crea el elemento con `js()` para no depender de un cast de tipos externos. */
+fun createHtmlElement(tag: String): HTMLElement = js("document.createElement(tag)")
+
 /**
  * Área visible para los elementos HTML superpuestos, en coordenadas de ventana.
  *

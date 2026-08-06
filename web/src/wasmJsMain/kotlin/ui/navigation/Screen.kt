@@ -6,6 +6,7 @@ enum class Screen(val route: String, val title: String) {
     Catalog("catalogo", "Catálogo"),
     About("nosotros", "Nosotros"),
     Video("video", "Video"),
+    Podcast("podcast", "Podcast"),
     Contact("contacto", "Contacto"),
     Terms("terminos", "Términos y condiciones"),
     Privacy("privacidad", "Política de privacidad"),

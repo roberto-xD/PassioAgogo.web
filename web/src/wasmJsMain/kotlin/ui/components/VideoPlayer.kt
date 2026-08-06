@@ -59,9 +59,6 @@ fun VideoPlayer(
     )
 }
 
-/** Crea el elemento con `js()` para no depender de un cast de tipos externos. */
-private fun createHtmlElement(tag: String): HTMLElement = js("document.createElement(tag)")
-
 /** Atributos booleanos de HTML: valen por presencia, no por valor. */
 private fun HTMLElement.toggleAttribute(name: String, enabled: Boolean) {
     if (enabled) setAttribute(name, "") else removeAttribute(name)

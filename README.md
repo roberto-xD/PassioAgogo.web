@@ -135,7 +135,7 @@ productos; seleccionar una incluye sus subcategorías) y **búsqueda por texto**
 combinable con el filtro). Ambos operan en cliente sobre los datos ya cargados —
 instantáneos — y recalculan promociones.
 
-## Video (widget reutilizable)
+## Widgets multimedia (video y Spotify)
 
 Compose para web dibuja todo en un `<canvas>`, así que un `<video>` no puede vivir dentro
 del árbol de composición. La solución es superponerlo:
@@ -173,6 +173,33 @@ recomendado: **MP4 (H.264 + AAC)**, el de mayor compatibilidad entre navegadores
 > El puente está inspirado en el `HtmlView` de
 > [KMP-ShaPlayer](https://github.com/shadmanadman/KMP-ShaPlayer) (Apache 2.0), que valida
 > el enfoque; la implementación es propia y solo para web.
+
+### Spotify
+
+[`ui/components/SpotifyEmbed`](web/src/wasmJsMain/kotlin/ui/components/SpotifyEmbed.kt) es
+el segundo widget sobre el mismo puente — el reproductor oficial de Spotify es un
+`<iframe>`, así que no hizo falta nada nuevo:
+
+```kotlin
+SpotifyEmbed(
+    content = SpotifyContent.Show,   // track | album | playlist | artist | show | episode
+    id = MediaConfig.PODCAST_SHOW_ID,
+    modifier = Modifier.fillMaxWidth().height(352.dp),  // 152.dp = versión compacta
+)
+```
+
+Se usa en la sección **Podcast** (`#/podcast`). Configura el show en
+[`MediaConfig.PODCAST_SHOW_ID`](web/src/wasmJsMain/kotlin/network/MediaConfig.kt) con el
+código del enlace de *Compartir → Copiar enlace* de Spotify.
+
+⚠️ **Reproducción limitada por Spotify**: los visitantes anónimos o con cuenta gratuita
+solo escuchan **avances de ~30 segundos**. La reproducción completa exige Premium con
+sesión iniciada y, aun así, Spotify la restringe en iframes de dominios externos. Por eso
+la pantalla acompaña el reproductor con un botón **Abrir en Spotify**, donde el usuario sí
+puede escuchar completo y seguir el podcast de forma fiable.
+
+Al ser un embed de terceros con cookies de Spotify, conviene declararlo en la política de
+privacidad.
 
 ## Contacto (formulario + anti-bots)
 

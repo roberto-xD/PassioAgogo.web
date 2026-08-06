@@ -24,4 +24,21 @@ object MediaConfig {
     /** Sin proyecto configurado no se puede construir una URL válida de Storage. */
     val isConfigured: Boolean
         get() = SupabaseConfig.isConfigured && PRESENTACION_PATH.isNotBlank()
+
+    // ------------------------------------------------------------------
+    // Podcast de la marca (Spotify)
+    // ------------------------------------------------------------------
+
+    /**
+     * ID del show en Spotify: el código del enlace de *Compartir → Copiar enlace*
+     * (`https://open.spotify.com/show/<id>`), sin parámetros.
+     */
+    const val PODCAST_SHOW_ID: String = "YOUR-SPOTIFY-SHOW-ID"
+
+    val isPodcastConfigured: Boolean
+        get() = !PODCAST_SHOW_ID.startsWith("YOUR-") && PODCAST_SHOW_ID.isNotBlank()
+
+    /** Enlace al show en Spotify, para abrirlo fuera del reproductor incrustado. */
+    val podcastShowUrl: String
+        get() = "https://open.spotify.com/show/$PODCAST_SHOW_ID"
 }
