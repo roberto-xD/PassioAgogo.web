@@ -1,0 +1,19 @@
+# Configuración de Supabase CLI para este proyecto.
+# El project_id es el "ref" del proyecto (aparece en la URL de la API).
+# project_id = "tu-project-ref"
+
+# ------------------------------------------------------------
+# Edge Functions
+# ------------------------------------------------------------
+# `contact` es un endpoint PÚBLICO: lo llama el formulario de la web sin que el
+# visitante haya iniciado sesión. Con verify_jwt = true (el valor por defecto),
+# el gateway de Supabase rechaza la petición OPTIONS de preflight —el navegador
+# no envía el header Authorization en ella— y el navegador reporta:
+#
+#   Response to preflight request doesn't pass access control check:
+#   It does not have HTTP ok status.
+#
+# La función no queda desprotegida: valida los campos, verifica el token de
+# Cloudflare Turnstile y limita los envíos por origen.
+[functions.contact]
+verify_jwt = false

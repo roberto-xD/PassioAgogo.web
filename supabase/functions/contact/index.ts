@@ -39,8 +39,11 @@ function corsHeaders(origin: string | null): Record<string, string> {
     : (origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]);
   return {
     "Access-Control-Allow-Origin": allowed,
-    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+    "Access-Control-Allow-Headers":
+      "authorization, apikey, content-type, x-client-info",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
     "Content-Type": "application/json",
   };
 }
@@ -95,8 +98,12 @@ async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
 Deno.serve(async (req: Request): Promise<Response> => {
   const origin = req.headers.get("origin");
 
+  // Preflight. Debe responder 2xx o el navegador aborta la petición real.
+  // Requiere además verify_jwt = false (ver supabase/config.toml): el navegador
+  // no envía Authorization en el preflight y el gateway lo rechazaría antes de
+  // llegar aquí.
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders(origin) });
+    return new Response(null, { status: 204, headers: corsHeaders(origin) });
   }
   if (req.method !== "POST") {
     return json({ ok: false, error: "metodo-no-permitido" }, 405, origin);

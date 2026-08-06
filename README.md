@@ -162,8 +162,19 @@ Puesta en marcha:
 2. En [Cloudflare → Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile) crea un
    widget (modo **Invisible**) con el dominio del sitio. Pon la **site key** en
    `TurnstileConfig.SITE_KEY` y guarda la **secret key** para el paso 4.
-3. Despliega la función: `supabase functions deploy contact` (o pega el archivo en
-   Supabase → Edge Functions → *New function*).
+3. Despliega la función **sin verificación de JWT** — es un endpoint público que se
+   llama sin sesión iniciada:
+   ```bash
+   supabase functions deploy contact --no-verify-jwt
+   ```
+   ([`supabase/config.toml`](supabase/config.toml) ya lo declara para despliegues desde
+   el CLI; en el dashboard, desactiva *Verify JWT* en los ajustes de la función.)
+
+   > Con la verificación activada, el navegador falla el preflight con
+   > *"Response to preflight request doesn't pass access control check: It does not have
+   > HTTP ok status"*: el `OPTIONS` de CORS no lleva el header `Authorization`, así que
+   > el gateway lo rechaza antes de ejecutar la función. Desactivarla no expone datos:
+   > la función valida los campos, verifica el captcha y limita los envíos por origen.
 4. Configura los secrets de la función: `TURNSTILE_SECRET`, `CONTACT_IP_SALT` (cadena
    aleatoria), `CONTACT_ALLOWED_ORIGINS` (tu dominio) y opcionalmente
    `CONTACT_MAX_PER_HOUR` (default 5).
