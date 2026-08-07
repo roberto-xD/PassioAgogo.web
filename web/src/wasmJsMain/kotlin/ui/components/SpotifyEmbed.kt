@@ -37,24 +37,33 @@ fun SpotifyEmbed(
     modifier: Modifier = Modifier,
 ) {
     HtmlElementView(
-        factory = { createHtmlElement("iframe") },
+        factory = {
+            // El navegador fija los permisos que delega al iframe en el momento en que
+            // este NAVEGA, leyendo el atributo `allow` que exista entonces. Por eso se
+            // configura aquí, antes de adjuntarlo al DOM y antes de asignar `src`: si se
+            // pusiera después, la navegación ya habría ocurrido sin permisos y el
+            // navegador bloquearía `encrypted-media`
+            // ("Permissions policy violation: encrypted-media is not allowed").
+            createHtmlElement("iframe").apply {
+                setAttribute(
+                    "allow",
+                    "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture",
+                )
+                setAttribute("allowfullscreen", "")
+                setAttribute("loading", "lazy")
+                setAttribute("frameborder", "0")
+                style.setProperty("border", "0")
+                style.setProperty("border-radius", "12px")
+            }
+        },
         modifier = modifier,
         onUpdate = { element ->
+            // Único atributo reactivo: cambiarlo provoca una navegación nueva, que ya
+            // hereda los permisos configurados arriba.
             val src = "https://open.spotify.com/embed/${content.path}/$id?utm_source=generator"
             if (element.getAttribute("src") != src) {
                 element.setAttribute("src", src)
             }
-            // encrypted-media es obligatorio: sin él, el reproductor no sale del modo
-            // preview ni para usuarios Premium.
-            element.setAttribute(
-                "allow",
-                "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture",
-            )
-            element.setAttribute("loading", "lazy")
-            element.setAttribute("frameborder", "0")
-
-            element.style.setProperty("border", "0")
-            element.style.setProperty("border-radius", "12px")
         },
     )
 }

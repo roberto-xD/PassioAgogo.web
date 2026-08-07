@@ -36,25 +36,31 @@ fun VideoPlayer(
     controls: Boolean = true,
 ) {
     HtmlElementView(
-        factory = { createHtmlElement("video") },
+        factory = {
+            createHtmlElement("video").apply {
+                setAttribute("preload", "metadata")
+                // Evita que iOS abra el video a pantalla completa automáticamente.
+                setAttribute("playsinline", "")
+                style.setProperty("object-fit", "contain")
+                style.setProperty("background-color", "#000")
+                style.setProperty("border-radius", "12px")
+            }
+        },
         modifier = modifier,
         onUpdate = { element ->
-            // Solo se reasigna si cambió: al escribir src el navegador reinicia la carga.
-            if (element.getAttribute("src") != url) {
-                element.setAttribute("src", url)
-            }
-            posterUrl?.let { element.setAttribute("poster", it) }
-            element.setAttribute("preload", "metadata")
-            // Evita que iOS abra el video a pantalla completa automáticamente.
-            element.toggleAttribute("playsinline", true)
+            // La configuración se aplica ANTES que `src`: al asignar la fuente el
+            // navegador empieza a cargarla y evalúa el estado actual del elemento. En
+            // particular, sin `muted` presente en ese momento bloquea el autoplay.
             element.toggleAttribute("controls", controls)
             element.toggleAttribute("autoplay", autoPlay)
             element.toggleAttribute("muted", muted)
             element.toggleAttribute("loop", loop)
+            posterUrl?.let { element.setAttribute("poster", it) }
 
-            element.style.setProperty("object-fit", "contain")
-            element.style.setProperty("background-color", "#000")
-            element.style.setProperty("border-radius", "12px")
+            // Solo se reasigna si cambió: al escribir src el navegador reinicia la carga.
+            if (element.getAttribute("src") != url) {
+                element.setAttribute("src", url)
+            }
         },
     )
 }

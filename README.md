@@ -201,6 +201,14 @@ puede escuchar completo y seguir el podcast de forma fiable.
 Al ser un embed de terceros con cookies de Spotify, conviene declararlo en la política de
 privacidad.
 
+> **Detalle de implementación**: el navegador fija los permisos que delega a un `<iframe>`
+> **cuando este navega**, leyendo el atributo `allow` que exista en ese instante. Por eso
+> los atributos se ponen al crear el elemento y `src` se asigna al final. Si se asignara
+> `src` primero, la consola mostraría
+> `Permissions policy violation: encrypted-media is not allowed in this document` y el
+> reproductor quedaría bloqueado. El mismo orden aplica al `<video>`: sin `muted` presente
+> antes de la fuente, el navegador bloquea el `autoPlay`.
+
 ## Contacto (formulario + anti-bots)
 
 La pantalla **Contacto** (`#/contacto`) envía el mensaje a la Edge Function
