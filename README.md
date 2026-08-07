@@ -165,10 +165,18 @@ Como el elemento vive fuera del canvas, los contenedores de Compose no lo recort
 publica el área de contenido en `LocalHtmlOverlayClip` y el puente recorta contra ella, de
 modo que al hacer scroll el video no se dibuja sobre la barra ni el pie.
 
-Puesta en marcha: sube el archivo al bucket `inventory` de Storage y ajusta la ruta en
-[`network/MediaConfig.kt`](web/src/wasmJsMain/kotlin/network/MediaConfig.kt)
-(`video/presentacion.mp4` por defecto; también acepta una URL absoluta). Formato
-recomendado: **MP4 (H.264 + AAC)**, el de mayor compatibilidad entre navegadores.
+Puesta en marcha: sube el archivo a un bucket **público** de Storage y ajusta
+[`network/MediaConfig.kt`](web/src/wasmJsMain/kotlin/network/MediaConfig.kt) —
+`MEDIA_BUCKET` (por defecto el mismo de las imágenes, `inventory`) y `PRESENTACION_PATH`
+(`video/presentacion.mp4`); también acepta una URL absoluta. Formato recomendado:
+**MP4 (H.264 + AAC)**, el de mayor compatibilidad entre navegadores.
+
+Si el video no carga, comprueba la URL a mano en el navegador: es
+`https://<proyecto>.supabase.co/storage/v1/object/public/<MEDIA_BUCKET>/<PRESENTACION_PATH>`.
+Un 400/404 significa que el bucket o la ruta no coinciden —ojo con confundir *una carpeta
+llamada `video` dentro del bucket* con *un bucket llamado `video`*—; si en cambio el
+archivo se descarga pero no se reproduce, suele ser el códec (H.265/HEVC no es compatible
+con la mayoría de navegadores).
 
 > El puente está inspirado en el `HtmlView` de
 > [KMP-ShaPlayer](https://github.com/shadmanadman/KMP-ShaPlayer) (Apache 2.0), que valida
