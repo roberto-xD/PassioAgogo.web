@@ -25,6 +25,6 @@ fun HelpScreen() {
                 "personalizadas."
         )
         SectionTitle("¿Cómo reporto un problema?")
-        Paragraph("Escríbenos a soporte@passioagogo.com y te ayudamos.")
+        Paragraph("Escríbenos desde la sección Contacto y te ayudamos.")
     }
 }

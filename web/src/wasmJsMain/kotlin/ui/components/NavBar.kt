@@ -20,7 +20,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ui.navigation.Screen
 
-private val PrimaryItems = listOf(Screen.Home, Screen.Catalog, Screen.About, Screen.Help)
+private val PrimaryItems = listOf(
+    Screen.Home,
+    Screen.Catalog,
+    Screen.About,
+    Screen.Video,
+    Screen.Podcast,
+    Screen.Contact,
+    Screen.Help,
+)
 
 @Composable
 fun NavBar(current: Screen, onNavigate: (Screen) -> Unit) {

@@ -19,7 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ui.navigation.Screen
 
-private val LegalItems = listOf(Screen.Terms, Screen.Privacy, Screen.Help)
+private val LegalItems =
+    listOf(Screen.Terms, Screen.Privacy, Screen.Help, Screen.Contact)
 
 @Composable
 fun Footer(onNavigate: (Screen) -> Unit) {

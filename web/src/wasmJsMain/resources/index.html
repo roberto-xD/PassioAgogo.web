@@ -8,8 +8,76 @@
     <link rel="icon" href="data:,">
     <link type="text/css" rel="stylesheet" href="styles.css">
     <script type="application/javascript" src="agogo.js"></script>
+
+    <!-- Cloudflare Turnstile (anti-bot del formulario de contacto).
+         render=explicit: el widget se crea bajo demanda, no al cargar la página. -->
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+            async defer></script>
+
+    <!--
+      Puente entre Compose (canvas) y Turnstile. La app corre dentro de un <canvas>,
+      así que no puede montar el widget directamente: este helper lo gestiona en el DOM
+      y expone un estado simple (idle | pending | ready | error) que Kotlin consulta.
+
+      Modo invisible: execution:'execute' + appearance:'interaction-only' → no se
+      muestra nada salvo que Cloudflare determine que hace falta interacción humana.
+    -->
+    <script type="application/javascript">
+      window.paTurnstile = (function () {
+        var widgetId = null;
+        var state = { status: 'idle', token: '', error: '' };
+
+        function ensureWidget(siteKey) {
+          if (widgetId !== null) return true;
+          if (!window.turnstile) return false;
+          widgetId = window.turnstile.render('#turnstile-host', {
+            sitekey: siteKey,
+            execution: 'execute',
+            appearance: 'interaction-only',
+            callback: function (token) {
+              state.status = 'ready';
+              state.token = token;
+            },
+            'error-callback': function () {
+              state.status = 'error';
+              state.error = 'turnstile-error';
+              return true;
+            },
+            'expired-callback': function () {
+              state.status = 'idle';
+              state.token = '';
+            }
+          });
+          return true;
+        }
+
+        return {
+          execute: function (siteKey) {
+            state = { status: 'pending', token: '', error: '' };
+            try {
+              if (!ensureWidget(siteKey)) {
+                state.status = 'error';
+                state.error = 'script-no-cargado';
+                return;
+              }
+              window.turnstile.reset(widgetId);
+              window.turnstile.execute(widgetId);
+            } catch (e) {
+              state.status = 'error';
+              state.error = String(e);
+            }
+          },
+          status: function () { return state.status; },
+          token: function () { return state.token; },
+          error: function () { return state.error; }
+        };
+      })();
+    </script>
 </head>
 <body>
 <div id="loading">Cargando…</div>
+<!-- Contenedor del widget de Turnstile. Vacío salvo que se requiera interacción;
+     va sobre el canvas para que el reto sea visible y clicable si aparece. -->
+<div id="turnstile-host"></div>
 </body>
 </html>
