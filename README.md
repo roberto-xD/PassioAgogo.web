@@ -1,4 +1,4 @@
-# Passio Agogo
+# Passion Agogo
 
 Aplicación **web** hecha con Compose Multiplatform (target wasmJs). Es un proyecto
 de un único módulo, `:web`.
