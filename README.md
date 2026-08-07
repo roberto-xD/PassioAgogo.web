@@ -241,6 +241,58 @@ privacidad.
 > reproductor quedaría bloqueado. El mismo orden aplica al `<video>`: sin `muted` presente
 > antes de la fuente, el navegador bloquea el `autoPlay`.
 
+## Tema (colores, tipografía y espaciado)
+
+Todo el estilo vive en [`ui/theme/`](web/src/wasmJsMain/kotlin/ui/theme): las pantallas no
+declaran ni un solo color literal.
+
+- `Color.kt` — rampas de marca (morado, rosa, neutros cálidos), alias semánticos y los dos
+  esquemas de Material 3. El oscuro se deriva de las mismas rampas.
+  `PassionSemantics` cubre lo que Material no modela: degradado del fondo, superficie de
+  las barras, acento de oferta, placeholder de imagen…
+- `Type.kt` — escala tipográfica completa con **Poppins**, y `scriptAccent` con
+  **Alex Brush**, reservado al logotipo (se usa en el hero de Inicio).
+- `Dimens.kt` — radios, `Shapes` de Material y escala de espaciado de 4dp.
+- `Theme.kt` — `PassionAGogoTheme` y la configuración.
+
+### Cambiar de tema
+
+Un único punto de decisión, en
+[`ThemeConfig`](web/src/wasmJsMain/kotlin/ui/theme/Theme.kt):
+
+```kotlin
+object ThemeConfig {
+    val MODE: ThemeMode = ThemeMode.Light   // Light | Dark | System
+}
+```
+
+`System` sigue la preferencia del sistema operativo del visitante. Si cambias el valor por
+defecto a `Dark`, actualiza también el fondo de `html, body` en
+[`styles.css`](web/src/wasmJsMain/resources/styles.css) y el `theme-color` de
+[`index.html`](web/src/wasmJsMain/resources/index.html): son la pantalla de carga previa a
+que Compose monte, y si no coinciden se ve un destello al arrancar.
+
+### Uso desde las pantallas
+
+```kotlin
+MaterialTheme.colorScheme.primary      // roles de Material (botones, campos, tarjetas)
+MaterialTheme.typography.bodySmall     // escala tipográfica
+PassionTheme.semantics.offer           // tokens propios
+PassionTheme.spacing.s4                // espaciado
+MaterialTheme.shapes.extraLarge        // radios (pill)
+```
+
+Los componentes de Material toman sus colores del esquema, así que ya no hace falta
+pasarles `colors = ...` salvo excepciones justificadas (por ejemplo el verde corporativo de
+Spotify, que es de un tercero y no cambia con el tema).
+
+### Fuentes
+
+Poppins y Alex Brush se cargan con Compose Resources desde
+`web/src/commonMain/composeResources/font/`. Solo se incluyen los pesos que usa la escala
+(regular, medium, semibold, bold) para no inflar el bundle; ambas son **SIL Open Font
+License** y sus licencias se distribuyen en `composeResources/files/`.
+
 ## Acceso de usuarios (Supabase Auth)
 
 Registro e inicio de sesión con correo y contraseña sobre la tabla `profiles` (script 02):

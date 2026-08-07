@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -18,7 +17,6 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.window.ComposeViewport
@@ -36,6 +34,8 @@ import ui.components.LocalHtmlOverlayClip
 import ui.components.NavBar
 import ui.navigation.Screen
 import ui.navigation.rememberScreenState
+import ui.theme.PassionAGogoTheme
+import ui.theme.PassionTheme
 import ui.screens.AboutScreen
 import ui.screens.AccountScreen
 import ui.screens.ContactScreen
@@ -98,13 +98,14 @@ fun App() {
         }
     }
 
-    MaterialTheme {
+    PassionAGogoTheme {
+        val semantics = PassionTheme.semantics
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color(0xFF1A1035), Color(0xFF3A1C71))
+                        listOf(semantics.gradientTop, semantics.gradientBottom)
                     )
                 ),
         ) {

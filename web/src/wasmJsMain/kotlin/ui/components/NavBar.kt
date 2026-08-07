@@ -10,15 +10,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import ui.navigation.Screen
+import ui.theme.PassionTheme
 
 private val PrimaryItems = listOf(
     Screen.Home,
@@ -35,20 +34,23 @@ fun NavBar(current: Screen, isAuthenticated: Boolean, onNavigate: (Screen) -> Un
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0x33000000))
+            .background(PassionTheme.semantics.barSurface)
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(
+                horizontal = PassionTheme.spacing.s5,
+                vertical = PassionTheme.spacing.s3,
+            ),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s6),
     ) {
         Text(
             text = "Passion Agogo",
-            color = Color.White,
-            fontSize = 20.sp,
+            color = PassionTheme.semantics.onBackgroundStrong,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.clickable { onNavigate(Screen.Home) },
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(PassionTheme.spacing.s2))
         PrimaryItems.forEach { screen ->
             NavItem(
                 label = screen.title,
@@ -71,11 +73,12 @@ fun NavBar(current: Screen, isAuthenticated: Boolean, onNavigate: (Screen) -> Un
 private fun NavItem(label: String, selected: Boolean, onClick: () -> Unit) {
     Text(
         text = label,
-        color = if (selected) Color.White else Color(0xFFB9AEE8),
-        fontSize = 15.sp,
-        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+        color = if (selected) PassionTheme.semantics.onBackgroundStrong
+        else PassionTheme.semantics.onBackgroundMuted,
+        style = MaterialTheme.typography.bodySmall,
+        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(vertical = 4.dp),
+            .padding(vertical = PassionTheme.spacing.s1),
     )
 }

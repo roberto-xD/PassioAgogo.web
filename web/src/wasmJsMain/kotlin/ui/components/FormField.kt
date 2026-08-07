@@ -2,20 +2,23 @@ package ui.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
+import ui.theme.PassionTheme
 
-/** Campo de texto con el estilo de los formularios de la app (fondo oscuro). */
+/**
+ * Campo de texto de los formularios de la app.
+ *
+ * Los colores salen del esquema del tema: no hace falta declararlos aquí, y así el campo
+ * se adapta solo a los modos claro y oscuro.
+ */
 @Composable
 fun FormField(
     value: String,
@@ -36,20 +39,9 @@ fun FormField(
         visualTransformation =
             if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            cursorColor = Color(0xFF9C7BFF),
-            focusedBorderColor = Color(0xFF6C5CE7),
-            unfocusedBorderColor = Color(0x66FFFFFF),
-            focusedLabelColor = Color(0xFFC9BEF0),
-            unfocusedLabelColor = Color(0xFF8F84B8),
-            focusedSupportingTextColor = Color(0xFF8F84B8),
-            unfocusedSupportingTextColor = Color(0xFF8F84B8),
-        ),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.small,
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 8.dp),
+            .padding(top = PassionTheme.spacing.s2),
     )
 }

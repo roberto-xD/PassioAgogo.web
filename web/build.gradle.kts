@@ -22,6 +22,14 @@ kotlin {
     }
 
     sourceSets {
+        // Los recursos de Compose (fuentes de la marca) viven en
+        // src/commonMain/composeResources y generan la clase `Res` en common.
+        val commonMain by getting {
+            dependencies {
+                implementation(compose.components.resources)
+            }
+        }
+
         val wasmJsMain by getting {
             dependencies {
                 implementation(compose.runtime)
@@ -48,4 +56,11 @@ kotlin {
             }
         }
     }
+}
+
+// Paquete fijo para la clase `Res` generada, en lugar del derivado del grupo/módulo.
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "passioagogo.resources"
+    generateResClass = always
 }

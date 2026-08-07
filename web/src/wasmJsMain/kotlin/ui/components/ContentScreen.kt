@@ -13,12 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
-private val TextPrimary = Color.White
-private val TextSecondary = Color(0xFFC9BEF0)
+import ui.theme.PassionTheme
 
 /** Layout base para las pantallas de contenido: columna centrada, ancho máximo y scroll. */
 @Composable
@@ -33,14 +30,16 @@ fun ContentScreen(title: String, content: @Composable ColumnScope.() -> Unit) {
             modifier = Modifier
                 .widthIn(max = 760.dp)
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 32.dp),
+                .padding(
+                    horizontal = PassionTheme.spacing.s6,
+                    vertical = PassionTheme.spacing.s8,
+                ),
         ) {
             Text(
                 text = title,
-                color = TextPrimary,
+                color = PassionTheme.semantics.onBackgroundStrong,
                 style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 20.dp),
+                modifier = Modifier.padding(bottom = PassionTheme.spacing.s5),
             )
             content()
         }
@@ -51,10 +50,10 @@ fun ContentScreen(title: String, content: @Composable ColumnScope.() -> Unit) {
 fun SectionTitle(text: String) {
     Text(
         text = text,
-        color = TextPrimary,
-        style = MaterialTheme.typography.titleMedium,
+        color = PassionTheme.semantics.onBackgroundStrong,
+        style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(top = 20.dp, bottom = 6.dp),
+        modifier = Modifier.padding(top = PassionTheme.spacing.s5, bottom = PassionTheme.spacing.s1),
     )
 }
 
@@ -62,8 +61,8 @@ fun SectionTitle(text: String) {
 fun Paragraph(text: String) {
     Text(
         text = text,
-        color = TextSecondary,
+        color = PassionTheme.semantics.onBackgroundMuted,
         style = MaterialTheme.typography.bodyMedium,
-        modifier = Modifier.padding(bottom = 8.dp),
+        modifier = Modifier.padding(bottom = PassionTheme.spacing.s2),
     )
 }

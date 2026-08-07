@@ -7,20 +7,19 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import ui.components.ContentScreen
 import ui.components.FormField
 import ui.components.Paragraph
+import ui.theme.PassionTheme
 import viewmodel.ContactUiState
 import viewmodel.MAX_MENSAJE
 
@@ -43,7 +42,7 @@ fun ContactScreen(
             "¿Tienes dudas, sugerencias o quieres vender con nosotros? Escríbenos y te " +
                 "respondemos lo antes posible."
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(PassionTheme.spacing.s3))
 
         FormField(
             value = state.nombre,
@@ -68,42 +67,39 @@ fun ContactScreen(
         if (state.errorMessage != null) {
             Text(
                 text = state.errorMessage,
-                color = Color(0xFFFF8A9B),
+                color = PassionTheme.semantics.danger,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp),
+                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
             )
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(PassionTheme.spacing.s4))
         Button(
             onClick = onSubmit,
             enabled = state.canSubmit,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF6C5CE7),
-                contentColor = Color.White,
-                disabledContainerColor = Color(0x336C5CE7),
-                disabledContentColor = Color(0x99FFFFFF),
-            ),
+            shape = MaterialTheme.shapes.extraLarge,
         ) {
             if (state.isSending) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(
-                        color = Color.White,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(16.dp),
                     )
-                    Text("Enviando…", modifier = Modifier.padding(start = 8.dp))
+                    Text(
+                        "Enviando…",
+                        modifier = Modifier.padding(start = PassionTheme.spacing.s2),
+                    )
                 }
             } else {
-                Text("Enviar mensaje", fontWeight = FontWeight.SemiBold)
+                Text("Enviar mensaje", style = MaterialTheme.typography.labelLarge)
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(PassionTheme.spacing.s4))
         Text(
             text = "Este sitio está protegido por Cloudflare Turnstile para evitar el envío " +
                 "automatizado de mensajes.",
-            color = Color(0xFF8F84B8),
+            color = PassionTheme.semantics.onBackgroundSubtle,
             style = MaterialTheme.typography.bodySmall,
         )
     }
@@ -113,19 +109,13 @@ fun ContactScreen(
 private fun SentConfirmation(onReset: () -> Unit) {
     Text(
         text = "¡Mensaje enviado!",
-        color = Color.White,
+        color = PassionTheme.semantics.onBackgroundStrong,
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
     )
     Paragraph("Gracias por escribirnos. Te responderemos al correo que nos dejaste.")
-    Spacer(Modifier.height(12.dp))
-    Button(
-        onClick = onReset,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF6C5CE7),
-            contentColor = Color.White,
-        ),
-    ) {
+    Spacer(Modifier.height(PassionTheme.spacing.s3))
+    Button(onClick = onReset, shape = MaterialTheme.shapes.extraLarge) {
         Text("Enviar otro mensaje")
     }
 }

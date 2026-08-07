@@ -4,15 +4,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import ui.components.ContentScreen
 import ui.components.Paragraph
 import ui.components.SectionTitle
+import ui.theme.PassionTheme
 import viewmodel.AuthUiState
 
 @Composable
@@ -24,15 +23,9 @@ fun AccountScreen(
     ContentScreen(title = "Mi cuenta") {
         if (!state.isAuthenticated) {
             Paragraph("No has iniciado sesión.")
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onGoToLogin,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6C5CE7),
-                    contentColor = Color.White,
-                ),
-            ) {
-                Text("Iniciar sesión", fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(PassionTheme.spacing.s3))
+            Button(onClick = onGoToLogin, shape = MaterialTheme.shapes.extraLarge) {
+                Text("Iniciar sesión", style = MaterialTheme.typography.labelLarge)
             }
             return@ContentScreen
         }
@@ -51,16 +44,17 @@ fun AccountScreen(
             )
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(PassionTheme.spacing.s5))
         Button(
             onClick = onSignOut,
             enabled = !state.isSubmitting,
+            shape = MaterialTheme.shapes.extraLarge,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0x33FFFFFF),
-                contentColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             ),
         ) {
-            Text("Cerrar sesión", fontWeight = FontWeight.SemiBold)
+            Text("Cerrar sesión", style = MaterialTheme.typography.labelLarge)
         }
     }
 }

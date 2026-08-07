@@ -10,7 +10,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import network.MediaConfig
 import ui.components.ContentScreen
@@ -18,12 +17,14 @@ import ui.components.Paragraph
 import ui.components.SpotifyContent
 import ui.components.SpotifyEmbed
 import ui.components.openInNewTab
+import ui.theme.PassionColors
+import ui.theme.PassionTheme
 
 @Composable
 fun PodcastScreen() {
     ContentScreen(title = "Podcast") {
         Paragraph("Escucha nuestro podcast: historias, novedades y lo que suena en Passion Agogo.")
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(PassionTheme.spacing.s3))
 
         if (!MediaConfig.isPodcastConfigured) {
             Paragraph(
@@ -40,22 +41,24 @@ fun PodcastScreen() {
                 .height(352.dp),
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(PassionTheme.spacing.s4))
         Button(
             onClick = { openInNewTab(MediaConfig.podcastShowUrl) },
+            shape = MaterialTheme.shapes.extraLarge,
+            // Color corporativo de Spotify: se mantiene fijo en ambos temas.
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1DB954),
+                containerColor = PassionColors.SpotifyGreen,
                 contentColor = Color.Black,
             ),
         ) {
-            Text("Abrir en Spotify", fontWeight = FontWeight.SemiBold)
+            Text("Abrir en Spotify", style = MaterialTheme.typography.labelLarge)
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(PassionTheme.spacing.s3))
         Text(
             text = "En el reproductor se escuchan avances de ~30 segundos. Abre el podcast " +
                 "en Spotify para escucharlo completo y seguirlo.",
-            color = Color(0xFF8F84B8),
+            color = PassionTheme.semantics.onBackgroundSubtle,
             style = MaterialTheme.typography.bodySmall,
         )
     }
