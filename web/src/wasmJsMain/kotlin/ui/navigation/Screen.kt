@@ -8,6 +8,8 @@ enum class Screen(val route: String, val title: String) {
     Video("video", "Video"),
     Podcast("podcast", "Podcast"),
     Contact("contacto", "Contacto"),
+    Login("acceder", "Acceder"),
+    Account("cuenta", "Mi cuenta"),
     Terms("terminos", "Términos y condiciones"),
     Privacy("privacidad", "Política de privacidad"),
     Help("ayuda", "Ayuda");

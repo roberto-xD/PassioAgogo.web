@@ -27,6 +27,7 @@ import coil3.compose.setSingletonImageLoaderFactory
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import kotlinx.browser.document
+import network.AuthRepository
 import network.CatalogRepository
 import network.ContactRepository
 import ui.CatalogScreen
@@ -36,13 +37,16 @@ import ui.components.NavBar
 import ui.navigation.Screen
 import ui.navigation.rememberScreenState
 import ui.screens.AboutScreen
+import ui.screens.AccountScreen
 import ui.screens.ContactScreen
 import ui.screens.HelpScreen
 import ui.screens.HomeScreen
+import ui.screens.LoginScreen
 import ui.screens.PodcastScreen
 import ui.screens.PrivacyScreen
 import ui.screens.TermsScreen
 import ui.screens.VideoScreen
+import viewmodel.AuthViewModel
 import viewmodel.CatalogViewModel
 import viewmodel.ContactViewModel
 
@@ -82,6 +86,18 @@ fun App() {
     val contactViewModel = remember { ContactViewModel(ContactRepository()) }
     val contactState by contactViewModel.uiState.collectAsState()
 
+    val authViewModel = remember { AuthViewModel(AuthRepository()) }
+    val authState by authViewModel.uiState.collectAsState()
+
+    // Al iniciar o cerrar sesión, mueve al usuario a la pantalla que corresponde.
+    LaunchedEffect(authState.isAuthenticated) {
+        if (authState.isAuthenticated && screenState.value == Screen.Login) {
+            screenState.value = Screen.Account
+        } else if (!authState.isAuthenticated && screenState.value == Screen.Account) {
+            screenState.value = Screen.Login
+        }
+    }
+
     MaterialTheme {
         Column(
             modifier = Modifier
@@ -92,7 +108,11 @@ fun App() {
                     )
                 ),
         ) {
-            NavBar(current = current, onNavigate = navigate)
+            NavBar(
+                current = current,
+                isAuthenticated = authState.isAuthenticated,
+                onNavigate = navigate,
+            )
 
             // Área de contenido: sirve de recorte para los elementos HTML superpuestos
             // (video), para que no se dibujen sobre la barra o el pie al hacer scroll.
@@ -124,6 +144,19 @@ fun App() {
                             onMensajeChange = contactViewModel::updateMensaje,
                             onSubmit = contactViewModel::submit,
                             onReset = contactViewModel::reset,
+                        )
+                        Screen.Login -> LoginScreen(
+                            state = authState,
+                            onEmailChange = authViewModel::updateEmail,
+                            onPasswordChange = authViewModel::updatePassword,
+                            onNombreChange = authViewModel::updateNombre,
+                            onSwitchMode = authViewModel::switchMode,
+                            onSubmit = authViewModel::submit,
+                        )
+                        Screen.Account -> AccountScreen(
+                            state = authState,
+                            onSignOut = authViewModel::signOut,
+                            onGoToLogin = { navigate(Screen.Login) },
                         )
                         Screen.Terms -> TermsScreen()
                         Screen.Privacy -> PrivacyScreen()

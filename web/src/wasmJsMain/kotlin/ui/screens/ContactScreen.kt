@@ -2,26 +2,24 @@ package ui.screens
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import ui.components.ContentScreen
+import ui.components.FormField
 import ui.components.Paragraph
 import viewmodel.ContactUiState
 import viewmodel.MAX_MENSAJE
@@ -47,17 +45,18 @@ fun ContactScreen(
         )
         Spacer(Modifier.height(12.dp))
 
-        Field(
+        FormField(
             value = state.nombre,
             onValueChange = onNombreChange,
             label = "Nombre",
         )
-        Field(
+        FormField(
             value = state.email,
             onValueChange = onEmailChange,
             label = "Correo electrónico",
+            keyboardType = KeyboardType.Email,
         )
-        Field(
+        FormField(
             value = state.mensaje,
             onValueChange = onMensajeChange,
             label = "Mensaje",
@@ -129,37 +128,4 @@ private fun SentConfirmation(onReset: () -> Unit) {
     ) {
         Text("Enviar otro mensaje")
     }
-}
-
-@Composable
-private fun Field(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    singleLine: Boolean = true,
-    modifier: Modifier = Modifier,
-    supportingText: String? = null,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        singleLine = singleLine,
-        supportingText = supportingText?.let { { Text(it) } },
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            cursorColor = Color(0xFF9C7BFF),
-            focusedBorderColor = Color(0xFF6C5CE7),
-            unfocusedBorderColor = Color(0x66FFFFFF),
-            focusedLabelColor = Color(0xFFC9BEF0),
-            unfocusedLabelColor = Color(0xFF8F84B8),
-            focusedSupportingTextColor = Color(0xFF8F84B8),
-            unfocusedSupportingTextColor = Color(0xFF8F84B8),
-        ),
-        shape = RoundedCornerShape(12.dp),
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-    )
 }

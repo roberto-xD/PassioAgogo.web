@@ -241,6 +241,33 @@ privacidad.
 > reproductor quedaría bloqueado. El mismo orden aplica al `<video>`: sin `muted` presente
 > antes de la fuente, el navegador bloquea el `autoPlay`.
 
+## Acceso de usuarios (Supabase Auth)
+
+Registro e inicio de sesión con correo y contraseña sobre la tabla `profiles` (script 02):
+
+- [`network/AuthRepository`](web/src/wasmJsMain/kotlin/network/AuthRepository.kt) —
+  `signIn`, `signUp`, `signOut`, estado de sesión y lectura del perfil. Al registrarse
+  envía el nombre en los metadatos del alta, que es de donde el trigger `handle_new_user`
+  lo toma para crear la fila de `profiles`.
+- [`viewmodel/AuthViewModel`](web/src/wasmJsMain/kotlin/viewmodel/AuthViewModel.kt) —
+  formulario, validación y errores traducidos a mensajes entendibles.
+- `ui/screens/LoginScreen` (`#/acceder`, alterna entre entrar y crear cuenta) y
+  `ui/screens/AccountScreen` (`#/cuenta`, datos del perfil y cierre de sesión). La barra
+  superior muestra **Acceder** o **Mi cuenta** según haya sesión.
+
+La sesión la **persiste el propio SDK** en el almacenamiento del navegador y la restaura al
+recargar la página: no se guarda ningún token a mano.
+
+Notas de configuración en Supabase → Authentication:
+
+- Si **Confirm email** está activo (valor por defecto), el alta no abre sesión hasta que el
+  usuario confirme el correo; la pantalla lo indica tras registrarse.
+- Todo usuario nuevo se crea con rol `cliente`. Los roles `admin` y `vendedor` se asignan
+  desde la base de datos: el trigger `fn_profiles_guard` (script 09) impide que alguien se
+  autopromueva.
+- El catálogo sigue siendo público: el acceso no es necesario para navegar, y hoy la web no
+  expone funciones exclusivas de staff.
+
 ## Contacto (formulario + anti-bots)
 
 La pantalla **Contacto** (`#/contacto`) envía el mensaje a la Edge Function

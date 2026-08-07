@@ -31,7 +31,7 @@ private val PrimaryItems = listOf(
 )
 
 @Composable
-fun NavBar(current: Screen, onNavigate: (Screen) -> Unit) {
+fun NavBar(current: Screen, isAuthenticated: Boolean, onNavigate: (Screen) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -56,6 +56,14 @@ fun NavBar(current: Screen, onNavigate: (Screen) -> Unit) {
                 onClick = { onNavigate(screen) },
             )
         }
+
+        // Último elemento: acceso o cuenta, según haya sesión iniciada.
+        val accountScreen = if (isAuthenticated) Screen.Account else Screen.Login
+        NavItem(
+            label = accountScreen.title,
+            selected = current == Screen.Login || current == Screen.Account,
+            onClick = { onNavigate(accountScreen) },
+        )
     }
 }
 
