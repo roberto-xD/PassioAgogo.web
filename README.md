@@ -86,8 +86,32 @@ dependencias con versiones acopladas a Compose 1.7.3):
   de la URL** (`#/inicio`, `#/catalogo`, …): enlaces compartibles y botón atrás/adelante
   del navegador funcionando.
 - `ui/components/NavBar` (barra superior) y `ui/components/Footer` (enlaces legales).
-- `ui/screens/` — pantallas de contenido; los textos de Términos y Privacidad son
-  **placeholder** y deben reemplazarse por el contenido legal real.
+- `ui/screens/` — pantallas de contenido.
+
+### Textos legales
+
+Términos y Privacidad están redactados a partir del funcionamiento real del sitio: la
+privacidad describe exactamente qué se recoge en el formulario de contacto (nombre, correo,
+mensaje y un hash con sal del IP, nunca el IP en claro) y los terceros implicados
+(Supabase, Cloudflare Turnstile y el contenido incrustado de Spotify).
+
+Antes de publicarlos:
+
+1. Sustituye los marcadores `[RAZÓN SOCIAL]`, `[DOMICILIO]`, `[CORREO DE CONTACTO]` y
+   `[CIUDAD, ESTADO/PAÍS]`.
+2. **Que los revise un profesional legal**: el texto es una base sólida, no asesoría
+   jurídica.
+3. Actualiza la fecha de "Última actualización" al publicar.
+
+Si más adelante se añaden analítica, cuentas de usuario o nuevos servicios de terceros, hay
+que actualizar la política de privacidad.
+
+### Icono del sitio
+
+El favicon se declara en [`index.html`](web/src/wasmJsMain/resources/index.html) y apunta a
+`favicon.svg` (marca de texto con el degradado de la marca). Reemplázalo por el logotipo
+real cuando esté disponible; para máxima compatibilidad con Safari antiguo y accesos
+directos móviles, añade además un PNG de 180×180 y decláralo junto al SVG.
 
 Migrar a `org.jetbrains.androidx.navigation:navigation-compose` más adelante es directo
 si se necesitan rutas anidadas o argumentos complejos.
