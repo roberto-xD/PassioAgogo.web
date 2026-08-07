@@ -294,6 +294,19 @@ los envíos por origen.
 
 ## ⚠️ Seguridad
 
+- **Inyección SQL: cubierta por arquitectura, no por filtrado.** Los datos viajan como
+  JSON a PostgREST, que ejecuta **consultas parametrizadas**: los valores nunca se
+  concatenan en la instrucción SQL. El formulario inserta con
+  `.insert({ nombre, email, mensaje, ip_hash })` y filtra con `.eq(...)` / `.gte(...)`,
+  siempre por parámetros; en el catálogo, además, **ningún dato del usuario llega a la
+  base** (búsqueda y filtro operan en cliente sobre la lista ya cargada).
+  Para que siga siendo cierto: **nunca construyas filtros concatenando entrada del
+  usuario** (p. ej. `or("nombre.eq." + entrada)`) ni SQL dinámico en funciones `rpc`.
+- Riesgos vecinos a tener en cuenta **al construir el panel de administración** que lea
+  `contact_messages`: el contenido lo escribe un desconocido, así que (a) escápalo al
+  mostrarlo si el panel es HTML —en Compose, `Text` no interpreta marcado, así que no
+  aplica—, y (b) si exportas a CSV/Excel, antepón un apóstrofo a los valores que empiecen
+  por `=`, `+`, `-` o `@` para evitar que se ejecuten como fórmulas.
 - La **`ANON_KEY` de Supabase es pública por diseño** (va en el cliente web); la
   protección de datos se hace con **RLS** en la base de datos. **Nunca** uses la
   `service_role` key en el cliente.
