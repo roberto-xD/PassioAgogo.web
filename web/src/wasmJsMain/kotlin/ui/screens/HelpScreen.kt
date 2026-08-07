@@ -8,7 +8,7 @@ import ui.components.SectionTitle
 @Composable
 fun HelpScreen() {
     ContentScreen(title = "Ayuda") {
-        Paragraph("Preguntas frecuentes sobre el uso de Passio Agogo.")
+        Paragraph("Preguntas frecuentes sobre el uso de Passion Agogo.")
         SectionTitle("¿Cómo busco productos?")
         Paragraph(
             "Entra a la sección Catálogo para ver los productos disponibles. Próximamente podrás " +

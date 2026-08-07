@@ -45,7 +45,7 @@ object MediaConfig {
      * ID del show en Spotify: el código del enlace de *Compartir → Copiar enlace*
      * (`https://open.spotify.com/show/<id>`), sin parámetros.
      */
-    const val PODCAST_SHOW_ID: String = "YOUR-SPOTIFY-SHOW-ID"
+    const val PODCAST_SHOW_ID: String = "5as5H9vDI4JQwrwPvzddqw"
 
     val isPodcastConfigured: Boolean
         get() = !PODCAST_SHOW_ID.startsWith("YOUR-") && PODCAST_SHOW_ID.isNotBlank()

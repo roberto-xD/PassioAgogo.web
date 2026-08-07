@@ -15,8 +15,8 @@ package network
  */
 object SupabaseConfig {
     // TODO: reemplazar por los valores reales del proyecto Supabase.
-    const val URL: String = "https://YOUR-PROJECT-REF.supabase.co"
-    const val ANON_KEY: String = "YOUR-SUPABASE-ANON-KEY"
+    const val URL: String = "https://vkykibdblwnmwansjcua.supabase.co"
+    const val ANON_KEY: String = "sb_publishable_oJgt6IBSg_ot55uU0HV9oQ_2IwtZZ9V"
 
     /** Tablas del catálogo (01_catalog.sql / 05_promotions.sql). */
     const val PRODUCTS_TABLE: String = "products"

@@ -33,7 +33,7 @@ fun HomeScreen(onExploreCatalog: () -> Unit) {
     ) {
         Spacer(Modifier.height(48.dp))
         Text(
-            text = "Passio Agogo",
+            text = "Passion Agogo",
             color = Color.White,
             fontSize = 52.sp,
             fontWeight = FontWeight.Bold,

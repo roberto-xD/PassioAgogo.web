@@ -54,7 +54,7 @@ fun ProductCard(product: PGDataCard) {
                     )
                 } else {
                     Text(
-                        text = product.productStore.ifBlank { "Passio Agogo" },
+                        text = product.productStore.ifBlank { "Passion Agogo" },
                         color = Color(0xFF6C5CE7),
                         fontWeight = FontWeight.SemiBold,
                     )

@@ -15,7 +15,7 @@ import kotlinx.coroutines.delay
  */
 object TurnstileConfig {
     // TODO: reemplazar por la site key real (Cloudflare → Turnstile → Add widget).
-    const val SITE_KEY: String = "YOUR-TURNSTILE-SITE-KEY"
+    const val SITE_KEY: String = "0x4AAAAAAEHnqKhFDRDDkTr8"
 
     /** Sin configurar, el formulario se envía sin token (útil en desarrollo local). */
     val isConfigured: Boolean

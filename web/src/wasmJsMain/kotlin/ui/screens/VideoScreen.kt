@@ -15,7 +15,7 @@ import ui.components.VideoPlayer
 @Composable
 fun VideoScreen() {
     ContentScreen(title = "Video") {
-        Paragraph("Conoce Passio Agogo en menos de un minuto.")
+        Paragraph("Conoce Passion Agogo en menos de un minuto.")
         Spacer(Modifier.height(12.dp))
 
         if (MediaConfig.isConfigured) {

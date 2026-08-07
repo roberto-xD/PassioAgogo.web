@@ -42,7 +42,7 @@ fun NavBar(current: Screen, onNavigate: (Screen) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         Text(
-            text = "Passio Agogo",
+            text = "Passion Agogo",
             color = Color.White,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,

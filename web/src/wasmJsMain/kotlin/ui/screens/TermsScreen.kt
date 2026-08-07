@@ -20,14 +20,14 @@ fun TermsScreen() {
         SectionTitle("1. Titular del sitio")
         Paragraph(
             "Este sitio web es operado por [RAZÓN SOCIAL], con domicilio en [DOMICILIO] " +
-                "(en adelante, \"Passio Agogo\", \"nosotros\"). Para cualquier asunto " +
+                "(en adelante, \"Passion Agogo\", \"nosotros\"). Para cualquier asunto " +
                 "relacionado con estos términos puedes escribirnos desde la sección " +
                 "Contacto o a [CORREO DE CONTACTO]."
         )
 
         SectionTitle("2. Objeto")
         Paragraph(
-            "Passio Agogo es un sitio de consulta que reúne y muestra un catálogo de " +
+            "Passion Agogo es un sitio de consulta que reúne y muestra un catálogo de " +
                 "productos, junto con contenido informativo y multimedia sobre la marca. " +
                 "El sitio tiene una finalidad informativa y de difusión."
         )
@@ -79,7 +79,7 @@ fun TermsScreen() {
         SectionTitle("6. Propiedad intelectual")
         Paragraph(
             "Los contenidos del sitio —incluyendo textos, imágenes, logotipos, material " +
-                "audiovisual y su presentación— son titularidad de Passio Agogo o de sus " +
+                "audiovisual y su presentación— son titularidad de Passion Agogo o de sus " +
                 "respectivos titulares, y están protegidos por la legislación aplicable."
         )
         Paragraph(
@@ -110,7 +110,7 @@ fun TermsScreen() {
 
         SectionTitle("9. Limitación de responsabilidad")
         Paragraph(
-            "En la medida permitida por la ley, Passio Agogo no será responsable de los " +
+            "En la medida permitida por la ley, Passion Agogo no será responsable de los " +
                 "daños o perjuicios derivados del uso del sitio, de la imposibilidad de " +
                 "usarlo, ni de las decisiones de compra tomadas a partir de la información " +
                 "publicada, sin perjuicio de las responsabilidades que la legislación " +

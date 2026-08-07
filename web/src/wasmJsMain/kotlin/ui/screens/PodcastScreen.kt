@@ -22,7 +22,7 @@ import ui.components.openInNewTab
 @Composable
 fun PodcastScreen() {
     ContentScreen(title = "Podcast") {
-        Paragraph("Escucha nuestro podcast: historias, novedades y lo que suena en Passio Agogo.")
+        Paragraph("Escucha nuestro podcast: historias, novedades y lo que suena en Passion Agogo.")
         Spacer(Modifier.height(12.dp))
 
         if (!MediaConfig.isPodcastConfigured) {

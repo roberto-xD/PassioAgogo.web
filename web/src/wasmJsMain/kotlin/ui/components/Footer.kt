@@ -48,7 +48,7 @@ fun Footer(onNavigate: (Screen) -> Unit) {
             }
         }
         Text(
-            text = "© 2026 Passio Agogo",
+            text = "© 2026 Passion Agogo",
             color = Color(0xFF8F84B8),
             fontSize = 12.sp,
             modifier = Modifier.padding(top = 12.dp),
