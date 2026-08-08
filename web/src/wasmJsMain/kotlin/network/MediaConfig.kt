@@ -38,6 +38,19 @@ object MediaConfig {
         get() = SupabaseConfig.isConfigured && PRESENTACION_PATH.isNotBlank()
 
     // ------------------------------------------------------------------
+    // Identidad de marca
+    // ------------------------------------------------------------------
+
+    /** Logotipo de la marca, relativo a [MEDIA_BUCKET]. */
+    const val LOGO_PATH: String = "logo_passion.png"
+
+    val logoUrl: String
+        get() = SupabaseConfig.publicStorageUrl(LOGO_PATH, MEDIA_BUCKET)
+
+    val isLogoConfigured: Boolean
+        get() = SupabaseConfig.isConfigured && LOGO_PATH.isNotBlank()
+
+    // ------------------------------------------------------------------
     // Podcast de la marca (Spotify)
     // ------------------------------------------------------------------
 

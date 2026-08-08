@@ -1,4 +1,4 @@
-# Passion Agogo
+# Passion à gogo
 
 Aplicación **web** hecha con Compose Multiplatform (target wasmJs). Es un proyecto
 de un único módulo, `:web`.
@@ -102,6 +102,11 @@ Antes de publicarlos:
 2. **Que los revise un profesional legal**: el texto es una base sólida, no asesoría
    jurídica.
 3. Actualiza la fecha de "Última actualización" al publicar.
+
+Los términos incluyen la **restricción de acceso a mayores de 18 años** (sección 3), por
+tratarse de una tienda para adultos. Esa cláusula *declara* el requisito pero **no lo
+verifica**: si tu normativa exige comprobación efectiva de la edad, hace falta además una
+pantalla de verificación al entrar (pendiente, decidido posponerla).
 
 Si más adelante se añaden analítica, cuentas de usuario o nuevos servicios de terceros, hay
 que actualizar la política de privacidad.

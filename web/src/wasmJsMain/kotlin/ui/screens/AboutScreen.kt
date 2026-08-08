@@ -9,7 +9,7 @@ import ui.components.SectionTitle
 fun AboutScreen() {
     ContentScreen(title = "Nosotros") {
         Paragraph(
-            "Passion Agogo nace para ayudarte a descubrir y comparar productos de distintas " +
+            "Passion à gogo nace para ayudarte a descubrir y comparar productos de distintas " +
                 "tiendas en un solo lugar, de forma rápida y sencilla."
         )
         SectionTitle("Nuestra misión")

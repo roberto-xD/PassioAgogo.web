@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * Paleta de marca. Las rampas y los alias semánticos provienen del sistema de diseño de
- * Passion Agogo; el esquema oscuro se deriva de las mismas rampas.
+ * Passion à gogo; el esquema oscuro se deriva de las mismas rampas.
  */
 object PassionColors {
     // Rampa morada

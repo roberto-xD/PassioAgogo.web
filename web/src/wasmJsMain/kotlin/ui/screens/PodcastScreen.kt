@@ -23,7 +23,7 @@ import ui.theme.PassionTheme
 @Composable
 fun PodcastScreen() {
     ContentScreen(title = "Podcast") {
-        Paragraph("Escucha nuestro podcast: historias, novedades y lo que suena en Passion Agogo.")
+        Paragraph("Escucha nuestro podcast: historias, novedades y lo que suena en Passion à gogo.")
         Spacer(Modifier.height(PassionTheme.spacing.s3))
 
         if (!MediaConfig.isPodcastConfigured) {

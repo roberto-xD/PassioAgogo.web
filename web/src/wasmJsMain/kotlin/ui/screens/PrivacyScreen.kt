@@ -132,9 +132,14 @@ fun PrivacyScreen() {
 
         SectionTitle("10. Menores de edad")
         Paragraph(
-            "El sitio no está dirigido a menores de edad ni recabamos conscientemente sus " +
-                "datos. Si detectamos que hemos recibido información de un menor sin la " +
-                "autorización correspondiente, procederemos a eliminarla."
+            "El sitio está dirigido exclusivamente a personas mayores de 18 años, según se " +
+                "detalla en los Términos y condiciones. No recabamos conscientemente datos " +
+                "de personas menores de edad."
+        )
+        Paragraph(
+            "Si detectamos que hemos recibido información de una persona menor de edad, " +
+                "procederemos a eliminarla. Si crees que esto ha ocurrido, escríbenos a " +
+                "[CORREO DE CONTACTO] para que la suprimamos."
         )
 
         SectionTitle("11. Cambios en esta política")

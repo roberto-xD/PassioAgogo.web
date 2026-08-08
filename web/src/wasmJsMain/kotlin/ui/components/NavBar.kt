@@ -44,7 +44,7 @@ fun NavBar(current: Screen, isAuthenticated: Boolean, onNavigate: (Screen) -> Un
         horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s6),
     ) {
         Text(
-            text = "Passion Agogo",
+            text = "Passion à gogo",
             color = PassionTheme.semantics.onBackgroundStrong,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,

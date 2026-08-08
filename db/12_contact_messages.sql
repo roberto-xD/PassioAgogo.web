@@ -1,6 +1,6 @@
 -- ============================================================
 -- 12 · Mensajes del formulario de contacto (web pública)
--- Passion Agogo · Supabase (PostgreSQL)
+-- Passion à gogo · Supabase (PostgreSQL)
 -- Ejecutar después de 09/10 (usa is_staff()) · Idempotente
 --
 -- Los mensajes NO se insertan desde el navegador: entran por la

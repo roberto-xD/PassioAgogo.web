@@ -50,7 +50,7 @@ fun Footer(onNavigate: (Screen) -> Unit) {
             }
         }
         Text(
-            text = "© 2026 Passion Agogo",
+            text = "© 2026 Passion à gogo",
             color = PassionTheme.semantics.onBackgroundSubtle,
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(top = PassionTheme.spacing.s3),

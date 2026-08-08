@@ -52,7 +52,7 @@ fun ProductCard(product: PGDataCard) {
                     )
                 } else {
                     Text(
-                        text = product.productStore.ifBlank { "Passion Agogo" },
+                        text = product.productStore.ifBlank { "Passion à gogo" },
                         color = semantics.onImagePlaceholder,
                         style = MaterialTheme.typography.labelLarge,
                     )
