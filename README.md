@@ -219,16 +219,33 @@ la tira de imágenes de la portada (eventos, promociones y novedades):
 - **Automático**: avanza a velocidad constante, fotograma a fotograma.
 - **Manual**: se arrastra con el ratón o el dedo, y las flechas laterales avanzan una
   tarjeta. El avance automático se detiene mientras el usuario arrastra.
-- **Al pasar el cursor**: se detiene, la tarjeta crece un 12 % y se dibuja **por encima**
-  de las demás (`zIndex`), revelando la descripción completa. El aumento usa
-  `graphicsLayer`, que no afecta a la medición, así que la tarjeta crece sobre sus vecinas
-  en lugar de empujarlas; por eso la fila reserva algo más de alto del que ocupa la tarjeta.
+- **Al pasar el cursor**: el avance se detiene, la tarjeta apuntada crece un 12 % y se
+  dibuja **por encima** de las demás (`zIndex`), revelando su descripción. Al retirar el
+  cursor se reanuda. El aumento usa `graphicsLayer`, que no afecta a la medición, así que
+  la tarjeta crece sobre sus vecinas en lugar de empujarlas; por eso la fila reserva algo
+  más de alto del que ocupa la tarjeta.
+- **Al hacer clic**: se abre
+  [`GalleryDetailDialog`](web/src/wasmJsMain/kotlin/ui/components/GalleryDetailDialog.kt)
+  con la imagen ampliada —sin recortar, para apreciar el detalle— y el texto de la columna
+  `detalles`. El avance queda detenido mientras el diálogo está abierto.
+
+Dos detalles de implementación que evitan que el carrusel se quede congelado:
+
+- La pausa se decide con el hover de **la fila completa**, no sumando el de cada tarjeta:
+  las tarjetas entran y salen de composición sin parar y ese recuento se desincroniza con
+  facilidad.
+- El bucle de animación **no se reinicia** con los cambios de pausa (vive mientras vive el
+  carrusel y omite el avance), de modo que reanudarse no depende de que una clave vuelva a
+  su valor anterior.
 - La lista es **circular**: se recorren `Int.MAX_VALUE` posiciones tomando el elemento por
   módulo, arrancando por la mitad para poder arrastrar también hacia atrás.
 
 Contenido: tabla [`gallery_items`](db/13_gallery.sql). Sube las imágenes al bucket público
 y guarda su ruta relativa (o una URL absoluta) en la columna `imagen`; `orden` decide la
-posición y `activo` permite prepararlas antes de publicarlas. El RLS deja **leer los
+posición y `activo` permite prepararlas antes de publicarlas. Los textos tienen dos
+niveles: `descripcion` es el resumen corto que aparece sobre la imagen al pasar el cursor,
+y `detalles` el texto largo del diálogo. Re-ejecutar el script añade `detalles` si la tabla
+ya existía. El RLS deja **leer los
 elementos activos sin sesión** y reserva la escritura a la administración.
 
 El carrusel vive hoy en Inicio, bajo el hero, pero recibe la lista por parámetro: moverlo a

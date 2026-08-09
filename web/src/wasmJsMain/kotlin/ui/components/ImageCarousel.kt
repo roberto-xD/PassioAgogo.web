@@ -25,12 +25,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -60,9 +60,12 @@ private const val HOVER_SCALE = 1.12f
  * Comportamiento:
  * - **Automático**: avanza a velocidad constante, fotograma a fotograma.
  * - **Manual**: la fila se arrastra con el ratón o el dedo, y las flechas laterales
- *   avanzan una tarjeta. El avance automático se detiene mientras el usuario arrastra.
- * - **Al pasar el cursor**: se detiene, la tarjeta crece ligeramente y se dibuja por
- *   encima de las demás ([zIndex]), mostrando la descripción completa.
+ *   avanzan una tarjeta.
+ * - **Al pasar el cursor**: el avance se detiene, la tarjeta apuntada crece ligeramente y
+ *   se dibuja por encima de las demás ([zIndex]), mostrando su descripción. Al retirar el
+ *   cursor, el avance se reanuda.
+ * - **Al hacer clic**: se abre un diálogo con la imagen ampliada y su información
+ *   extendida; el avance queda detenido mientras está abierto.
  *
  * La lista es circular: se recorren [Int.MAX_VALUE] posiciones tomando el elemento por
  * módulo, y se arranca por la mitad para poder arrastrar también hacia atrás.
@@ -90,25 +93,42 @@ fun ImageCarousel(
             middle - (middle % slides.size)
         }
     )
-    val isDragged by listState.interactionSource.collectIsDraggedAsState()
-    var hoveredCards by remember { mutableStateOf(0) }
-    val paused = isDragged || hoveredCards > 0
 
-    LaunchedEffect(paused) {
-        if (paused) return@LaunchedEffect
+    // El hover se detecta en la fila completa y no sumando el de cada tarjeta: las
+    // tarjetas entran y salen de composición sin parar, y llevar la cuenta de cuántas
+    // están apuntadas se desincroniza con facilidad, dejando el carrusel detenido para
+    // siempre. Con una única fuente de verdad eso no puede ocurrir.
+    val rowInteraction = remember { MutableInteractionSource() }
+    val isRowHovered by rowInteraction.collectIsHoveredAsState()
+    val isDragged by listState.interactionSource.collectIsDraggedAsState()
+
+    var selected by remember { mutableStateOf<GallerySlide?>(null) }
+    val paused = isRowHovered || isDragged || selected != null
+
+    // El bucle de animación no se reinicia con los cambios de pausa: vive mientras viva
+    // el carrusel y simplemente omite el avance. Así no depende de que una clave vuelva a
+    // su valor para reanudarse.
+    val pausedNow by rememberUpdatedState(paused)
+    LaunchedEffect(Unit) {
         var previousFrame = withFrameNanos { it }
         while (true) {
             val frame = withFrameNanos { it }
             val elapsedSeconds = (frame - previousFrame) / 1_000_000_000f
             previousFrame = frame
-            listState.scrollBy(speedPxPerSecond * elapsedSeconds)
+            if (!pausedNow) {
+                listState.scrollBy(speedPxPerSecond * elapsedSeconds)
+            }
         }
     }
 
     val scope = rememberCoroutineScope()
     val stepPx = with(LocalDensity.current) { (itemWidth + spacing).toPx() }
 
-    Box(modifier = modifier.fillMaxWidth()) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .hoverable(rowInteraction),
+    ) {
         LazyRow(
             state = listState,
             modifier = Modifier
@@ -120,13 +140,12 @@ fun ImageCarousel(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             items(count = Int.MAX_VALUE) { index ->
+                val slide = slides[index % slides.size]
                 CarouselCard(
-                    slide = slides[index % slides.size],
+                    slide = slide,
                     width = itemWidth,
                     height = itemHeight,
-                    onHoverChange = { hovered ->
-                        hoveredCards = (hoveredCards + if (hovered) 1 else -1).coerceAtLeast(0)
-                    },
+                    onClick = { selected = slide },
                 )
             }
         }
@@ -142,6 +161,10 @@ fun ImageCarousel(
             onClick = { scope.launch { listState.animateScrollBy(stepPx) } },
         )
     }
+
+    selected?.let { slide ->
+        GalleryDetailDialog(slide = slide, onDismiss = { selected = null })
+    }
 }
 
 @Composable
@@ -149,20 +172,12 @@ private fun CarouselCard(
     slide: GallerySlide,
     width: Dp,
     height: Dp,
-    onHoverChange: (Boolean) -> Unit,
+    onClick: () -> Unit,
 ) {
+    // Este hover solo controla el aspecto de la propia tarjeta; la pausa del carrusel se
+    // decide en la fila, así que un desajuste aquí no puede detenerlo.
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-
-    // Se notifica al carrusel para que detenga el avance mientras haya una tarjeta activa.
-    // Es DisposableEffect y no LaunchedEffect a propósito: una tarjeta puede salir de
-    // composición al desplazarse mientras el cursor está encima, y sin el onDispose el
-    // contador de tarjetas activas nunca bajaría, dejando el carrusel detenido para
-    // siempre.
-    DisposableEffect(isHovered) {
-        if (isHovered) onHoverChange(true)
-        onDispose { if (isHovered) onHoverChange(false) }
-    }
 
     val scale by animateFloatAsState(
         targetValue = if (isHovered) HOVER_SCALE else 1f,
@@ -180,7 +195,8 @@ private fun CarouselCard(
             .height(height)
             .clip(MaterialTheme.shapes.medium)
             .background(PassionTheme.semantics.imagePlaceholder)
-            .hoverable(interactionSource),
+            .hoverable(interactionSource)
+            .clickable(onClick = onClick),
     ) {
         AsyncImage(
             model = slide.imageUrl,
@@ -223,14 +239,24 @@ private fun CarouselCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            // La descripción completa se revela solo al pasar el cursor.
-            if (isHovered && slide.descripcion.isNotBlank()) {
-                Text(
-                    text = slide.descripcion,
-                    color = Color.White.copy(alpha = 0.9f),
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = PassionTheme.spacing.s1),
-                )
+            // Al pasar el cursor se revela el resumen y la invitación a abrir el detalle.
+            if (isHovered) {
+                if (slide.descripcion.isNotBlank()) {
+                    Text(
+                        text = slide.descripcion,
+                        color = Color.White.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = PassionTheme.spacing.s1),
+                    )
+                }
+                if (slide.detalles.isNotBlank()) {
+                    Text(
+                        text = "Clic para ver más",
+                        color = Color.White.copy(alpha = 0.75f),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(top = PassionTheme.spacing.s1),
+                    )
+                }
             }
         }
     }

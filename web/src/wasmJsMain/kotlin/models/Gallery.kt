@@ -10,6 +10,7 @@ data class GalleryItemDto(
     val id: String? = null,
     val titulo: String? = null,
     val descripcion: String? = null,
+    val detalles: String? = null,
     val imagen: String? = null,
     val categoria: String? = null,
     val orden: Int = 0,
@@ -19,6 +20,7 @@ data class GalleryItemDto(
 data class GallerySlide(
     val titulo: String,
     val descripcion: String,
+    val detalles: String,
     val categoria: String,
     val imageUrl: String,
 )
@@ -28,6 +30,7 @@ fun GalleryItemDto.toSlide(): GallerySlide? {
     return GallerySlide(
         titulo = titulo.orEmpty(),
         descripcion = descripcion.orEmpty(),
+        detalles = detalles.orEmpty(),
         categoria = categoria.orEmpty(),
         imageUrl = SupabaseConfig.publicStorageUrl(path, MediaConfig.MEDIA_BUCKET),
     )
