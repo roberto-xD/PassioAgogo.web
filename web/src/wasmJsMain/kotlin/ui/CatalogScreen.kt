@@ -34,6 +34,7 @@ import viewmodel.CategoryOption
 fun CatalogScreen(
     state: CatalogUiState,
     onSelectCategory: (String?) -> Unit,
+    onSelectSubcategory: (String?) -> Unit,
     onSearchChange: (String) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -44,7 +45,22 @@ fun CatalogScreen(
             CategoryChips(
                 categories = state.categories,
                 selectedId = state.selectedCategoryId,
+                allLabel = "Todas",
                 onSelect = onSelectCategory,
+            )
+        }
+        // Segundo nivel: solo aparece si la categoría elegida tiene hijas con productos.
+        if (state.subcategories.isNotEmpty()) {
+            val parentName = state.categories
+                .firstOrNull { it.id == state.selectedCategoryId }
+                ?.nombre
+                .orEmpty()
+            CategoryChips(
+                categories = state.subcategories,
+                selectedId = state.selectedSubcategoryId,
+                allLabel = if (parentName.isBlank()) "Todas" else "Todo en $parentName",
+                secondLevel = true,
+                onSelect = onSelectSubcategory,
             )
         }
         Box(
@@ -60,6 +76,10 @@ fun CatalogScreen(
                 state.products.isEmpty() && state.searchQuery.isNotBlank() -> Message(
                     title = "Sin resultados para \"${state.searchQuery}\"",
                     detail = "Prueba con otras palabras o quita el filtro.",
+                )
+                state.products.isEmpty() && state.selectedSubcategoryId != null -> Message(
+                    title = "Sin productos en esta subcategoría",
+                    detail = "Prueba con otra o vuelve a ver la categoría completa.",
                 )
                 state.products.isEmpty() && state.selectedCategoryId != null -> Message(
                     title = "Sin productos en esta categoría",
@@ -111,7 +131,9 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
 private fun CategoryChips(
     categories: List<CategoryOption>,
     selectedId: String?,
+    allLabel: String,
     onSelect: (String?) -> Unit,
+    secondLevel: Boolean = false,
 ) {
     Row(
         modifier = Modifier
@@ -119,35 +141,63 @@ private fun CategoryChips(
             .horizontalScroll(rememberScrollState())
             .padding(
                 horizontal = PassionTheme.spacing.s4,
-                vertical = PassionTheme.spacing.s2,
+                vertical = if (secondLevel) PassionTheme.spacing.s1
+                else PassionTheme.spacing.s2,
             ),
         horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s2),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Chip(label = "Todas", selected = selectedId == null) { onSelect(null) }
+        Chip(label = allLabel, selected = selectedId == null, secondLevel = secondLevel) {
+            onSelect(null)
+        }
         categories.forEach { category ->
-            Chip(label = category.nombre, selected = selectedId == category.id) {
+            Chip(
+                label = category.nombre,
+                selected = selectedId == category.id,
+                secondLevel = secondLevel,
+            ) {
                 onSelect(category.id)
             }
         }
     }
 }
 
+/**
+ * Chip de filtro. El segundo nivel usa el color secundario y algo menos de relleno, para
+ * que se lea como una acotación de la fila superior y no como otro filtro independiente.
+ */
 @Composable
-private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun Chip(
+    label: String,
+    selected: Boolean,
+    secondLevel: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val background = when {
+        selected && secondLevel -> MaterialTheme.colorScheme.secondary
+        selected -> MaterialTheme.colorScheme.primary
+        else -> PassionTheme.semantics.overlayWeak
+    }
+    val content = when {
+        selected && secondLevel -> MaterialTheme.colorScheme.onSecondary
+        selected -> MaterialTheme.colorScheme.onPrimary
+        else -> PassionTheme.semantics.onBackgroundMuted
+    }
     Text(
         text = label,
-        style = MaterialTheme.typography.labelLarge,
-        color = if (selected) MaterialTheme.colorScheme.onPrimary
-        else PassionTheme.semantics.onBackgroundMuted,
+        style = if (secondLevel) MaterialTheme.typography.labelMedium
+        else MaterialTheme.typography.labelLarge,
+        color = content,
         modifier = Modifier
             .clip(MaterialTheme.shapes.extraLarge)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primary
-                else PassionTheme.semantics.overlayWeak
-            )
+            .background(background)
             .clickable(onClick = onClick)
-            .padding(horizontal = PassionTheme.spacing.s4, vertical = PassionTheme.spacing.s2),
+            .padding(
+                horizontal = if (secondLevel) PassionTheme.spacing.s3
+                else PassionTheme.spacing.s4,
+                vertical = if (secondLevel) PassionTheme.spacing.s1
+                else PassionTheme.spacing.s2,
+            ),
     )
 }
 

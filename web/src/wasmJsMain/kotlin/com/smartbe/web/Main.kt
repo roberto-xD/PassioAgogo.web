@@ -140,6 +140,7 @@ fun App() {
                         Screen.Catalog -> CatalogScreen(
                             state = catalogState,
                             onSelectCategory = catalogViewModel::selectCategory,
+                            onSelectSubcategory = catalogViewModel::selectSubcategory,
                             onSearchChange = catalogViewModel::setSearchQuery,
                         )
                         Screen.About -> AboutScreen()
