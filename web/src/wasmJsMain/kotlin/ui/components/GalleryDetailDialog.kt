@@ -3,8 +3,12 @@ package ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -29,12 +33,18 @@ import coil3.compose.AsyncImage
 import models.GallerySlide
 import ui.theme.PassionTheme
 
+/** Por debajo de este ancho no caben imagen e información una al lado de la otra. */
+private val SIDE_BY_SIDE_MIN_WIDTH = 720.dp
+
 /**
  * Diálogo con la imagen ampliada y su información extendida.
  *
  * Ocupa un porcentaje de la ventana en lugar del ancho por defecto de la plataforma
  * (`usePlatformDefaultWidth = false`), y la imagen se muestra con [ContentScale.Fit] para
  * verla completa: aquí el objetivo es apreciar el detalle, no llenar el marco.
+ *
+ * La información va **al lado** de la imagen, de modo que se lea sin desplazarse. En
+ * ventanas estrechas —donde dos columnas quedarían ilegibles— se apila debajo.
  */
 @Composable
 fun GalleryDetailDialog(slide: GallerySlide, onDismiss: () -> Unit) {
@@ -47,67 +57,49 @@ fun GalleryDetailDialog(slide: GallerySlide, onDismiss: () -> Unit) {
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .widthIn(max = 900.dp)
+                .widthIn(max = 1100.dp)
                 .fillMaxHeight(0.88f),
         ) {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    // Fondo oscuro tras la imagen: al no recortarla, quedan franjas a los
-                    // lados y así se integran con la fotografía en lugar de destacar.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 240.dp, max = 520.dp)
-                            .background(Color.Black),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        AsyncImage(
-                            model = slide.imageUrl,
-                            contentDescription = slide.titulo.ifBlank { "Imagen ampliada" },
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-
-                    Column(modifier = Modifier.padding(PassionTheme.spacing.s6)) {
-                        if (slide.categoria.isNotBlank()) {
-                            Text(
-                                text = slide.categoria.uppercase(),
-                                color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.labelSmall,
+            Box(modifier = Modifier.fillMaxSize()) {
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    if (maxWidth >= SIDE_BY_SIDE_MIN_WIDTH) {
+                        Row(modifier = Modifier.fillMaxSize()) {
+                            SlideImage(
+                                slide = slide,
+                                modifier = Modifier
+                                    .weight(1.5f)
+                                    .fillMaxHeight(),
                             )
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(PassionTheme.spacing.s6),
+                            ) {
+                                SlideInfo(slide)
+                            }
                         }
-                        Text(
-                            text = slide.titulo,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = PassionTheme.spacing.s1),
-                        )
-                        if (slide.descripcion.isNotBlank()) {
-                            Text(
-                                text = slide.descripcion,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = PassionTheme.spacing.s3),
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                        ) {
+                            SlideImage(
+                                slide = slide,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 220.dp, max = 420.dp),
                             )
-                        }
-                        if (slide.detalles.isNotBlank()) {
-                            Text(
-                                text = slide.detalles,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = PassionTheme.spacing.s4),
-                            )
+                            Column(modifier = Modifier.padding(PassionTheme.spacing.s6)) {
+                                SlideInfo(slide)
+                            }
                         }
                     }
                 }
 
-                // Botón de cierre sobre la imagen.
+                // Botón de cierre, siempre visible sobre la esquina superior derecha.
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -126,5 +118,56 @@ fun GalleryDetailDialog(slide: GallerySlide, onDismiss: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SlideImage(slide: GallerySlide, modifier: Modifier = Modifier) {
+    // Fondo oscuro tras la imagen: al no recortarla quedan franjas a los lados, y así se
+    // integran con la fotografía en lugar de destacar.
+    Box(
+        modifier = modifier.background(Color.Black),
+        contentAlignment = Alignment.Center,
+    ) {
+        AsyncImage(
+            model = slide.imageUrl,
+            contentDescription = slide.titulo.ifBlank { "Imagen ampliada" },
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+@Composable
+private fun ColumnScope.SlideInfo(slide: GallerySlide) {
+    if (slide.categoria.isNotBlank()) {
+        Text(
+            text = slide.categoria.uppercase(),
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.labelSmall,
+        )
+    }
+    Text(
+        text = slide.titulo,
+        color = MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(top = PassionTheme.spacing.s1),
+    )
+    if (slide.descripcion.isNotBlank()) {
+        Text(
+            text = slide.descripcion,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s3),
+        )
+    }
+    if (slide.detalles.isNotBlank()) {
+        Text(
+            text = slide.detalles,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s4),
+        )
     }
 }

@@ -226,8 +226,10 @@ la tira de imágenes de la portada (eventos, promociones y novedades):
   más de alto del que ocupa la tarjeta.
 - **Al hacer clic**: se abre
   [`GalleryDetailDialog`](web/src/wasmJsMain/kotlin/ui/components/GalleryDetailDialog.kt)
-  con la imagen ampliada —sin recortar, para apreciar el detalle— y el texto de la columna
-  `detalles`. El avance queda detenido mientras el diálogo está abierto.
+  con la imagen ampliada —sin recortar, para apreciar el detalle— y **al lado** el texto de
+  la columna `detalles`, de modo que se lea sin desplazarse. En ventanas por debajo de
+  720 dp, donde dos columnas quedarían ilegibles, la información se apila bajo la imagen.
+  El avance queda detenido mientras el diálogo está abierto.
 
 Dos detalles de implementación que evitan que el carrusel se quede congelado:
 
