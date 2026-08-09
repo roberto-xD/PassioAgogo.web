@@ -21,10 +21,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import network.MediaConfig
+import ui.components.ImageCarousel
 import ui.theme.PassionTheme
+import viewmodel.GalleryUiState
 
 @Composable
-fun HomeScreen(onExploreCatalog: () -> Unit) {
+fun HomeScreen(
+    galleryState: GalleryUiState,
+    onExploreCatalog: () -> Unit,
+) {
     val semantics = PassionTheme.semantics
 
     Column(
@@ -76,6 +81,19 @@ fun HomeScreen(onExploreCatalog: () -> Unit) {
         Button(onClick = onExploreCatalog, shape = MaterialTheme.shapes.extraLarge) {
             Text("Ver catálogo", style = MaterialTheme.typography.labelLarge)
         }
+
+        if (galleryState.slides.isNotEmpty()) {
+            Spacer(Modifier.height(PassionTheme.spacing.s12))
+            Text(
+                text = "Eventos, promociones y novedades",
+                color = semantics.onBackgroundStrong,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(PassionTheme.spacing.s4))
+            ImageCarousel(slides = galleryState.slides)
+        }
+
         Spacer(Modifier.height(PassionTheme.spacing.s12))
     }
 }

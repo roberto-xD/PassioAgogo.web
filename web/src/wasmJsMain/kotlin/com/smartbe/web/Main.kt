@@ -28,6 +28,7 @@ import kotlinx.browser.document
 import network.AuthRepository
 import network.CatalogRepository
 import network.ContactRepository
+import network.GalleryRepository
 import ui.CatalogScreen
 import ui.components.Footer
 import ui.components.LocalHtmlOverlayClip
@@ -49,6 +50,7 @@ import ui.screens.VideoScreen
 import viewmodel.AuthViewModel
 import viewmodel.CatalogViewModel
 import viewmodel.ContactViewModel
+import viewmodel.GalleryViewModel
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
@@ -85,6 +87,10 @@ fun App() {
 
     val contactViewModel = remember { ContactViewModel(ContactRepository()) }
     val contactState by contactViewModel.uiState.collectAsState()
+
+    val galleryViewModel = remember { GalleryViewModel(GalleryRepository()) }
+    LaunchedEffect(Unit) { galleryViewModel.load() }
+    val galleryState by galleryViewModel.uiState.collectAsState()
 
     val authViewModel = remember { AuthViewModel(AuthRepository()) }
     val authState by authViewModel.uiState.collectAsState()
@@ -128,6 +134,7 @@ fun App() {
                 CompositionLocalProvider(LocalHtmlOverlayClip provides contentBounds) {
                     when (current) {
                         Screen.Home -> HomeScreen(
+                            galleryState = galleryState,
                             onExploreCatalog = { navigate(Screen.Catalog) },
                         )
                         Screen.Catalog -> CatalogScreen(

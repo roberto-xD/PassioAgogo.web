@@ -23,6 +23,9 @@ object SupabaseConfig {
     const val CATEGORIES_TABLE: String = "categories"
     const val PROMOTIONS_TABLE: String = "promotions"
 
+    /** Galería de la portada (13_gallery.sql). */
+    const val GALLERY_TABLE: String = "gallery_items"
+
     /** Bucket de Storage con las imágenes de producto. */
     const val IMAGES_BUCKET: String = "inventory"
 

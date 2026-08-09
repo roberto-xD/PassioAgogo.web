@@ -211,6 +211,29 @@ con la mayoría de navegadores).
 > [KMP-ShaPlayer](https://github.com/shadmanadman/KMP-ShaPlayer) (Apache 2.0), que valida
 > el enfoque; la implementación es propia y solo para web.
 
+### Carrusel de la galería
+
+[`ui/components/ImageCarousel`](web/src/wasmJsMain/kotlin/ui/components/ImageCarousel.kt) es
+la tira de imágenes de la portada (eventos, promociones y novedades):
+
+- **Automático**: avanza a velocidad constante, fotograma a fotograma.
+- **Manual**: se arrastra con el ratón o el dedo, y las flechas laterales avanzan una
+  tarjeta. El avance automático se detiene mientras el usuario arrastra.
+- **Al pasar el cursor**: se detiene, la tarjeta crece un 12 % y se dibuja **por encima**
+  de las demás (`zIndex`), revelando la descripción completa. El aumento usa
+  `graphicsLayer`, que no afecta a la medición, así que la tarjeta crece sobre sus vecinas
+  en lugar de empujarlas; por eso la fila reserva algo más de alto del que ocupa la tarjeta.
+- La lista es **circular**: se recorren `Int.MAX_VALUE` posiciones tomando el elemento por
+  módulo, arrancando por la mitad para poder arrastrar también hacia atrás.
+
+Contenido: tabla [`gallery_items`](db/13_gallery.sql). Sube las imágenes al bucket público
+y guarda su ruta relativa (o una URL absoluta) en la columna `imagen`; `orden` decide la
+posición y `activo` permite prepararlas antes de publicarlas. El RLS deja **leer los
+elementos activos sin sesión** y reserva la escritura a la administración.
+
+El carrusel vive hoy en Inicio, bajo el hero, pero recibe la lista por parámetro: moverlo a
+otra pantalla es colocar el composable.
+
 ### Spotify
 
 [`ui/components/SpotifyEmbed`](web/src/wasmJsMain/kotlin/ui/components/SpotifyEmbed.kt) es
