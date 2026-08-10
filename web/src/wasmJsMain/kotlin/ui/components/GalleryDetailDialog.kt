@@ -11,11 +11,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -77,7 +80,7 @@ fun GalleryDetailDialog(slide: GallerySlide, onDismiss: () -> Unit) {
                                     .verticalScroll(rememberScrollState())
                                     .padding(PassionTheme.spacing.s6),
                             ) {
-                                SlideInfo(slide)
+                                SlideInfo(slide, onDismiss)
                             }
                         }
                     } else {
@@ -93,7 +96,7 @@ fun GalleryDetailDialog(slide: GallerySlide, onDismiss: () -> Unit) {
                                     .heightIn(min = 220.dp, max = 420.dp),
                             )
                             Column(modifier = Modifier.padding(PassionTheme.spacing.s6)) {
-                                SlideInfo(slide)
+                                SlideInfo(slide, onDismiss)
                             }
                         }
                     }
@@ -139,7 +142,7 @@ private fun SlideImage(slide: GallerySlide, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ColumnScope.SlideInfo(slide: GallerySlide) {
+private fun ColumnScope.SlideInfo(slide: GallerySlide, onDismiss: () -> Unit) {
     if (slide.categoria.isNotBlank()) {
         Text(
             text = slide.categoria.uppercase(),
@@ -169,5 +172,25 @@ private fun ColumnScope.SlideInfo(slide: GallerySlide) {
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = PassionTheme.spacing.s4),
         )
+    }
+    if (slide.ctaUrl.isNotBlank()) {
+        Spacer(Modifier.height(PassionTheme.spacing.s6))
+        Button(
+            onClick = {
+                if (isExternalUrl(slide.ctaUrl)) {
+                    // Destino externo: se abre aparte y el diálogo sigue disponible al
+                    // volver a la pestaña.
+                    openInNewTab(slide.ctaUrl)
+                } else {
+                    // Ruta interna: hay que cerrar antes de navegar, o la pantalla
+                    // destino quedaría oculta tras el diálogo.
+                    onDismiss()
+                    navigateToInternal(slide.ctaUrl)
+                }
+            },
+            shape = MaterialTheme.shapes.extraLarge,
+        ) {
+            Text(slide.ctaLabel, style = MaterialTheme.typography.labelLarge)
+        }
     }
 }

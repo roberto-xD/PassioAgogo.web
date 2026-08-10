@@ -25,7 +25,8 @@ class GalleryRepository(
 
         val items = supabase.from(SupabaseConfig.GALLERY_TABLE)
             .select(
-                columns = Columns.raw("id, titulo, descripcion, detalles, imagen, categoria, orden")
+                columns = Columns.raw("id, titulo, descripcion, detalles, imagen, categoria, " +
+                        "enlace, enlace_texto, orden")
             ) {
                 filter { eq("activo", true) }
                 order("orden", Order.ASCENDING)

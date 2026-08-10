@@ -238,6 +238,11 @@ la tira de imágenes de la portada (eventos, promociones y novedades):
   la columna `detalles`, de modo que se lea sin desplazarse. En ventanas por debajo de
   720 dp, donde dos columnas quedarían ilegibles, la información se apila bajo la imagen.
   El avance queda detenido mientras el diálogo está abierto.
+- **Llamada a la acción**: si el elemento tiene `enlace` ([script 16](db/16_gallery_cta.sql)),
+  el diálogo muestra un botón con el rótulo de `enlace_texto` —o "Ver más" si está vacío—.
+  Un destino `https://…` se abre en pestaña nueva; una **ruta interna** (`/catalogo`) cierra
+  el diálogo y navega dentro de la app cambiando el hash, sin recargar la página. Las rutas
+  internas deben coincidir con las de `ui/navigation/Screen`.
 
 Dos detalles de implementación que evitan que el carrusel se quede congelado:
 

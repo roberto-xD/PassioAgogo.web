@@ -249,7 +249,7 @@ private fun CarouselCard(
                         modifier = Modifier.padding(top = PassionTheme.spacing.s1),
                     )
                 }
-                if (slide.detalles.isNotBlank()) {
+                if (slide.detalles.isNotBlank() || slide.ctaUrl.isNotBlank()) {
                     Text(
                         text = "Clic para ver más",
                         color = Color.White.copy(alpha = 0.75f),
