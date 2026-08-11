@@ -11,8 +11,8 @@ import ui.components.SectionTitle
  * Describe el tratamiento de datos que hace realmente esta aplicación: el formulario de
  * contacto (nombre, correo y mensaje), el hash del IP usado para limitar envíos, y los
  * terceros implicados (Supabase, Cloudflare Turnstile y el contenido incrustado de
- * Spotify). **Debe revisarlo un profesional legal antes de publicarlo**, y hay que
- * sustituir los marcadores entre corchetes.
+ * Spotify). Completado con los datos reales del titular. **Debe revisarlo un profesional
+ * legal antes de publicarlo.**
  *
  * Importante: si se añaden analítica, cuentas de usuario o nuevos servicios de terceros,
  * este texto debe actualizarse.
@@ -139,7 +139,7 @@ fun PrivacyScreen() {
         Paragraph(
             "Si detectamos que hemos recibido información de una persona menor de edad, " +
                 "procederemos a eliminarla. Si crees que esto ha ocurrido, escríbenos a " +
-                "[CORREO DE CONTACTO] para que la suprimamos."
+                "contacto@passionagogo.com para que la suprimamos."
         )
 
         SectionTitle("11. Cambios en esta política")

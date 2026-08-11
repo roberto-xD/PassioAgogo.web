@@ -8,9 +8,8 @@ import ui.components.SectionTitle
 /**
  * Términos y condiciones.
  *
- * Redactado a partir del funcionamiento real del sitio. **Debe revisarlo un profesional
- * legal antes de publicarlo**, y hay que sustituir los marcadores entre corchetes:
- * `[RAZÓN SOCIAL]`, `[DOMICILIO]`, `[CORREO DE CONTACTO]` y `[CIUDAD, ESTADO/PAÍS]`.
+ * Redactado a partir del funcionamiento real del sitio y completado con los datos reales
+ * del titular. **Debe revisarlo un profesional legal antes de publicarlo.**
  *
  * El sitio corresponde a una tienda para adultos, por lo que incluye la restricción de
  * acceso a mayores de edad (sección 3). Esa cláusula **declara** el requisito, pero no lo

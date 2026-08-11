@@ -25,8 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -87,16 +88,19 @@ private fun ProductImages(product: PGDataCard, modifier: Modifier) {
     val isHovered by hoverInteraction.collectIsHoveredAsState()
     val scope = rememberCoroutineScope()
 
-    // Igual que en el carrusel de la portada: el bucle no se reinicia con la pausa, la
-    // omite. Así reanudarse no depende de que una clave vuelva a su valor anterior.
-    val pausedNow by rememberUpdatedState(isHovered)
-    LaunchedEffect(images.size) {
-        if (images.size < 2) return@LaunchedEffect
+    // Se incrementa cada vez que la persona navega a mano. Al ser clave del efecto, la
+    // cuenta atrás vuelve a empezar: si no, tras avanzar con las flechas podía quedar
+    // muy poco tiempo del ciclo en curso y la imagen saltaba sola casi de inmediato.
+    var manualNavigation by remember { mutableStateOf(0) }
+
+    // El efecto se rearranca al cambiar la pausa o al navegar a mano, nunca durante su
+    // propia animación: así no puede cancelarse a sí mismo a media transición, y al
+    // retirar el cursor siempre vuelve a arrancar con el ciclo completo.
+    LaunchedEffect(images.size, isHovered, manualNavigation) {
+        if (images.size < 2 || isHovered) return@LaunchedEffect
         while (true) {
             delay(AUTO_ADVANCE_MS)
-            if (!pausedNow) {
-                pagerState.animateScrollToPage((pagerState.currentPage + 1) % images.size)
-            }
+            pagerState.animateScrollToPage((pagerState.currentPage + 1) % images.size)
         }
     }
 
@@ -123,6 +127,7 @@ private fun ProductImages(product: PGDataCard, modifier: Modifier) {
                 symbol = "‹",
                 modifier = Modifier.align(Alignment.CenterStart),
                 onClick = {
+                    manualNavigation++
                     scope.launch {
                         val previous = (pagerState.currentPage - 1 + images.size) % images.size
                         pagerState.animateScrollToPage(previous)
@@ -133,6 +138,7 @@ private fun ProductImages(product: PGDataCard, modifier: Modifier) {
                 symbol = "›",
                 modifier = Modifier.align(Alignment.CenterEnd),
                 onClick = {
+                    manualNavigation++
                     scope.launch {
                         pagerState.animateScrollToPage((pagerState.currentPage + 1) % images.size)
                     }
@@ -154,7 +160,10 @@ private fun ProductImages(product: PGDataCard, modifier: Modifier) {
                             .background(
                                 Color.White.copy(alpha = if (active) 0.95f else 0.45f)
                             )
-                            .clickable { scope.launch { pagerState.animateScrollToPage(index) } },
+                            .clickable {
+                                manualNavigation++
+                                scope.launch { pagerState.animateScrollToPage(index) }
+                            },
                     )
                 }
             }
