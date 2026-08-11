@@ -158,6 +158,16 @@ especificidad variante > producto > categoría (incluyendo subcategorías, como
 `fn_promotion_variants`). Tipos soportados: `porcentaje`, `monto_fijo` y
 `precio_especial`. Con oferta, la tarjeta muestra el precio final y el original tachado.
 
+La tarjeta del catálogo muestra **`resumen`**, no `descripcion`
+([script 17](db/17_products_resumen_sobre_pedido.sql)): `descripcion` se conserva para la
+ficha ampliada y sigue alimentando la búsqueda. Los artículos con **`sobre_pedido`** llevan
+un badge sobre la imagen y **son visibles aunque estén inactivos** — de ahí que el script
+amplíe las políticas RLS de `products` a `activo or sobre_pedido`; sin ese cambio la bandera
+nunca se vería, porque el catálogo solo dejaba leer los activos. La consulta no filtra por
+`activo`: lo hace el ViewModel, para que el resultado no dependa de si hay sesión iniciada
+(el RLS es más permisivo con el staff). Cuando un producto no tiene precio, la fila conserva
+su alto pero no se pinta nada, para que la cuadrícula no se desalinee.
+
 El catálogo incluye **filtro por categoría en dos niveles** y **búsqueda por texto**
 (insensible a mayúsculas/acentos, sobre nombre, descripción, marca, categoría y SKU;
 combinable con el filtro). Ambos operan en cliente sobre los datos ya cargados —

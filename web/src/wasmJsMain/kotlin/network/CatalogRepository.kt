@@ -34,12 +34,16 @@ class CatalogRepository(
         val products = supabase.from(SupabaseConfig.PRODUCTS_TABLE)
             .select(
                 columns = Columns.raw(
-                    "id, nombre, descripcion, marca, imagenes, category_id, " +
+                    "id, nombre, resumen, descripcion, marca, imagenes, category_id, " +
+                        "activo, sobre_pedido, " +
                         "categories(nombre), " +
                         "product_variants(id, sku, precio_venta, activo)"
                 )
             ) {
-                filter { eq("activo", true) }
+                // Sin filtro de `activo` aquí: la visibilidad se decide en el ViewModel
+                // (activo o sobre pedido), para que el resultado sea el mismo tanto para
+                // un visitante anónimo como para un miembro del staff con sesión, cuyas
+                // políticas RLS son distintas.
                 order("nombre", Order.ASCENDING)
             }
             .decodeList<ProductDto>()

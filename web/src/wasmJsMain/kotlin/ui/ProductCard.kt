@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +56,25 @@ fun ProductCard(product: PGDataCard) {
                         text = product.productStore.ifBlank { "Passion à gogo" },
                         color = semantics.onImagePlaceholder,
                         style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+
+                // Va sobre la imagen y no en la fila del precio, donde chocaría con el
+                // badge de OFERTA cuando un artículo por encargo está en promoción.
+                if (product.sobrePedido) {
+                    Text(
+                        text = "SOBRE PEDIDO",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(PassionTheme.spacing.s2)
+                            .clip(MaterialTheme.shapes.extraLarge)
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .padding(
+                                horizontal = PassionTheme.spacing.s2,
+                                vertical = PassionTheme.spacing.s1,
+                            ),
                     )
                 }
             }
@@ -116,11 +136,16 @@ fun ProductCard(product: PGDataCard) {
                             ),
                     )
                 } else {
+                    // Sin precio no se pinta nada, pero el texto sigue midiendo: así la
+                    // fila conserva su alto y las tarjetas de la cuadrícula no se
+                    // desalinean entre sí.
+                    val sinPrecio = product.productRealPrice.isBlank()
                     Text(
                         text = product.productRealPrice.ifBlank { "—" },
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
+                        modifier = if (sinPrecio) Modifier.alpha(0f) else Modifier,
                     )
                 }
             }

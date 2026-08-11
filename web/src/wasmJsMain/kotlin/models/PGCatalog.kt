@@ -14,8 +14,13 @@ import kotlinx.serialization.Serializable
 data class ProductDto(
     val id: String? = null,
     val nombre: String? = null,
+    /** Texto corto para la tarjeta del catálogo. */
+    val resumen: String? = null,
+    /** Texto largo: no se muestra en la tarjeta, pero sí alimenta la búsqueda. */
     val descripcion: String? = null,
     val marca: String? = null,
+    val activo: Boolean = true,
+    @SerialName("sobre_pedido") val sobrePedido: Boolean = false,
     val imagenes: List<String> = emptyList(),
     @SerialName("category_id") val categoryId: String? = null,
     @SerialName("categories") val categoria: CategoryDto? = null,

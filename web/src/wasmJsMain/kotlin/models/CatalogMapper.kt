@@ -68,12 +68,14 @@ fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
 
         PGDataCard(
             productTittle = product.nombre.orEmpty(),
-            productDescription = product.descripcion.orEmpty(),
+            // La tarjeta muestra el resumen; `descripcion` queda para la ficha ampliada.
+            productDescription = product.resumen.orEmpty(),
             productStore = product.marca ?: product.categoria?.nombre.orEmpty(),
             productRealPrice = best?.second?.let(::formatPrice).orEmpty(),
             productDiscountPrice = if (hasOffer) formatPrice(best.third) else "",
             productCode = best?.first?.sku.orEmpty(),
             hasOffert = hasOffer,
+            sobrePedido = product.sobrePedido,
             urlImage = product.imagenes.firstOrNull()
                 ?.let(SupabaseConfig::publicImageUrl).orEmpty(),
         )

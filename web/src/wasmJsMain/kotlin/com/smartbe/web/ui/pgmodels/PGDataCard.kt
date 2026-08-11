@@ -8,5 +8,7 @@ data class PGDataCard(
     val productDiscountPrice: String = "",
     val productCode: String = "",
     val hasOffert: Boolean = false,
+    /** Se consigue por encargo aunque no esté disponible en tienda. */
+    val sobrePedido: Boolean = false,
     val urlImage: String = "",
 )

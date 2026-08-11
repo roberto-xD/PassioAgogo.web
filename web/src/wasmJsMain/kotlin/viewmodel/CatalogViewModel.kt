@@ -113,7 +113,10 @@ class CatalogViewModel(
         subcategoryId: String?,
         query: String,
     ): List<PGDataCard> {
-        var products = bundle.products
+        // Visible en el catálogo público: disponible, o conseguible por encargo. La
+        // consulta no lo filtra para que el resultado no dependa de si hay sesión
+        // iniciada, ya que el RLS es más permisivo con el staff.
+        var products = bundle.products.filter { it.activo || it.sobrePedido }
 
         // La subcategoría, si la hay, manda: siempre es descendiente de la raíz elegida.
         val effectiveCategoryId = subcategoryId ?: categoryId
@@ -139,7 +142,10 @@ class CatalogViewModel(
     /** Chips del primer nivel: categorías raíz cuyo subárbol tiene productos. */
     private fun rootCategoryOptions(): List<CategoryOption> {
         val index = childrenIndex(bundle.categoryRefs)
-        val productCategoryIds = bundle.products.mapNotNull { it.categoryId }.toSet()
+        val productCategoryIds = bundle.products
+            .filter { it.activo || it.sobrePedido }
+            .mapNotNull { it.categoryId }
+            .toSet()
         return bundle.categoryRefs
             .filter { it.parentId == null && it.id != null && !it.nombre.isNullOrBlank() }
             .filter { root -> expandCategoryIds(root.id!!, index).any { it in productCategoryIds } }
@@ -155,7 +161,10 @@ class CatalogViewModel(
     private fun subcategoryOptions(parentId: String?): List<CategoryOption> {
         if (parentId == null) return emptyList()
         val index = childrenIndex(bundle.categoryRefs)
-        val productCategoryIds = bundle.products.mapNotNull { it.categoryId }.toSet()
+        val productCategoryIds = bundle.products
+            .filter { it.activo || it.sobrePedido }
+            .mapNotNull { it.categoryId }
+            .toSet()
         return bundle.categoryRefs
             .filter { it.parentId == parentId && it.id != null && !it.nombre.isNullOrBlank() }
             .filter { child -> expandCategoryIds(child.id!!, index).any { it in productCategoryIds } }
@@ -166,6 +175,7 @@ class CatalogViewModel(
 
 private fun ProductDto.searchableText(): String = listOfNotNull(
     nombre,
+    resumen,
     descripcion,
     marca,
     categoria?.nombre,
