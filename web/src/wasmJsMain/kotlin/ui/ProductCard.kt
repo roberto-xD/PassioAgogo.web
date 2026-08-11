@@ -1,6 +1,7 @@
 package ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,11 +27,13 @@ import ui.pgmodels.PGDataCard
 import ui.theme.PassionTheme
 
 @Composable
-fun ProductCard(product: PGDataCard) {
+fun ProductCard(product: PGDataCard, onClick: () -> Unit = {}) {
     val semantics = PassionTheme.semantics
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(defaultElevation = PassionTheme.spacing.s2),
     ) {

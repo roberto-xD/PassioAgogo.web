@@ -262,8 +262,9 @@ private fun CarouselCard(
     }
 }
 
+/** Flecha de navegación; la comparten el carrusel y la ficha de producto. */
 @Composable
-private fun CarouselArrow(
+internal fun CarouselArrow(
     symbol: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,

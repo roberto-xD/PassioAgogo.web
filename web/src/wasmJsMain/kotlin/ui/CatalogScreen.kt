@@ -20,12 +20,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import ui.components.ProductDetailDialog
+import ui.pgmodels.PGDataCard
 import ui.theme.PassionTheme
 import viewmodel.CatalogUiState
 import viewmodel.CategoryOption
@@ -37,6 +43,8 @@ fun CatalogScreen(
     onSelectSubcategory: (String?) -> Unit,
     onSearchChange: (String) -> Unit,
 ) {
+    var selectedProduct by remember { mutableStateOf<PGDataCard?>(null) }
+
     Column(modifier = Modifier.fillMaxSize()) {
         if (!state.isLoading && state.errorMessage == null) {
             SearchField(query = state.searchQuery, onQueryChange = onSearchChange)
@@ -89,9 +97,13 @@ fun CatalogScreen(
                     title = "Catálogo próximamente",
                     detail = "Aún no hay productos para mostrar.",
                 )
-                else -> ProductGrid(state)
+                else -> ProductGrid(state, onProductClick = { selectedProduct = it })
             }
         }
+    }
+
+    selectedProduct?.let { product ->
+        ProductDetailDialog(product = product, onDismiss = { selectedProduct = null })
     }
 }
 
@@ -202,7 +214,7 @@ private fun Chip(
 }
 
 @Composable
-private fun ProductGrid(state: CatalogUiState) {
+private fun ProductGrid(state: CatalogUiState, onProductClick: (PGDataCard) -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 220.dp),
         modifier = Modifier.fillMaxSize(),
@@ -211,7 +223,7 @@ private fun ProductGrid(state: CatalogUiState) {
         verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s4),
     ) {
         items(state.products) { product ->
-            ProductCard(product)
+            ProductCard(product, onClick = { onProductClick(product) })
         }
     }
 }

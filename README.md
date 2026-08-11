@@ -168,6 +168,25 @@ nunca se vería, porque el catálogo solo dejaba leer los activos. La consulta n
 (el RLS es más permisivo con el staff). Cuando un producto no tiene precio, la fila conserva
 su alto pero no se pinta nada, para que la cuadrícula no se desalinee.
 
+Al pulsar una tarjeta se abre la **ficha del producto**
+([`ProductDetailDialog`](web/src/wasmJsMain/kotlin/ui/components/ProductDetailDialog.kt)):
+carrusel paginado con todas sus imágenes —pasan de una en una solas, y se recorren con las
+flechas, arrastrando o por los puntos—, nombre, marca, distintivos de oferta y sobre
+pedido, precio y la **descripción larga**, que es justo lo que la tarjeta no muestra.
+
+La ficha y el diálogo de la galería comparten
+[`DetailDialogShell`](web/src/wasmJsMain/kotlin/ui/components/DetailDialogShell.kt), que
+resuelve lo común: tamaño relativo a la ventana, panel visual al lado de la información,
+apilado en pantallas estrechas y botón de cierre.
+
+La llamada a la acción **"Me interesa"** abre WhatsApp con el mensaje ya redactado
+(incluye el nombre del artículo, para que quien atienda sepa de cuál se trata). No envía
+nada por sí sola: deja la conversación lista para que la persona pulse enviar, y un aviso
+bajo el botón lo advierte. Configura el número en
+[`network/WhatsAppConfig.kt`](web/src/wasmJsMain/kotlin/network/WhatsAppConfig.kt) en
+**formato internacional y solo dígitos**; mientras esté vacío, el botón aparece
+deshabilitado.
+
 El catálogo incluye **filtro por categoría en dos niveles** y **búsqueda por texto**
 (insensible a mayúsculas/acentos, sobre nombre, descripción, marca, categoría y SKU;
 combinable con el filtro). Ambos operan en cliente sobre los datos ya cargados —
