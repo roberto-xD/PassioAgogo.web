@@ -24,9 +24,9 @@ fun PrivacyScreen() {
 
         SectionTitle("1. Responsable del tratamiento")
         Paragraph(
-            "[RAZÓN SOCIAL], con domicilio en [DOMICILIO], es responsable del tratamiento " +
+            "Roberto Gutiérrez, con domicilio en Velo de novia 16, Los Ángeles Iztapalapa CDMX, es responsable del tratamiento " +
                 "de los datos personales recabados a través de este sitio. Puedes " +
-                "contactarnos en [CORREO DE CONTACTO]."
+                "contactarnos en contacto@passionagogo.com."
         )
 
         SectionTitle("2. Qué datos recopilamos")
@@ -116,7 +116,7 @@ fun PrivacyScreen() {
                 "o retirar el consentimiento que hubieras otorgado."
         )
         Paragraph(
-            "Para ejercerlos, escríbenos a [CORREO DE CONTACTO] indicando la solicitud " +
+            "Para ejercerlos, escríbenos a contacto@passionagogo.com indicando la solicitud " +
                 "concreta. Podremos pedirte que acredites tu identidad antes de atenderla. " +
                 "Si consideras que no hemos atendido correctamente tu petición, puedes " +
                 "acudir a la autoridad de protección de datos que corresponda."

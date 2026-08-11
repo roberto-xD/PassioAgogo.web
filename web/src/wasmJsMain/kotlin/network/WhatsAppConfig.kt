@@ -12,7 +12,7 @@ object WhatsAppConfig {
      * Número en **formato internacional, solo dígitos**: sin `+`, espacios ni guiones.
      * Por ejemplo, para México: `52` + los diez dígitos.
      */
-    const val NUMERO: String = "" // TODO: número de la tienda
+    const val NUMERO: String = "5513878451" // TODO: número de la tienda
 
     /** Mensaje base; al final se añade el nombre del artículo. */
     const val MENSAJE_BASE: String = "me interesó este artículo del catálogo"

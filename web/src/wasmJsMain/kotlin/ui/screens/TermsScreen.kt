@@ -24,10 +24,10 @@ fun TermsScreen() {
 
         SectionTitle("1. Titular del sitio")
         Paragraph(
-            "Este sitio web es operado por [RAZÓN SOCIAL], con domicilio en [DOMICILIO] " +
+            "Este sitio web es operado por Roberto Gutierrez C, con domicilio en Velo de novia 16 " +
                 "(en adelante, \"Passion à gogo\", \"nosotros\"). Para cualquier asunto " +
                 "relacionado con estos términos puedes escribirnos desde la sección " +
-                "Contacto o a [CORREO DE CONTACTO]."
+                "Contacto o a contacto@passionagogo.com."
         )
 
         SectionTitle("2. Objeto")
@@ -177,7 +177,7 @@ fun TermsScreen() {
 
         SectionTitle("14. Ley aplicable y jurisdicción")
         Paragraph(
-            "Estos términos se rigen por la legislación de [CIUDAD, ESTADO/PAÍS]. Para " +
+            "Estos términos se rigen por la legislación de México, Ciudad de México. Para " +
                 "cualquier controversia, las partes se someten a los tribunales competentes " +
                 "de dicha jurisdicción, salvo que la normativa de protección al consumidor " +
                 "disponga otro fuero."

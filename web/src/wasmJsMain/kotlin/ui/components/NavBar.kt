@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import ui.navigation.Screen
 import ui.theme.PassionTheme
 
@@ -23,7 +24,7 @@ private val PrimaryItems = listOf(
     Screen.Home,
     Screen.Catalog,
     Screen.About,
-    Screen.Video,
+//    Screen.Video,
     Screen.Podcast,
     Screen.Contact,
     Screen.Help,
@@ -45,9 +46,9 @@ fun NavBar(current: Screen, isAuthenticated: Boolean, onNavigate: (Screen) -> Un
     ) {
         Text(
             text = "Passion à gogo",
-            color = PassionTheme.semantics.onBackgroundStrong,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            style = PassionTheme.type.scriptAccent,
+            fontSize = 28.sp,
             modifier = Modifier.clickable { onNavigate(Screen.Home) },
         )
         Spacer(Modifier.width(PassionTheme.spacing.s2))
@@ -60,12 +61,12 @@ fun NavBar(current: Screen, isAuthenticated: Boolean, onNavigate: (Screen) -> Un
         }
 
         // Último elemento: acceso o cuenta, según haya sesión iniciada.
-        val accountScreen = if (isAuthenticated) Screen.Account else Screen.Login
-        NavItem(
-            label = accountScreen.title,
-            selected = current == Screen.Login || current == Screen.Account,
-            onClick = { onNavigate(accountScreen) },
-        )
+//        val accountScreen = if (isAuthenticated) Screen.Account else Screen.Login
+//        NavItem(
+//            label = accountScreen.title,
+//            selected = current == Screen.Login || current == Screen.Account,
+//            onClick = { onNavigate(accountScreen) },
+//        )
     }
 }
 

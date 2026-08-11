@@ -22,6 +22,6 @@ fun AboutScreen() {
         Paragraph("• Comparación de precios y ofertas destacadas.")
         Paragraph("• Una experiencia rápida y accesible desde el navegador.")
         SectionTitle("Contacto")
-        Paragraph("¿Tienes dudas o sugerencias? Escríbenos a hola@passioagogo.com.")
+        Paragraph("¿Tienes dudas o sugerencias? Escríbenos a contacto@passionagogo.com.")
     }
 }
