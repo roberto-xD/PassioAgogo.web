@@ -23,6 +23,9 @@ object SupabaseConfig {
     const val CATEGORIES_TABLE: String = "categories"
     const val PROMOTIONS_TABLE: String = "promotions"
 
+    /** Diccionario de atributos para las chips de la ficha (19_attribute_presets.sql). */
+    const val ATTRIBUTE_PRESETS_TABLE: String = "attribute_presets"
+
     /** Galería de la portada (13_gallery.sql). */
     const val GALLERY_TABLE: String = "gallery_items"
 

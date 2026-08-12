@@ -261,6 +261,21 @@ private fun ColumnScope.ProductInfo(product: PGDataCard) {
         )
     }
 
+    // Rasgos del producto. Van después del texto y antes de la acción: son el último
+    // dato que se consulta al decidir, no un adorno de cabecera.
+    if (product.attributes.isNotEmpty()) {
+        Text(
+            text = "Características",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s5),
+        )
+        AttributeChips(
+            chips = product.attributes,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+        )
+    }
+
     Spacer(Modifier.height(PassionTheme.spacing.s6))
     Button(
         onClick = { openInNewTab(WhatsAppConfig.enlaceParaProducto(product.productTittle)) },

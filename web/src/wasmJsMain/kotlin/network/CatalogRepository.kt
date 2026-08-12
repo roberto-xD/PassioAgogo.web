@@ -5,6 +5,7 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.flow.Flow
+import models.AttributePresetDto
 import models.CatalogBundle
 import models.CategoryRefDto
 import models.ProductDto
@@ -34,8 +35,8 @@ class CatalogRepository(
         val products = supabase.from(SupabaseConfig.PRODUCTS_TABLE)
             .select(
                 columns = Columns.raw(
-                    "id, nombre, resumen, descripcion, marca, imagenes, category_id, " +
-                        "activo, sobre_pedido, " +
+                    "id, nombre, resumen, descripcion, marca, imagenes, attributes, " +
+                        "category_id, activo, sobre_pedido, " +
                         "categories(nombre), " +
                         "product_variants(id, sku, precio_venta, activo)"
                 )
@@ -70,6 +71,17 @@ class CatalogRepository(
             .select(columns = Columns.raw("id, nombre, parent_id"))
             .decodeList<CategoryRefDto>()
 
-        NetworkResult.Success(CatalogBundle(products, promotions, categoryRefs))
+        // Diccionario de los `attributes`: convierte {"material":"silicona"} en la chip
+        // "🧴 Silicona". El RLS (script 20) deja leer los activos sin sesión.
+        val attributePresets = supabase.from(SupabaseConfig.ATTRIBUTE_PRESETS_TABLE)
+            .select(columns = Columns.raw("clave, valor, identificador, emoji, orden")) {
+                filter { eq("activo", true) }
+                order("orden", Order.ASCENDING)
+            }
+            .decodeList<AttributePresetDto>()
+
+        NetworkResult.Success(
+            CatalogBundle(products, promotions, categoryRefs, attributePresets)
+        )
     }
 }

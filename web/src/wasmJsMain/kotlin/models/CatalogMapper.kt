@@ -30,6 +30,8 @@ fun expandCategoryIds(rootId: String, childrenByParent: Map<String, List<String>
 
 fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
     val childrenByParent = childrenIndex(bundle.categoryRefs)
+    // Se indexa una vez para todo el catálogo, no una por producto.
+    val presetsByPair = attributePresetIndex(bundle.attributePresets)
 
     fun expandCategory(rootId: String): Set<String> = expandCategoryIds(rootId, childrenByParent)
 
@@ -81,6 +83,7 @@ fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
             urlImage = product.imagenes.firstOrNull()
                 ?.let(SupabaseConfig::publicImageUrl).orEmpty(),
             images = product.imagenes.map(SupabaseConfig::publicImageUrl),
+            attributes = buildAttributeChips(product.attributes, presetsByPair),
         )
     }
 }

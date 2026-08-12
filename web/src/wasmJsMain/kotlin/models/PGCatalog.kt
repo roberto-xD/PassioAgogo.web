@@ -2,6 +2,7 @@ package models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 /**
  * DTOs alineados al esquema real de Supabase (01_catalog.sql / 05_promotions.sql).
@@ -22,6 +23,11 @@ data class ProductDto(
     val activo: Boolean = true,
     @SerialName("sobre_pedido") val sobrePedido: Boolean = false,
     val imagenes: List<String> = emptyList(),
+    /**
+     * Pares clave-valor libres del producto: `{"material": "silicona"}`. Los rótulos y
+     * emojis con los que se pintan no están aquí, sino en [AttributePresetDto].
+     */
+    val attributes: JsonObject? = null,
     @SerialName("category_id") val categoryId: String? = null,
     @SerialName("categories") val categoria: CategoryDto? = null,
     @SerialName("product_variants") val variantes: List<VariantDto> = emptyList(),
@@ -63,9 +69,27 @@ data class PromotionTargetDto(
     @SerialName("variant_id") val variantId: String? = null,
 )
 
+/**
+ * Diccionario que convierte un par clave-valor de `attributes` en una chip legible
+ * (19_attribute_presets). Sin él solo tendríamos el texto crudo del jsonb.
+ *
+ * Los campos no son nulos en la base; se les da valor por defecto para tolerar una fila
+ * incompleta sin tumbar la deserialización del resto del catálogo.
+ */
+@Serializable
+data class AttributePresetDto(
+    val clave: String = "",
+    val valor: String = "",
+    /** Rótulo de la chip: "Silicona". */
+    val identificador: String = "",
+    val emoji: String? = null,
+    val orden: Int = 0,
+)
+
 /** Resultado completo de una carga de catálogo. */
 data class CatalogBundle(
     val products: List<ProductDto> = emptyList(),
     val promotions: List<PromotionDto> = emptyList(),
     val categoryRefs: List<CategoryRefDto> = emptyList(),
+    val attributePresets: List<AttributePresetDto> = emptyList(),
 )
