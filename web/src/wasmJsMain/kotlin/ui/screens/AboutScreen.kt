@@ -32,13 +32,14 @@ private val OFERTA = listOf(
         "Materiales, funciones, batería y cuidados. Sin rodeos y sin tecnicismos.",
     "Precios justos" to
         "Precio a la vista en pesos, ofertas reales y ninguna sorpresa al final.",
-    "Compra sencilla" to
-        "Todo desde el navegador, en pocos pasos, a la hora que tú quieras.",
+    "Compra por WhatsApp" to
+        "Eliges en el catálogo, pulsas «Me interesa» y cierras la compra por " +
+            "WhatsApp: unos pocos mensajes, sin registro ni formularios.",
 )
 
 private val CONTACTO = listOf(
     "contacto@passionagogo.com",
-    "5555 1387 8451",
+    "55 1387 8451",
     "Ciudad de México",
 )
 
@@ -76,16 +77,17 @@ fun AboutScreen() {
 
         SectionTitle("Privacidad y discreción")
         Paragraph(
-            "Tus datos son tuyos: no los compartimos ni los vendemos. En tu estado de " +
-                "cuenta aparece un cargo neutro y en la caja no verás nada que delate qué " +
-                "compraste."
+            "Tus datos son tuyos: no los compartimos ni los vendemos. Si pagas con " +
+                "tarjeta, en tu estado de cuenta aparece un cargo neutro, y en la caja no " +
+                "verás nada que delate qué compraste."
         )
 
         SectionTitle("Envíos")
         Paragraph(
             "Enviamos a todo México desde la CDMX, en empaque discreto y sellado: caja " +
-                "neutra, sin logos ni descripciones del contenido. Te damos guía de " +
-                "rastreo en cuanto tu pedido sale."
+                "neutra, sin logos ni descripciones del contenido. En cuanto tu pedido " +
+                "sale te mandamos la guía de rastreo por WhatsApp, en la misma " +
+                "conversación donde hiciste el pedido."
         )
 
         SectionTitle("Contacto")
