@@ -26,12 +26,15 @@ import coil3.compose.AsyncImage
 import ui.pgmodels.PGDataCard
 import ui.theme.PassionTheme
 
+/** Líneas fijas del nombre del producto. */
+private const val TITLE_LINES = 1
+
 /**
- * Líneas fijas del título y del resumen en la tarjeta.
+ * Líneas fijas del resumen.
  *
  * El texto completo se lee en la ficha, así que aquí recortar no pierde información.
  */
-private const val TEXT_LINES = 2
+private const val SUMMARY_LINES = 2
 
 @Composable
 fun ProductCard(product: PGDataCard, onClick: () -> Unit = {}) {
@@ -89,17 +92,17 @@ fun ProductCard(product: PGDataCard, onClick: () -> Unit = {}) {
                 }
             }
 
-            // Título y resumen ocupan siempre dos líneas, tengan el texto que tengan.
-            // `minLines` reserva el alto aunque sobre una línea o el texto falte, y
-            // `maxLines` lo recorta si sobra: entre las dos, todas las tarjetas de la
-            // cuadrícula miden exactamente lo mismo. La alternativa —dejar que cada
-            // tarjeta crezca con su contenido— es lo que producía las filas desalineadas.
+            // Nombre y resumen ocupan siempre las mismas líneas, tengan el texto que
+            // tengan: `minLines` reserva el alto aunque sobre espacio o el texto falte, y
+            // `maxLines` lo recorta con puntos suspensivos si se pasa. Entre las dos,
+            // todas las tarjetas de la cuadrícula miden exactamente lo mismo. Dejar que
+            // cada tarjeta creciera con su contenido es lo que desalineaba las filas.
             Text(
                 text = product.productTittle,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
-                minLines = TEXT_LINES,
-                maxLines = TEXT_LINES,
+                minLines = TITLE_LINES,
+                maxLines = TITLE_LINES,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = PassionTheme.spacing.s3),
             )
@@ -110,8 +113,8 @@ fun ProductCard(product: PGDataCard, onClick: () -> Unit = {}) {
                 text = product.productDescription,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                minLines = TEXT_LINES,
-                maxLines = TEXT_LINES,
+                minLines = SUMMARY_LINES,
+                maxLines = SUMMARY_LINES,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = PassionTheme.spacing.s1),
             )
