@@ -26,6 +26,13 @@ import coil3.compose.AsyncImage
 import ui.pgmodels.PGDataCard
 import ui.theme.PassionTheme
 
+/**
+ * Líneas fijas del título y del resumen en la tarjeta.
+ *
+ * El texto completo se lee en la ficha, así que aquí recortar no pierde información.
+ */
+private const val TEXT_LINES = 2
+
 @Composable
 fun ProductCard(product: PGDataCard, onClick: () -> Unit = {}) {
     val semantics = PassionTheme.semantics
@@ -82,25 +89,32 @@ fun ProductCard(product: PGDataCard, onClick: () -> Unit = {}) {
                 }
             }
 
+            // Título y resumen ocupan siempre dos líneas, tengan el texto que tengan.
+            // `minLines` reserva el alto aunque sobre una línea o el texto falte, y
+            // `maxLines` lo recorta si sobra: entre las dos, todas las tarjetas de la
+            // cuadrícula miden exactamente lo mismo. La alternativa —dejar que cada
+            // tarjeta crezca con su contenido— es lo que producía las filas desalineadas.
             Text(
                 text = product.productTittle,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
+                minLines = TEXT_LINES,
+                maxLines = TEXT_LINES,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = PassionTheme.spacing.s3),
             )
 
-            if (product.productDescription.isNotBlank()) {
-                Text(
-                    text = product.productDescription,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = PassionTheme.spacing.s1),
-                )
-            }
+            // Se pinta aunque venga vacío: el hueco tiene que quedarse igual, así que no
+            // puede haber un `if` que lo quite de la composición.
+            Text(
+                text = product.productDescription,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                minLines = TEXT_LINES,
+                maxLines = TEXT_LINES,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = PassionTheme.spacing.s1),
+            )
 
             Row(
                 modifier = Modifier
