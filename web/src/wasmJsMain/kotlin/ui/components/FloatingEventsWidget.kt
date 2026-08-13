@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,10 +17,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,17 +46,22 @@ private const val MAX_VISIBLE = 3
  * inicio. Se dibuja dentro del área de contenido y no sobre toda la ventana para no
  * taparle la barra de navegación ni el pie.
  *
- * En pantallas estrechas arranca plegado en una burbuja: en un celular una tarjeta fija
- * competiría con el catálogo, que es justo lo que hay que evitar.
+ * El botón de la esquina **minimiza**: nunca cierra del todo. Un anuncio que desaparece
+ * sin vuelta atrás obliga a recargar para recuperarlo; la burbuja ocupa casi lo mismo y
+ * deja el camino de regreso a la vista.
  *
+ * @param minimized decisión guardada de la persona; `null` si aún no ha decidido, y
+ *   entonces manda el criterio por defecto: plegado en pantallas estrechas, donde una
+ *   tarjeta fija competiría con el catálogo, y desplegado cuando hay sitio de sobra.
  * @param onVerMas abre la pantalla de Eventos.
- * @param onDismiss cierre definitivo; el ViewModel lo recuerda en el navegador.
+ * @param onSetMinimized el ViewModel recuerda la decisión en el navegador.
  */
 @Composable
 fun BoxScope.FloatingEventsWidget(
     events: List<EventItem>,
+    minimized: Boolean?,
     onVerMas: () -> Unit,
-    onDismiss: () -> Unit,
+    onSetMinimized: (Boolean) -> Unit,
 ) {
     if (events.isEmpty()) return
 
@@ -71,21 +71,16 @@ fun BoxScope.FloatingEventsWidget(
             .padding(PassionTheme.spacing.s4),
     ) {
         val compact = maxWidth < COMPACT_MAX_WIDTH
-        // El estado del plegado sobrevive a los cambios de pantalla porque este
-        // composable nunca sale de la composición. `compact` es la clave para que al
-        // girar el teléfono o cambiar el tamaño de la ventana se reevalúe el arranque.
-        var expanded by remember(compact) { mutableStateOf(!compact) }
+        val plegado = minimized ?: compact
 
-        if (expanded) {
+        if (plegado) {
+            EventsBubble(count = events.size, onClick = { onSetMinimized(false) })
+        } else {
             EventsCard(
                 events = events,
-                compact = compact,
                 onVerMas = onVerMas,
-                onCollapse = { expanded = false },
-                onDismiss = onDismiss,
+                onMinimize = { onSetMinimized(true) },
             )
-        } else {
-            EventsBubble(count = events.size, onClick = { expanded = true })
         }
     }
 }
@@ -93,10 +88,8 @@ fun BoxScope.FloatingEventsWidget(
 @Composable
 private fun EventsCard(
     events: List<EventItem>,
-    compact: Boolean,
     onVerMas: () -> Unit,
-    onCollapse: () -> Unit,
-    onDismiss: () -> Unit,
+    onMinimize: () -> Unit,
 ) {
     Surface(
         shape = MaterialTheme.shapes.large,
@@ -116,12 +109,7 @@ private fun EventsCard(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
-                // En estrecho, la primera acción es plegar —recuperable— y no cerrar.
-                if (compact) {
-                    IconAction(symbol = "–", description = "Plegar", onClick = onCollapse)
-                    Spacer(Modifier.width(PassionTheme.spacing.s1))
-                }
-                IconAction(symbol = "✕", description = "Cerrar", onClick = onDismiss)
+                IconAction(symbol = "–", description = "Minimizar", onClick = onMinimize)
             }
 
             events.take(MAX_VISIBLE).forEach { event ->

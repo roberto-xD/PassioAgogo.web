@@ -197,8 +197,9 @@ fun App() {
                 if (eventsState.showWidget && current != Screen.Events) {
                     FloatingEventsWidget(
                         events = eventsState.events,
+                        minimized = eventsState.minimized,
                         onVerMas = { navigate(Screen.Events) },
-                        onDismiss = eventsViewModel::dismiss,
+                        onSetMinimized = eventsViewModel::setMinimized,
                     )
                 }
             }

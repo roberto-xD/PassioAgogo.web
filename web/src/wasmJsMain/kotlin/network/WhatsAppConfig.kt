@@ -17,6 +17,9 @@ object WhatsAppConfig {
     /** Mensaje base; al final se añade el nombre del artículo. */
     const val MENSAJE_BASE: String = "me interesó este artículo del catálogo"
 
+    /** Mensaje de quien escribe desde el teléfono de contacto, sin producto de por medio. */
+    const val MENSAJE_DUDA: String = "Hola, he visto la página pero tengo una duda"
+
     val isConfigured: Boolean
         get() = NUMERO.isNotBlank() && NUMERO.all { it.isDigit() }
 
@@ -32,8 +35,14 @@ object WhatsAppConfig {
         } else {
             "$MENSAJE_BASE: $nombreProducto"
         }
-        return "https://wa.me/$NUMERO?text=${encodeUriComponent(mensaje)}"
+        return enlace(mensaje)
     }
+
+    /** Conversación abierta desde los datos de contacto, con la duda ya planteada. */
+    fun enlaceParaDuda(): String = enlace(MENSAJE_DUDA)
+
+    private fun enlace(mensaje: String): String =
+        "https://wa.me/$NUMERO?text=${encodeUriComponent(mensaje)}"
 }
 
 /** Codifica el mensaje para que acentos y espacios viajen bien en la URL. */

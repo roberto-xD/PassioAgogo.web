@@ -13,16 +13,22 @@ import network.ApiStatus
 import network.BrowserStorage
 import network.EventsRepository
 
-/** Clave donde se recuerda qué anuncio cerró la persona. */
-private const val DISMISS_KEY = "passion.eventos.cerrado"
+/** Clave donde se recuerda si la persona dejó el anuncio minimizado. */
+private const val MINIMIZED_KEY = "passion.eventos.minimizado"
 
 data class EventsUiState(
     val isLoading: Boolean = true,
     val events: List<EventItem> = emptyList(),
     /** Interruptor `widget_eventos_visible` de la base de datos. */
     val widgetEnabled: Boolean = false,
-    /** La persona cerró este anuncio con la ✕. */
-    val dismissed: Boolean = false,
+    /**
+     * Si la persona dejó el anuncio minimizado.
+     *
+     * `null` significa que aún no ha decidido nada, y entonces manda el criterio por
+     * defecto de cada tamaño de pantalla. Distinguir «sin decidir» de «desplegado» es lo
+     * que permite que en el móvil arranque plegado sin pisar una decisión explícita.
+     */
+    val minimized: Boolean? = null,
     val errorMessage: String? = null,
 ) {
     /**
@@ -30,7 +36,7 @@ data class EventsUiState(
      * encendido: una tarjeta flotante vacía solo estorbaría.
      */
     val showWidget: Boolean
-        get() = widgetEnabled && !dismissed && events.isNotEmpty()
+        get() = widgetEnabled && events.isNotEmpty()
 }
 
 class EventsViewModel(
@@ -60,7 +66,7 @@ class EventsViewModel(
                                 errorMessage = null,
                                 events = events,
                                 widgetEnabled = bundle?.widgetVisible == true,
-                                dismissed = BrowserStorage.read(DISMISS_KEY) == sello(events),
+                                minimized = leerDecision(events),
                             )
                         }
                     }
@@ -70,20 +76,43 @@ class EventsViewModel(
     }
 
     /**
-     * Cierra el anuncio y lo recuerda.
+     * Minimiza o despliega el anuncio, y lo recuerda.
      *
-     * Se guarda el sello de la cartelera actual, no un simple "cerrado": así, cuando
-     * publiques un evento nuevo, el widget vuelve a aparecer. Cerrarlo una vez no lo
-     * silencia para siempre.
+     * Se guarda junto al sello de la cartelera actual: cuando publiques un evento nuevo
+     * la decisión caduca y el anuncio vuelve a mostrarse desplegado. Minimizarlo una vez
+     * no lo silencia para siempre.
      */
-    fun dismiss() {
+    fun setMinimized(value: Boolean) {
         _uiState.update { estado ->
-            BrowserStorage.write(DISMISS_KEY, sello(estado.events))
-            estado.copy(dismissed = true)
+            BrowserStorage.write(
+                MINIMIZED_KEY,
+                sello(estado.events) + SEPARADOR + if (value) MIN else EXP,
+            )
+            estado.copy(minimized = value)
         }
     }
 }
 
+private const val SEPARADOR = "|"
+private const val MIN = "min"
+private const val EXP = "exp"
+
 /** Identifica la cartelera: cambia en cuanto entra o sale un evento. */
 private fun sello(events: List<EventItem>): String =
     events.map { it.id }.sorted().joinToString(",")
+
+/**
+ * Decisión guardada para *esta* cartelera. Si el sello no coincide —hay eventos nuevos—
+ * se ignora lo guardado y se vuelve al comportamiento por defecto.
+ */
+private fun leerDecision(events: List<EventItem>): Boolean? {
+    val guardado = BrowserStorage.read(MINIMIZED_KEY) ?: return null
+    val corte = guardado.lastIndexOf(SEPARADOR)
+    if (corte < 0) return null
+    if (guardado.substring(0, corte) != sello(events)) return null
+    return when (guardado.substring(corte + 1)) {
+        MIN -> true
+        EXP -> false
+        else -> null
+    }
+}

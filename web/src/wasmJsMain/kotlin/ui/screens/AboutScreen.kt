@@ -2,12 +2,16 @@ package ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -16,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import network.WhatsAppConfig
 import ui.components.ContentScreen
+import ui.components.openInNewTab
 import ui.components.Paragraph
 import ui.components.SectionTitle
 import ui.theme.PassionTheme
@@ -37,11 +43,8 @@ private val OFERTA = listOf(
             "WhatsApp: unos pocos mensajes, sin registro ni formularios.",
 )
 
-private val CONTACTO = listOf(
-    "contacto@passionagogo.com",
-    "55 1387 8451",
-    "Ciudad de México",
-)
+/** Teléfono de la tienda tal y como se muestra; el enlace usa el número configurado. */
+private const val TELEFONO = "55 1387 8451"
 
 @Composable
 fun AboutScreen() {
@@ -114,7 +117,12 @@ private fun OfferGrid() {
         Column(verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s3)) {
             OFERTA.chunked(columnas).forEach { fila ->
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    // Alto intrínseco: la fila mide lo que la tarjeta más alta y las
+                    // demás lo rellenan. Sin esto cada tarjeta se ajusta a su texto y
+                    // una de tres líneas deja a su vecina visiblemente más baja.
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
                     horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s3),
                 ) {
                     fila.forEach { (titulo, texto) ->
@@ -134,6 +142,7 @@ private fun RowScope.OfferCard(titulo: String, texto: String) {
     Column(
         modifier = Modifier
             .weight(1f)
+            .fillMaxHeight()
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surface)
             .border(
@@ -174,25 +183,50 @@ private fun ContactRow() {
 
         if (enLinea) {
             Row(horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s2)) {
-                CONTACTO.forEach { dato -> ContactPill(dato) }
+                ContactPills()
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s2)) {
-                CONTACTO.forEach { dato -> ContactPill(dato) }
+                ContactPills()
             }
         }
     }
 }
 
+/**
+ * Los tres datos de contacto.
+ *
+ * El teléfono abre WhatsApp con la duda ya escrita, igual que «Me interesa» en la ficha
+ * de producto. Si el número no está configurado se queda como texto: mejor un dato
+ * inerte que un enlace que no lleva a ninguna parte.
+ */
 @Composable
-private fun ContactPill(texto: String) {
+private fun ContactPills() {
+    ContactPill("contacto@passionagogo.com")
+    ContactPill(
+        texto = TELEFONO,
+        onClick = if (WhatsAppConfig.isConfigured) {
+            { openInNewTab(WhatsAppConfig.enlaceParaDuda()) }
+        } else {
+            null
+        },
+    )
+    ContactPill("Ciudad de México")
+}
+
+@Composable
+private fun ContactPill(texto: String, onClick: (() -> Unit)? = null) {
+    val esEnlace = onClick != null
     Text(
         text = texto,
-        color = PassionTheme.semantics.onBackgroundMuted,
+        color = if (esEnlace) MaterialTheme.colorScheme.primary
+        else PassionTheme.semantics.onBackgroundMuted,
         style = MaterialTheme.typography.bodySmall,
+        fontWeight = if (esEnlace) FontWeight.SemiBold else FontWeight.Normal,
         modifier = Modifier
             .clip(MaterialTheme.shapes.extraLarge)
             .background(PassionTheme.semantics.overlayWeak)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(
                 horizontal = PassionTheme.spacing.s3,
                 vertical = PassionTheme.spacing.s2,
