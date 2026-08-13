@@ -28,8 +28,10 @@ import kotlinx.browser.document
 import network.AuthRepository
 import network.CatalogRepository
 import network.ContactRepository
+import network.EventsRepository
 import network.GalleryRepository
 import ui.CatalogScreen
+import ui.components.FloatingEventsWidget
 import ui.components.Footer
 import ui.components.LocalHtmlOverlayClip
 import ui.components.NavBar
@@ -40,6 +42,7 @@ import ui.theme.PassionTheme
 import ui.screens.AboutScreen
 import ui.screens.AccountScreen
 import ui.screens.ContactScreen
+import ui.screens.EventsScreen
 import ui.screens.HelpScreen
 import ui.screens.HomeScreen
 import ui.screens.LoginScreen
@@ -50,6 +53,7 @@ import ui.screens.VideoScreen
 import viewmodel.AuthViewModel
 import viewmodel.CatalogViewModel
 import viewmodel.ContactViewModel
+import viewmodel.EventsViewModel
 import viewmodel.GalleryViewModel
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -87,6 +91,10 @@ fun App() {
 
     val contactViewModel = remember { ContactViewModel(ContactRepository()) }
     val contactState by contactViewModel.uiState.collectAsState()
+
+    val eventsViewModel = remember { EventsViewModel(EventsRepository()) }
+    LaunchedEffect(Unit) { eventsViewModel.load() }
+    val eventsState by eventsViewModel.uiState.collectAsState()
 
     val galleryViewModel = remember { GalleryViewModel(GalleryRepository()) }
     LaunchedEffect(Unit) { galleryViewModel.load() }
@@ -146,6 +154,7 @@ fun App() {
                         Screen.About -> AboutScreen()
                         Screen.Video -> VideoScreen()
                         Screen.Podcast -> PodcastScreen()
+                        Screen.Events -> EventsScreen(state = eventsState)
                         Screen.Contact -> ContactScreen(
                             state = contactState,
                             onNombreChange = contactViewModel::updateNombre,
@@ -171,6 +180,18 @@ fun App() {
                         Screen.Privacy -> PrivacyScreen()
                         Screen.Help -> HelpScreen()
                     }
+                }
+
+                // Fuera del `when`: el anuncio flota sobre cualquier pantalla y conserva
+                // su estado al navegar. Dentro de este Box y no de la ventana entera para
+                // no taparle la barra de navegacion ni el pie.
+                // En la propia pantalla de Eventos el anuncio sobra.
+                if (eventsState.showWidget && current != Screen.Events) {
+                    FloatingEventsWidget(
+                        events = eventsState.events,
+                        onVerMas = { navigate(Screen.Events) },
+                        onDismiss = eventsViewModel::dismiss,
+                    )
                 }
             }
 

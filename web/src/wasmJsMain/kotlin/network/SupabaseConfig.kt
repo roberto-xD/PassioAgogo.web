@@ -29,6 +29,13 @@ object SupabaseConfig {
     /** Galería de la portada (13_gallery.sql). */
     const val GALLERY_TABLE: String = "gallery_items"
 
+    /** Eventos y ajustes del sitio (21_events_widget.sql). */
+    const val EVENTS_TABLE: String = "events"
+    const val SITE_SETTINGS_TABLE: String = "site_settings"
+
+    /** Interruptor del widget flotante de eventos, en `site_settings`. */
+    const val SETTING_EVENTS_WIDGET: String = "widget_eventos_visible"
+
     /** Bucket de Storage con las imágenes de producto. */
     const val IMAGES_BUCKET: String = "inventory"
 
