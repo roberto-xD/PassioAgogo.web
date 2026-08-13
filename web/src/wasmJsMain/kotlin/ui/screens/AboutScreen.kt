@@ -16,12 +16,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import network.WhatsAppConfig
 import ui.components.ContentScreen
+import ui.components.copyToClipboard
 import ui.components.openInNewTab
 import ui.components.Paragraph
 import ui.components.SectionTitle
@@ -45,6 +52,11 @@ private val OFERTA = listOf(
 
 /** Teléfono de la tienda tal y como se muestra; el enlace usa el número configurado. */
 private const val TELEFONO = "55 1387 8451"
+
+private const val CORREO = "contacto@passionagogo.com"
+
+/** Cuánto se queda el aviso de copiado antes de volver a mostrar el correo. */
+private const val AVISO_MS = 2_000L
 
 @Composable
 fun AboutScreen() {
@@ -196,13 +208,13 @@ private fun ContactRow() {
 /**
  * Los tres datos de contacto.
  *
- * El teléfono abre WhatsApp con la duda ya escrita, igual que «Me interesa» en la ficha
- * de producto. Si el número no está configurado se queda como texto: mejor un dato
- * inerte que un enlace que no lleva a ninguna parte.
+ * El correo se copia al portapapeles y el teléfono abre WhatsApp con la duda ya escrita,
+ * igual que «Me interesa» en la ficha de producto. Si el número no está configurado se
+ * queda como texto: mejor un dato inerte que un enlace que no lleva a ninguna parte.
  */
 @Composable
 private fun ContactPills() {
-    ContactPill("contacto@passionagogo.com")
+    EmailPill()
     ContactPill(
         texto = TELEFONO,
         onClick = if (WhatsAppConfig.isConfigured) {
@@ -212,6 +224,31 @@ private fun ContactPills() {
         },
     )
     ContactPill("Ciudad de México")
+}
+
+/**
+ * El correo, que se copia al pulsarlo.
+ *
+ * El aviso dice lo que de verdad pasó: si el navegador bloquea el portapapeles se avisa
+ * del fallo en lugar de fingir que se copió, para que nadie se vaya con un pegado vacío.
+ */
+@Composable
+private fun EmailPill() {
+    var aviso by remember { mutableStateOf("") }
+
+    LaunchedEffect(aviso) {
+        if (aviso.isNotBlank()) {
+            delay(AVISO_MS)
+            aviso = ""
+        }
+    }
+
+    ContactPill(
+        texto = aviso.ifBlank { CORREO },
+        onClick = {
+            aviso = if (copyToClipboard(CORREO)) "¡Copiado!" else "No se pudo copiar"
+        },
+    )
 }
 
 @Composable
