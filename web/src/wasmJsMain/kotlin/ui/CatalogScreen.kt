@@ -117,7 +117,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
         trailingIcon = {
             if (query.isNotEmpty()) {
                 Text(
-                    text = "✕",
+                    text = "×",  // U+00D7: Poppins no trae U+2715 y saldria un cuadro vacio
                     color = PassionTheme.semantics.onBackgroundMuted,
                     modifier = Modifier
                         .clip(MaterialTheme.shapes.extraSmall)

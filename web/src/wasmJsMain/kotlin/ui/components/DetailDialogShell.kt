@@ -109,7 +109,7 @@ fun DetailDialogShell(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "✕",
+                        text = "×",  // U+00D7: Poppins no trae U+2715 y saldria un cuadro vacio
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleMedium,
                     )
