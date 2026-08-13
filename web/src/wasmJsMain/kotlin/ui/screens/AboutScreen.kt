@@ -71,8 +71,8 @@ fun AboutScreen() {
         Paragraph(
             "Si es tu primera vez o no sabes qué se ajusta a lo que buscas, escríbenos: " +
                 "te orientamos con información verificada, sin sermones y sin venderte lo " +
-                "más caro. También publicamos guías de uso, limpieza y cuidado de cada " +
-                "tipo de producto."
+                "más caro. En la sección «Uso y cuidados» publicamos guías de uso, " +
+                "limpieza y cuidado de cada tipo de producto."
         )
 
         SectionTitle("Privacidad y discreción")

@@ -30,6 +30,7 @@ import network.CatalogRepository
 import network.ContactRepository
 import network.EventsRepository
 import network.GalleryRepository
+import network.GuidesRepository
 import ui.CatalogScreen
 import ui.components.FloatingEventsWidget
 import ui.components.Footer
@@ -41,6 +42,7 @@ import ui.theme.PassionAGogoTheme
 import ui.theme.PassionTheme
 import ui.screens.AboutScreen
 import ui.screens.AccountScreen
+import ui.screens.CareScreen
 import ui.screens.ContactScreen
 import ui.screens.EventsScreen
 import ui.screens.HelpScreen
@@ -55,6 +57,7 @@ import viewmodel.CatalogViewModel
 import viewmodel.ContactViewModel
 import viewmodel.EventsViewModel
 import viewmodel.GalleryViewModel
+import viewmodel.GuidesViewModel
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
@@ -99,6 +102,10 @@ fun App() {
     val galleryViewModel = remember { GalleryViewModel(GalleryRepository()) }
     LaunchedEffect(Unit) { galleryViewModel.load() }
     val galleryState by galleryViewModel.uiState.collectAsState()
+
+    val guidesViewModel = remember { GuidesViewModel(GuidesRepository()) }
+    LaunchedEffect(Unit) { guidesViewModel.load() }
+    val guidesState by guidesViewModel.uiState.collectAsState()
 
     val authViewModel = remember { AuthViewModel(AuthRepository()) }
     val authState by authViewModel.uiState.collectAsState()
@@ -155,6 +162,7 @@ fun App() {
                         Screen.Video -> VideoScreen()
                         Screen.Podcast -> PodcastScreen()
                         Screen.Events -> EventsScreen(state = eventsState)
+                        Screen.Care -> CareScreen(state = guidesState)
                         Screen.Contact -> ContactScreen(
                             state = contactState,
                             onNombreChange = contactViewModel::updateNombre,

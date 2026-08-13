@@ -27,6 +27,7 @@ private val PrimaryItems = listOf(
 //    Screen.Video,
     Screen.Podcast,
     Screen.Events,
+    Screen.Care,
     Screen.Contact,
     Screen.Help,
 )

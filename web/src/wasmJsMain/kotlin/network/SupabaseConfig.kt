@@ -29,6 +29,9 @@ object SupabaseConfig {
     /** Galería de la portada (13_gallery.sql). */
     const val GALLERY_TABLE: String = "gallery_items"
 
+    /** Guias de uso y cuidados (22_guides.sql). */
+    const val GUIDES_TABLE: String = "guides"
+
     /** Eventos y ajustes del sitio (21_events_widget.sql). */
     const val EVENTS_TABLE: String = "events"
     const val SITE_SETTINGS_TABLE: String = "site_settings"
