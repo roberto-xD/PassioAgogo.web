@@ -25,7 +25,7 @@ import ui.theme.PassionTheme
  * cuadros vacíos en lugar de iconos, basta poner esto en `false`: las chips quedan solo
  * con el rótulo y siguen leyéndose bien.
  */
-private const val MOSTRAR_EMOJI = true
+private const val MOSTRAR_EMOJI = false
 
 /** Contorno de la píldora. Fino: la chip informa, no compite con la llamada a la acción. */
 private val BORDE = 1.dp

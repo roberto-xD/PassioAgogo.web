@@ -22,8 +22,8 @@ import ui.theme.PassionTheme
 
 @Composable
 fun PodcastScreen() {
-    ContentScreen(title = "Podcast") {
-        Paragraph("Escucha nuestro podcast: historias, novedades y lo que suena en Passion à gogo.")
+    ContentScreen(title = "Relatos eróticos") {
+        Paragraph("Escucha el podcast de Yezidy: Relatos eróticos 2 y deja volar tu imaginación.")
         Spacer(Modifier.height(PassionTheme.spacing.s3))
 
         if (!MediaConfig.isPodcastConfigured) {

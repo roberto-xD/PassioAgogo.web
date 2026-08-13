@@ -11,13 +11,13 @@ fun HelpScreen() {
         Paragraph("Preguntas frecuentes sobre el uso de Passion à gogo.")
         SectionTitle("¿Cómo busco productos?")
         Paragraph(
-            "Entra a la sección Catálogo para ver los productos disponibles. Próximamente podrás " +
-                "filtrar por tienda y categoría."
+            "Entra a la sección Catálogo para ver los productos disponibles y puedes filtrar " +
+                "por categoría. Próximamente también podrás hacer tu pedido directamente"
         )
         SectionTitle("¿Los precios están actualizados?")
         Paragraph(
-            "Mostramos la información más reciente disponible, pero los precios finales pueden " +
-                "variar en la tienda de origen."
+            "Mostramos la información más reciente disponible, pero algunos precios finales pueden " +
+                "estar pendientes de actualizar."
         )
         SectionTitle("¿Necesito una cuenta?")
         Paragraph(
@@ -26,5 +26,7 @@ fun HelpScreen() {
         )
         SectionTitle("¿Cómo reporto un problema?")
         Paragraph("Escríbenos desde la sección Contacto y te ayudamos.")
+        SectionTitle("¿El sitio utiliza cookies?")
+        Paragraph("No. No utilizamos ningún tipo de rastreador o cookies, tu historial está seguro")
     }
 }

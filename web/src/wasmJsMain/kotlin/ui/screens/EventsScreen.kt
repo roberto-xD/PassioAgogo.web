@@ -67,7 +67,7 @@ private fun EventCard(event: EventItem) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
+                        .aspectRatio(16f / 11f)
                         .clip(MaterialTheme.shapes.small)
                         .background(PassionTheme.semantics.imagePlaceholder),
                     contentAlignment = Alignment.Center,
@@ -76,7 +76,7 @@ private fun EventCard(event: EventItem) {
                         model = event.imagen,
                         contentDescription = event.titulo,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+                        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 11f),
                     )
                 }
             }

@@ -39,12 +39,12 @@ private val TWO_COLUMN_MIN_WIDTH = 560.dp
 
 /** Las cuatro cosas que ofrece la tienda, tal y como se aprobaron en el copy. */
 private val OFERTA = listOf(
-    "Catálogo curado" to
+    "Catálogo selecto" to
         "Juguetes, lubricantes y aceites, lencería, juegos y suplementos elegidos uno por uno.",
     "Fichas claras" to
         "Materiales, funciones, batería y cuidados. Sin rodeos y sin tecnicismos.",
     "Precios justos" to
-        "Precio a la vista en pesos, ofertas reales y ninguna sorpresa al final.",
+        "Precio a la vista en pesos, ofertas reales y ninguna sorpresa al final."+" ",
     "Compra por WhatsApp" to
         "Eliges en el catálogo, pulsas «Me interesa» y cierras la compra por " +
             "WhatsApp: unos pocos mensajes, sin registro ni formularios.",
@@ -74,7 +74,7 @@ fun AboutScreen() {
         SectionTitle("Nuestra misión")
         Paragraph(
             "Hablar del placer con la misma naturalidad con la que hablas de dormir bien " +
-                "o comer rico. Curamos un catálogo en el que puedes confiar y lo " +
+                "o comer rico. Filtramos un catálogo en el que puedes confiar y lo " +
                 "acompañamos de información honesta, para que elijas porque entiendes lo " +
                 "que compras, no porque te dio menos vergüenza."
         )
