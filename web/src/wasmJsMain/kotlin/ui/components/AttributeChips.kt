@@ -60,7 +60,11 @@ private fun AttributeChip(chip: PGAttributeChip) {
         // Solo los que la fuente empaquetada sabe dibujar; el resto se omite y queda
         // el rótulo, que es quien lleva la información.
         if (emojiSoportado(chip.emoji)) {
-            Text(text = chip.emoji, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = chip.emoji,
+                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = PassionTheme.type.emoji,
+            )
         }
         Text(
             text = chip.label,

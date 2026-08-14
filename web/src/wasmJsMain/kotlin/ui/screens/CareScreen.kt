@@ -96,6 +96,7 @@ private fun GuideCard(guide: GuideItem) {
                 Text(
                     text = guide.emoji,
                     style = MaterialTheme.typography.titleMedium,
+                    fontFamily = PassionTheme.type.emoji,
                     modifier = Modifier.padding(end = PassionTheme.spacing.s2),
                 )
             }
