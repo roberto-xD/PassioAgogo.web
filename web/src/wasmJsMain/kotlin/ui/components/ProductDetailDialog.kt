@@ -32,11 +32,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import network.WhatsAppConfig
@@ -93,11 +91,16 @@ private fun ProductImages(product: PGDataCard, modifier: Modifier) {
     // muy poco tiempo del ciclo en curso y la imagen saltaba sola casi de inmediato.
     var manualNavigation by remember { mutableStateOf(0) }
 
+    // Mientras una imagen está acercada, el carrusel no debe moverse: ni por gesto ni
+    // solo. Arrastrar tiene que desplazar la foto, y el pase automático llevársela de
+    // debajo justo cuando se está mirando un detalle sería lo más molesto posible.
+    var zoomed by remember { mutableStateOf(false) }
+
     // El efecto se rearranca al cambiar la pausa o al navegar a mano, nunca durante su
     // propia animación: así no puede cancelarse a sí mismo a media transición, y al
     // retirar el cursor siempre vuelve a arrancar con el ciclo completo.
-    LaunchedEffect(images.size, isHovered, manualNavigation) {
-        if (images.size < 2 || isHovered) return@LaunchedEffect
+    LaunchedEffect(images.size, isHovered, manualNavigation, zoomed) {
+        if (images.size < 2 || isHovered || zoomed) return@LaunchedEffect
         while (true) {
             delay(AUTO_ADVANCE_MS)
             pagerState.animateScrollToPage((pagerState.currentPage + 1) % images.size)
@@ -111,18 +114,18 @@ private fun ProductImages(product: PGDataCard, modifier: Modifier) {
     ) {
         HorizontalPager(
             state = pagerState,
+            userScrollEnabled = !zoomed,
             modifier = Modifier.fillMaxSize(),
         ) { page ->
-            AsyncImage(
+            ZoomableImage(
                 model = images[page],
                 contentDescription = product.productTittle.ifBlank { "Imagen del producto" },
-                // Sin recortar: en una ficha interesa ver el artículo completo.
-                contentScale = ContentScale.Fit,
+                onZoomChange = { zoomed = it },
                 modifier = Modifier.fillMaxSize(),
             )
         }
 
-        if (images.size > 1) {
+        if (images.size > 1 && !zoomed) {
             CarouselArrow(
                 symbol = "‹",
                 modifier = Modifier.align(Alignment.CenterStart),
