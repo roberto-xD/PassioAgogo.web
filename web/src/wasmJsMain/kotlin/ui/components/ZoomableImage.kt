@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -96,8 +97,24 @@ fun ZoomableImage(
     Box(
         modifier = modifier
             .onSizeChanged { size = it }
-            // Dos `pointerInput` separados: cada detector consume por su cuenta, así que
-            // compartir uno dejaría al otro sin enterarse.
+            // Sin esto la imagen acercada se dibuja fuera de su hueco y tapa lo que
+            // tenga al lado: `graphicsLayer` escala el contenido, no recorta.
+            .clipToBounds()
+            // El doble toque va primero en la cadena, o sea por fuera, para que el
+            // manejador de acercar y arrastrar reciba los eventos antes que él.
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = { punto ->
+                        if (scale > 1f) {
+                            aplicar(1f, Offset.Zero)
+                        } else {
+                            // Lleva al centro el punto tocado, que es lo que se quiere ver.
+                            val centro = Offset(size.width / 2f, size.height / 2f)
+                            aplicar(DOUBLE_TAP_ZOOM, (centro - punto) * DOUBLE_TAP_ZOOM)
+                        }
+                    },
+                )
+            }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -126,19 +143,6 @@ fun ZoomableImage(
                         }
                     } while (evento.changes.any { it.pressed })
                 }
-            }
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = { punto ->
-                        if (scale > 1f) {
-                            aplicar(1f, Offset.Zero)
-                        } else {
-                            // Lleva al centro el punto tocado, que es lo que se quiere ver.
-                            val centro = Offset(size.width / 2f, size.height / 2f)
-                            aplicar(DOUBLE_TAP_ZOOM, (centro - punto) * DOUBLE_TAP_ZOOM)
-                        }
-                    },
-                )
             },
     ) {
         AsyncImage(
