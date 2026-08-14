@@ -125,6 +125,12 @@ private fun ProductImages(product: PGDataCard, modifier: Modifier) {
             )
         }
 
+        // Pista de que la imagen se puede acercar. Se retira mientras está acercada:
+        // ahí ya no informa de nada y solo taparía parte de lo que se quiere ver.
+        if (!zoomed) {
+            ZoomHint(modifier = Modifier.align(Alignment.BottomEnd))
+        }
+
         if (images.size > 1 && !zoomed) {
             CarouselArrow(
                 symbol = "‹",

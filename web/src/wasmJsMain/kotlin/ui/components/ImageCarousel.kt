@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -271,16 +272,24 @@ internal fun CarouselArrow(
 ) {
     Box(
         modifier = modifier
-            .padding(horizontal = PassionTheme.spacing.s1)
-            .size(36.dp)
+            // Separadas del borde de la pantalla: en un móvil los primeros milímetros
+            // del lateral se los suele quedar el navegador para su gesto de «atrás».
+            .padding(horizontal = PassionTheme.spacing.s3)
+            // 48dp es el objetivo táctil mínimo recomendado. La pastilla visible sigue
+            // siendo de 36, el resto es margen de puntería.
+            .size(48.dp)
             .zIndex(2f)
             .clip(MaterialTheme.shapes.extraLarge)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = symbol,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(MaterialTheme.shapes.extraLarge)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                .wrapContentSize(Alignment.Center),
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.titleMedium,
         )
