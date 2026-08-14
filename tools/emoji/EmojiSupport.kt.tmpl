@@ -1,0 +1,28 @@
+package ui.theme
+
+/**
+ * Emojis que la fuente empaquetada sabe dibujar.
+ *
+ * **Generado**: esta lista y `emoji_passion.ttf` salen del mismo recorte de Noto Color
+ * Emoji. Si cambia una, hay que regenerar la otra — las instrucciones están en
+ * `tools/emoji/README.md`.
+ *
+ * Existe porque los emojis los escribes tú en Supabase (`attribute_presets.emoji`,
+ * `guides.emoji`) y la fuente solo lleva un subconjunto: sin esta comprobación, uno que
+ * no estuviera incluido se pintaría como un cuadro vacío. Consultándola, simplemente no
+ * se dibuja y queda el rótulo, que es quien lleva la información de todas formas.
+ */
+private val EMOJIS_SOPORTADOS: Set<String> = setOf(
+{{ENTRADAS}}
+)
+
+/** `true` si [emoji] se puede pintar con la fuente empaquetada. */
+fun emojiSoportado(emoji: String): Boolean {
+    val limpio = emoji.trim()
+    if (limpio.isEmpty()) return false
+    // Se prueba tal cual y con el selector de variación: en la base puede estar escrito
+    // de las dos formas y ambas deben valer.
+    return limpio in EMOJIS_SOPORTADOS ||
+        limpio.removeSuffix("\uFE0F") in EMOJIS_SOPORTADOS ||
+        (limpio + "\uFE0F") in EMOJIS_SOPORTADOS
+}

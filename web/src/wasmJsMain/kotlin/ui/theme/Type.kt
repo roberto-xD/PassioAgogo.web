@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.Font
 import passioagogo.resources.Res
 import passioagogo.resources.alex_brush_regular
+import passioagogo.resources.emoji_passion
 import passioagogo.resources.poppins_bold
 import passioagogo.resources.poppins_medium
 import passioagogo.resources.poppins_regular
@@ -35,11 +36,16 @@ data class PassionTypeTokens(
  */
 @Composable
 fun rememberPassionTypography(): Pair<Typography, PassionTypeTokens> {
+    // El recorte de emoji va al final de la familia: Skia recorre la lista glifo a
+    // glifo, así que Poppins se usa para todo lo que sabe dibujar y solo cae en la otra
+    // fuente para los emojis, que Poppins no tiene. En Compose Web no hay fuentes del
+    // sistema a las que recurrir: lo que no esté empaquetado no se pinta.
     val poppins = FontFamily(
         Font(Res.font.poppins_regular, FontWeight.Normal),
         Font(Res.font.poppins_medium, FontWeight.Medium),
         Font(Res.font.poppins_semibold, FontWeight.SemiBold),
         Font(Res.font.poppins_bold, FontWeight.Bold),
+        Font(Res.font.emoji_passion, FontWeight.Normal),
     )
     val alexBrush = FontFamily(Font(Res.font.alex_brush_regular, FontWeight.Normal))
 

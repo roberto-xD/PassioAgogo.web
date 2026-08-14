@@ -16,16 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import ui.pgmodels.PGAttributeChip
 import ui.theme.PassionTheme
-
-/**
- * Emojis en las chips.
- *
- * Compose Web dibuja el texto con Skia sobre un canvas, no con las fuentes del sistema,
- * así que la cobertura de emoji depende de lo que el runtime traiga. Si aparecieran
- * cuadros vacíos en lugar de iconos, basta poner esto en `false`: las chips quedan solo
- * con el rótulo y siguen leyéndose bien.
- */
-private const val MOSTRAR_EMOJI = false
+import ui.theme.emojiSoportado
 
 /** Contorno de la píldora. Fino: la chip informa, no compite con la llamada a la acción. */
 private val BORDE = 1.dp
@@ -66,7 +57,9 @@ private fun AttributeChip(chip: PGAttributeChip) {
                 vertical = PassionTheme.spacing.s2,
             ),
     ) {
-        if (MOSTRAR_EMOJI && chip.emoji.isNotBlank()) {
+        // Solo los que la fuente empaquetada sabe dibujar; el resto se omite y queda
+        // el rótulo, que es quien lleva la información.
+        if (emojiSoportado(chip.emoji)) {
             Text(text = chip.emoji, style = MaterialTheme.typography.bodyMedium)
         }
         Text(

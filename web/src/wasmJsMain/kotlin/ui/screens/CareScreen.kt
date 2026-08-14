@@ -25,6 +25,7 @@ import models.GuideItem
 import ui.components.ContentScreen
 import ui.components.Paragraph
 import ui.theme.PassionTheme
+import ui.theme.emojiSoportado
 import viewmodel.GuidesUiState
 
 /**
@@ -91,7 +92,7 @@ private fun GuideCard(guide: GuideItem) {
             .padding(PassionTheme.spacing.s4),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (guide.emoji.isNotBlank()) {
+            if (emojiSoportado(guide.emoji)) {
                 Text(
                     text = guide.emoji,
                     style = MaterialTheme.typography.titleMedium,
