@@ -30,6 +30,12 @@ fun formatDateRange(inicioIso: String, finIso: String?): String {
     return if (fin.isBlank() || fin == inicio) inicio else "$inicio – $fin"
 }
 
+/** `true` si el instante ya pasó, según el reloj de quien mira. */
+fun isPast(iso: String): Boolean =
+    if (iso.isBlank()) false else pastCheck(iso)
+
+private fun pastCheck(iso: String): Boolean = js("new Date(iso).getTime() < Date.now()")
+
 private fun shortDate(iso: String): String =
     js("new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })")
 

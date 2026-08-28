@@ -21,3 +21,24 @@ enum class Screen(val route: String, val title: String) {
             entries.firstOrNull { it.route == route } ?: Home
     }
 }
+
+/**
+ * Destino completo: una pantalla y, si la tiene, la cosa concreta que muestra.
+ *
+ * El [id] existe para las pantallas de ficha, hoy la de un evento (`#/eventos/<id>`).
+ * Al viajar en la URL, la ficha se puede compartir y el botón de atrás del navegador
+ * devuelve al listado, que es lo que cualquiera espera.
+ */
+data class Route(val screen: Screen, val id: String? = null) {
+    val hash: String
+        get() = if (id.isNullOrBlank()) "#/${screen.route}" else "#/${screen.route}/$id"
+
+    companion object {
+        /** Interpreta el hash: primer segmento la pantalla, segundo el identificador. */
+        fun fromPath(path: String): Route {
+            val partes = path.split("/").filter { it.isNotBlank() }
+            val screen = Screen.fromRoute(partes.firstOrNull())
+            return Route(screen, partes.getOrNull(1))
+        }
+    }
+}

@@ -11,10 +11,11 @@ data class EventDto(
     val resumen: String? = null,
     val detalles: String? = null,
     val lugar: String? = null,
-    val imagen: String? = null,
+    val imagenes: List<String> = emptyList(),
     @SerialName("fecha_inicio") val fechaInicio: String? = null,
     @SerialName("fecha_fin") val fechaFin: String? = null,
     val enlace: String? = null,
+    @SerialName("enlace_texto") val enlaceTexto: String? = null,
 )
 
 /** Fila de `site_settings`: interruptores del sitio en pares clave-valor. */
@@ -34,10 +35,21 @@ data class EventItem(
     val resumen: String,
     val detalles: String,
     val lugar: String,
-    val imagen: String,
+    /** Todas las imágenes; la primera hace de portada en la tarjeta del listado. */
+    val imagenes: List<String>,
     /** "12 sep" o "12–14 sep": lo que cabe en una línea del widget. */
     val fechaCorta: String,
-    /** "12 de septiembre de 2026, 20:00": para la pantalla de Eventos. */
+    /** "12 de septiembre de 2026, 20:00": para la ficha. */
     val fechaLarga: String,
+    /** Cuándo termina, si el evento dura varios días. */
+    val fechaFinLarga: String,
     val enlace: String,
-)
+    /** Rótulo del botón elegido desde la base; vacío = el que ponga la web. */
+    val enlaceTexto: String,
+    /** Ya terminó. El listado los muestra igual, después de los próximos. */
+    val esPasado: Boolean,
+    /** Fecha de inicio sin formatear. Solo para ordenar: las bonitas no se comparan bien. */
+    val ordenIso: String,
+) {
+    val portada: String get() = imagenes.firstOrNull().orEmpty()
+}

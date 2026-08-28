@@ -36,14 +36,16 @@ import ui.components.FloatingEventsWidget
 import ui.components.Footer
 import ui.components.LocalHtmlOverlayClip
 import ui.components.NavBar
+import ui.navigation.Route
 import ui.navigation.Screen
-import ui.navigation.rememberScreenState
+import ui.navigation.rememberRouteState
 import ui.theme.PassionAGogoTheme
 import ui.theme.PassionTheme
 import ui.screens.AboutScreen
 import ui.screens.AccountScreen
 import ui.screens.CareScreen
 import ui.screens.ContactScreen
+import ui.screens.EventDetailScreen
 import ui.screens.EventsScreen
 import ui.screens.HelpScreen
 import ui.screens.HomeScreen
@@ -81,10 +83,12 @@ fun App() {
             .build()
     }
 
-    // Pantalla actual sincronizada con el hash de la URL (#/inicio, #/catalogo, ...).
-    val screenState = rememberScreenState()
-    val current = screenState.value
-    val navigate: (Screen) -> Unit = { screenState.value = it }
+    // Destino actual sincronizado con el hash de la URL (#/inicio, #/eventos/<id>, ...).
+    val routeState = rememberRouteState()
+    val route = routeState.value
+    val current = route.screen
+    val navigate: (Screen) -> Unit = { routeState.value = Route(it) }
+    val openEvent: (String) -> Unit = { routeState.value = Route(Screen.Events, it) }
 
     // Composición manual de dependencias (sin framework de DI) para mantener el
     // módulo simple y estable en el target web.
@@ -112,10 +116,10 @@ fun App() {
 
     // Al iniciar o cerrar sesión, mueve al usuario a la pantalla que corresponde.
     LaunchedEffect(authState.isAuthenticated) {
-        if (authState.isAuthenticated && screenState.value == Screen.Login) {
-            screenState.value = Screen.Account
-        } else if (!authState.isAuthenticated && screenState.value == Screen.Account) {
-            screenState.value = Screen.Login
+        if (authState.isAuthenticated && routeState.value.screen == Screen.Login) {
+            routeState.value = Route(Screen.Account)
+        } else if (!authState.isAuthenticated && routeState.value.screen == Screen.Account) {
+            routeState.value = Route(Screen.Login)
         }
     }
 
@@ -161,7 +165,16 @@ fun App() {
                         Screen.About -> AboutScreen()
                         Screen.Video -> VideoScreen()
                         Screen.Podcast -> PodcastScreen()
-                        Screen.Events -> EventsScreen(state = eventsState)
+                        // Con identificador en la URL se abre la ficha; sin él, el listado.
+                        Screen.Events -> if (route.id != null) {
+                            EventDetailScreen(
+                                state = eventsState,
+                                eventId = route.id,
+                                onBack = { navigate(Screen.Events) },
+                            )
+                        } else {
+                            EventsScreen(state = eventsState, onOpenEvent = openEvent)
+                        }
                         Screen.Care -> CareScreen(state = guidesState)
                         Screen.Contact -> ContactScreen(
                             state = contactState,
@@ -196,7 +209,7 @@ fun App() {
                 // En la propia pantalla de Eventos el anuncio sobra.
                 if (eventsState.showWidget && current != Screen.Events) {
                     FloatingEventsWidget(
-                        events = eventsState.events,
+                        events = eventsState.proximos,
                         minimized = eventsState.minimized,
                         onVerMas = { navigate(Screen.Events) },
                         onSetMinimized = eventsViewModel::setMinimized,

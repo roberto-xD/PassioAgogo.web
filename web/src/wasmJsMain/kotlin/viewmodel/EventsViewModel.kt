@@ -32,11 +32,21 @@ data class EventsUiState(
     val errorMessage: String? = null,
 ) {
     /**
-     * Sin eventos que anunciar el widget no aparece, aunque el interruptor esté
-     * encendido: una tarjeta flotante vacía solo estorbaría.
+     * Los que aún no han ocurrido.
+     *
+     * El widget solo anuncia estos: la pantalla lista además los pasados, pero un
+     * anuncio flotante de algo que ya se celebró no invita a nada.
+     */
+    val proximos: List<EventItem> get() = events.filterNot { it.esPasado }
+
+    /**
+     * Sin eventos próximos el widget no aparece, aunque el interruptor esté encendido:
+     * una tarjeta flotante vacía solo estorbaría.
      */
     val showWidget: Boolean
-        get() = widgetEnabled && events.isNotEmpty()
+        get() = widgetEnabled && proximos.isNotEmpty()
+
+    fun find(id: String?): EventItem? = events.firstOrNull { it.id == id }
 }
 
 class EventsViewModel(
@@ -66,7 +76,7 @@ class EventsViewModel(
                                 errorMessage = null,
                                 events = events,
                                 widgetEnabled = bundle?.widgetVisible == true,
-                                minimized = leerDecision(events),
+                                minimized = leerDecision(events.filterNot { e -> e.esPasado }),
                             )
                         }
                     }
@@ -86,7 +96,7 @@ class EventsViewModel(
         _uiState.update { estado ->
             BrowserStorage.write(
                 MINIMIZED_KEY,
-                sello(estado.events) + SEPARADOR + if (value) MIN else EXP,
+                sello(estado.proximos) + SEPARADOR + if (value) MIN else EXP,
             )
             estado.copy(minimized = value)
         }

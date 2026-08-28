@@ -13,6 +13,12 @@ import models.SiteSettingDto
 data class EventsBundle(
     /** Interruptor `widget_eventos_visible` de `site_settings`. */
     val widgetVisible: Boolean = false,
+    /**
+     * Todos los eventos activos, próximos primero y pasados después.
+     *
+     * La pantalla los muestra todos en la misma columna; el widget flotante se queda
+     * solo con los próximos, porque anunciar algo que ya ocurrió no tiene sentido.
+     */
     val events: List<EventItem> = emptyList(),
 )
 
@@ -45,25 +51,30 @@ class EventsRepository(
             // sin configurar deje el sitio como estaba a que aparezca algo inesperado.
             .let { it == "true" }
 
-        // `vigente_hasta` es la columna generada del script 21: coalesce(fecha_fin,
-        // fecha_inicio). Comparar contra ella deja fuera lo que ya pasó, tanto los
-        // eventos de un día como los de varios que siguen en curso.
+        // Se piden todos los activos, no solo los vigentes: la pantalla muestra también
+        // los pasados. Quién es próximo y quién no se decide abajo, con el reloj del
+        // navegador, que es el mismo criterio con el que se ordenan.
         val events = supabase.from(SupabaseConfig.EVENTS_TABLE)
             .select(
                 columns = Columns.raw(
-                    "id, titulo, resumen, detalles, lugar, imagen, " +
-                        "fecha_inicio, fecha_fin, enlace"
+                    "id, titulo, resumen, detalles, lugar, imagenes, " +
+                        "fecha_inicio, fecha_fin, enlace, enlace_texto"
                 )
             ) {
-                filter {
-                    eq("activo", true)
-                    gte("vigente_hasta", nowIso())
-                }
+                filter { eq("activo", true) }
                 order("fecha_inicio", Order.ASCENDING)
                 order("orden", Order.ASCENDING)
             }
             .decodeList<EventDto>()
             .mapNotNull(::toItem)
+            // Primero los próximos, del más cercano al más lejano; después los pasados,
+            // del más reciente al más antiguo. Lo que interesa queda arriba en ambos
+            // tramos: el evento al que aún se llega a tiempo, y el que se acaba de vivir.
+            .sortedWith(
+                compareBy<EventItem> { it.esPasado }
+                    .thenBy { if (it.esPasado) "" else it.ordenIso }
+                    .thenByDescending { if (it.esPasado) it.ordenIso else "" }
+            )
 
         NetworkResult.Success(EventsBundle(widgetVisible = visible, events = events))
     }
@@ -75,17 +86,25 @@ private fun toItem(dto: EventDto): EventItem? {
     val titulo = dto.titulo?.takeIf { it.isNotBlank() } ?: return null
     val inicio = dto.fechaInicio?.takeIf { it.isNotBlank() } ?: return null
 
+    // "Ya pasó" se mide contra el final si lo hay: un evento de tres días sigue siendo
+    // próximo mientras esté en curso.
+    val vigenteHasta = dto.fechaFin?.takeIf { it.isNotBlank() } ?: inicio
+
     return EventItem(
         id = id,
         titulo = titulo,
         resumen = dto.resumen.orEmpty(),
         detalles = dto.detalles.orEmpty(),
         lugar = dto.lugar.orEmpty(),
-        imagen = dto.imagen?.takeIf { it.isNotBlank() }
-            ?.let(SupabaseConfig::publicImageUrl)
-            .orEmpty(),
+        imagenes = dto.imagenes
+            .filter { it.isNotBlank() }
+            .map(SupabaseConfig::publicImageUrl),
         fechaCorta = formatDateRange(inicio, dto.fechaFin),
         fechaLarga = formatLongDate(inicio),
+        fechaFinLarga = dto.fechaFin?.takeIf { it.isNotBlank() }?.let(::formatLongDate).orEmpty(),
         enlace = dto.enlace.orEmpty(),
+        enlaceTexto = dto.enlaceTexto.orEmpty().trim(),
+        esPasado = isPast(vigenteHasta),
+        ordenIso = inicio,
     )
 }
