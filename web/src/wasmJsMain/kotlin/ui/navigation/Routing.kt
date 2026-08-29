@@ -6,9 +6,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.browser.window
-import kotlinx.coroutines.launch
 
 /**
  * Destino actual sincronizado con el hash de la URL del navegador.
@@ -20,18 +19,19 @@ import kotlinx.coroutines.launch
 @Composable
 fun rememberRouteState(): MutableState<Route> {
     val state = remember { mutableStateOf(Route.fromPath(currentPath())) }
-    val scope = rememberCoroutineScope()
 
     // URL -> estado (atrás/adelante del navegador).
     DisposableEffect(Unit) {
         window.onhashchange = {
-            // El cambio se lanza en el ámbito de la composición en lugar de escribir el
-            // estado aquí mismo. El evento llega del navegador, fuera del ciclo de
-            // Compose, y una escritura hecha ahí no despierta una recomposición: se
-            // comprobó en el navegador que el manejador sí se ejecutaba y la URL sí
-            // cambiaba, pero la pantalla se quedaba en la anterior. Al lanzarlo, la
-            // escritura ocurre dentro del ciclo y la pantalla acompaña al historial.
-            scope.launch { state.value = Route.fromPath(currentPath()) }
+            state.value = Route.fromPath(currentPath())
+            // Sin esto la pantalla no acompaña al historial. El evento llega del
+            // navegador, fuera del ciclo de Compose, y una escritura hecha ahí se queda
+            // en el snapshot global sin que nadie avise a la composición: se comprobó en
+            // el navegador que el manejador sí corría y la URL sí volvía, y aun así la
+            // pantalla se quedaba en la anterior. Esta llamada es la que propaga el
+            // cambio. Lanzarlo en el ámbito de la composición no servía: ese despachador
+            // está dormido mientras la app no tiene trabajo.
+            Snapshot.sendApplyNotifications()
         }
         onDispose { window.onhashchange = null }
     }
