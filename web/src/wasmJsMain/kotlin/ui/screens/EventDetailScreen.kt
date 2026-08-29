@@ -100,9 +100,42 @@ private fun EventBody(event: EventItem) {
     }
 
     Column(modifier = Modifier.padding(top = PassionTheme.spacing.s4)) {
-        DatoDelEvento(rotulo = "Comienza", valor = event.fechaLarga)
-        DatoDelEvento(rotulo = "Termina", valor = event.fechaFinLarga)
-        DatoDelEvento(rotulo = "Dónde", valor = event.lugar)
+        // La pregunta cambia de tiempo verbal según el evento haya pasado o no, y la
+        // hora solo se anuncia cuando aún se puede llegar: en algo ya celebrado, a qué
+        // hora empezó no le sirve a nadie.
+        Text(
+            text = if (event.esPasado) "¿Cuándo fue?" else "¿Cuándo será?",
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = event.fechaSolo,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s1),
+        )
+        if (!event.esPasado && event.horaSolo.isNotBlank()) {
+            Text(
+                text = "A partir de las ${event.horaSolo}",
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+        if (event.fechaFinSolo.isNotBlank()) {
+            Text(
+                text = "Hasta el ${event.fechaFinSolo}",
+                color = PassionTheme.semantics.onBackgroundSubtle,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = PassionTheme.spacing.s1),
+            )
+        }
+
+        DatoDelEvento(
+            rotulo = "Dónde",
+            valor = event.lugar,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s4),
+        )
     }
 
     // Lo largo si lo hay; si no, al menos el resumen, que es lo que el listado enseñaba.
@@ -136,10 +169,10 @@ private fun EventBody(event: EventItem) {
 
 /** Una línea «rótulo: valor». No se pinta si el valor está vacío. */
 @Composable
-private fun DatoDelEvento(rotulo: String, valor: String) {
+private fun DatoDelEvento(rotulo: String, valor: String, modifier: Modifier = Modifier) {
     if (valor.isBlank()) return
 
-    Column(modifier = Modifier.padding(bottom = PassionTheme.spacing.s2)) {
+    Column(modifier = modifier) {
         Text(
             text = rotulo.uppercase(),
             color = MaterialTheme.colorScheme.primary,

@@ -92,6 +92,9 @@ private fun toItem(dto: EventDto): EventItem? {
 
     return EventItem(
         id = id,
+        // Si el título no deja nada aprovechable —solo signos, por ejemplo— se cae al
+        // identificador: es feo, pero una ficha sin dirección no se puede abrir.
+        slug = slugify(titulo).ifBlank { id },
         titulo = titulo,
         resumen = dto.resumen.orEmpty(),
         detalles = dto.detalles.orEmpty(),
@@ -101,7 +104,15 @@ private fun toItem(dto: EventDto): EventItem? {
             .map(SupabaseConfig::publicImageUrl),
         fechaCorta = formatDateRange(inicio, dto.fechaFin),
         fechaLarga = formatLongDate(inicio),
-        fechaFinLarga = dto.fechaFin?.takeIf { it.isNotBlank() }?.let(::formatLongDate).orEmpty(),
+        fechaSolo = formatDateOnly(inicio),
+        horaSolo = formatTimeOnly(inicio),
+        fechaFinSolo = dto.fechaFin
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::formatDateOnly)
+            // Un evento de un solo día trae fecha de fin igual a la de inicio: repetirla
+            // debajo no informaría de nada.
+            ?.takeIf { it != formatDateOnly(inicio) }
+            .orEmpty(),
         enlace = dto.enlace.orEmpty(),
         enlaceTexto = dto.enlaceTexto.orEmpty().trim(),
         esPasado = isPast(vigenteHasta),

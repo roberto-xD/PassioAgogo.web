@@ -62,7 +62,7 @@ fun EventsScreen(state: EventsUiState, onOpenEvent: (String) -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s4),
             ) {
                 state.events.forEach { event ->
-                    EventCard(event = event, onOpen = { onOpenEvent(event.id) })
+                    EventCard(event = event, onOpen = { onOpenEvent(event.slug) })
                 }
             }
         }

@@ -30,11 +30,23 @@ fun formatDateRange(inicioIso: String, finIso: String?): String {
     return if (fin.isBlank() || fin == inicio) inicio else "$inicio – $fin"
 }
 
+/** "17 de agosto de 2026" — la fecha sola, sin hora. */
+fun formatDateOnly(iso: String): String = if (iso.isBlank()) "" else dateOnly(iso)
+
+/** "20:00" — la hora sola. */
+fun formatTimeOnly(iso: String): String = if (iso.isBlank()) "" else timeOnly(iso)
+
 /** `true` si el instante ya pasó, según el reloj de quien mira. */
 fun isPast(iso: String): Boolean =
     if (iso.isBlank()) false else pastCheck(iso)
 
 private fun pastCheck(iso: String): Boolean = js("new Date(iso).getTime() < Date.now()")
+
+private fun dateOnly(iso: String): String =
+    js("new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })")
+
+private fun timeOnly(iso: String): String =
+    js("new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })")
 
 private fun shortDate(iso: String): String =
     js("new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })")

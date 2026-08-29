@@ -46,7 +46,14 @@ data class EventsUiState(
     val showWidget: Boolean
         get() = widgetEnabled && proximos.isNotEmpty()
 
-    fun find(id: String?): EventItem? = events.firstOrNull { it.id == id }
+    /**
+     * Busca por el fragmento de la URL. Acepta también el identificador para que los
+     * enlaces con el formato anterior sigan abriendo la ficha.
+     */
+    fun find(slugOrId: String?): EventItem? {
+        if (slugOrId.isNullOrBlank()) return null
+        return events.firstOrNull { it.slug == slugOrId } ?: events.firstOrNull { it.id == slugOrId }
+    }
 }
 
 class EventsViewModel(
