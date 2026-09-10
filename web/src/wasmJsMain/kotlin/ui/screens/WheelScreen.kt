@@ -80,9 +80,11 @@ fun WheelScreen(
                         onSpin = onSpin,
                         onLanded = onLanded,
                         canSpin = state.canSpin,
+                        // El tope va antes de rellenar: al revés, `fillMaxWidth` fija el
+                        // ancho del padre como mínimo y `widthIn` ya no puede recortarlo.
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = WHEEL_MAX_WIDTH),
+                            .widthIn(max = WHEEL_MAX_WIDTH)
+                            .fillMaxWidth(),
                     )
                 }
 

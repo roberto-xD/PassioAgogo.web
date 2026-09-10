@@ -158,27 +158,47 @@ fun FortuneWheel(
             }
 
             prizes.forEachIndexed { indice, premio ->
-                val centroSector = indice * sector + sector / 2f
+                val layout = measurer.measure(
+                    text = AnnotatedString(premio.rotulo),
+                    style = TextStyle(
+                        color = if (indice % 2 == 0) textoPar else textoImpar,
+                        fontSize = (radio * 0.13f).toSp(),
+                        fontWeight = FontWeight.Bold,
+                    ),
+                )
+
                 // El texto se pone radial: se gira el lienzo hasta que el sector queda
                 // arriba y se dibuja centrado sobre el radio.
-                rotate(degrees = centroSector - ANGULO_AGUJA, pivot = center) {
-                    val layout = measurer.measure(
-                        text = AnnotatedString(premio.rotulo),
-                        style = TextStyle(
-                            color = if (indice % 2 == 0) textoPar else textoImpar,
-                            fontSize = (radio * 0.13f).toSp(),
-                            fontWeight = FontWeight.Bold,
-                        ),
-                    )
+                val centroSector = indice * sector + sector / 2f
+                val giroBase = centroSector - ANGULO_AGUJA
+                // Los sectores de la mitad de abajo quedarían con el rótulo boca abajo.
+                // Se les da media vuelta más y se dibuja al otro lado del centro, que es
+                // donde ha ido a parar su sector.
+                val normalizado = ((giroBase % 360f) + 360f) % 360f
+                val invertido = normalizado > 90f && normalizado < 270f
+
+                rotate(degrees = if (invertido) giroBase + 180f else giroBase, pivot = center) {
                     drawText(
                         textLayoutResult = layout,
                         topLeft = Offset(
                             x = center.x - layout.size.width / 2f,
-                            y = center.y - radio * 0.88f,
+                            y = if (invertido) {
+                                center.y + radio * 0.88f - layout.size.height
+                            } else {
+                                center.y - radio * 0.88f
+                            },
                         ),
                     )
                 }
             }
+
+            // Aro exterior: le da borde a la ruleta y remata los sectores.
+            drawCircle(
+                color = colorPar,
+                radius = radio - 1.dp.toPx(),
+                center = center,
+                style = Stroke(width = 6.dp.toPx()),
+            )
         }
 
         // La aguja no gira: marca el sector premiado desde fuera.
