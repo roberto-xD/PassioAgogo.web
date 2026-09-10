@@ -41,6 +41,15 @@ object WhatsAppConfig {
     /** Conversación abierta desde los datos de contacto, con la duda ya planteada. */
     fun enlaceParaDuda(): String = enlace(MENSAJE_DUDA)
 
+    /**
+     * Reclamación de un premio de la ruleta.
+     *
+     * El código va en el mensaje porque es lo que se verifica contra `wheel_spins` al
+     * entregarlo: sin él, la captura de pantalla de una ruleta no prueba nada.
+     */
+    fun enlaceParaPremio(rotulo: String, codigo: String): String =
+        enlace("Gane $rotulo en la ruleta. Mi codigo es $codigo")
+
     private fun enlace(mensaje: String): String =
         "https://wa.me/$NUMERO?text=${encodeUriComponent(mensaje)}"
 }

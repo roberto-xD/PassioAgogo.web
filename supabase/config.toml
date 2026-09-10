@@ -17,3 +17,12 @@
 # Cloudflare Turnstile y limita los envíos por origen.
 [functions.contact]
 verify_jwt = false
+
+# `spin` es igualmente PÚBLICO: la ruleta la gira cualquier visitante sin haber
+# iniciado sesión, así que necesita el mismo trato que `contact` para que el
+# preflight no lo rechace el gateway.
+#
+# No queda desprotegida: el premio lo sortea la propia función con los pesos de
+# la base —que nunca salen al navegador— y limita los giros por origen.
+[functions.spin]
+verify_jwt = false

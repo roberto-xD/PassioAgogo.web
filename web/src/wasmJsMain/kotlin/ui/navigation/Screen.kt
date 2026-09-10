@@ -9,6 +9,7 @@ enum class Screen(val route: String, val title: String) {
     Podcast("podcast", "Podcast"),
     Events("eventos", "Eventos"),
     Care("uso-y-cuidados", "Uso y cuidados"),
+    Wheel("ruleta", "Gira y gana"),
     Contact("contacto", "Contacto"),
     Login("acceder", "Acceder"),
     Account("cuenta", "Mi cuenta"),

@@ -31,6 +31,7 @@ import network.ContactRepository
 import network.EventsRepository
 import network.GalleryRepository
 import network.GuidesRepository
+import network.WheelRepository
 import ui.CatalogScreen
 import ui.components.FloatingEventsWidget
 import ui.components.Footer
@@ -54,12 +55,14 @@ import ui.screens.PodcastScreen
 import ui.screens.PrivacyScreen
 import ui.screens.TermsScreen
 import ui.screens.VideoScreen
+import ui.screens.WheelScreen
 import viewmodel.AuthViewModel
 import viewmodel.CatalogViewModel
 import viewmodel.ContactViewModel
 import viewmodel.EventsViewModel
 import viewmodel.GalleryViewModel
 import viewmodel.GuidesViewModel
+import viewmodel.WheelViewModel
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
@@ -110,6 +113,10 @@ fun App() {
     val guidesViewModel = remember { GuidesViewModel(GuidesRepository()) }
     LaunchedEffect(Unit) { guidesViewModel.load() }
     val guidesState by guidesViewModel.uiState.collectAsState()
+
+    val wheelViewModel = remember { WheelViewModel(WheelRepository()) }
+    LaunchedEffect(Unit) { wheelViewModel.load() }
+    val wheelState by wheelViewModel.uiState.collectAsState()
 
     val authViewModel = remember { AuthViewModel(AuthRepository()) }
     val authState by authViewModel.uiState.collectAsState()
@@ -176,6 +183,11 @@ fun App() {
                             EventsScreen(state = eventsState, onOpenEvent = openEvent)
                         }
                         Screen.Care -> CareScreen(state = guidesState)
+                        Screen.Wheel -> WheelScreen(
+                            state = wheelState,
+                            onSpin = wheelViewModel::spin,
+                            onLanded = wheelViewModel::onLanded,
+                        )
                         Screen.Contact -> ContactScreen(
                             state = contactState,
                             onNombreChange = contactViewModel::updateNombre,

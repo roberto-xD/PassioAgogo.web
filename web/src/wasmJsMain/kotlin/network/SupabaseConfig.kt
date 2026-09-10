@@ -36,6 +36,12 @@ object SupabaseConfig {
     const val EVENTS_TABLE: String = "events"
     const val SITE_SETTINGS_TABLE: String = "site_settings"
 
+    /** Ruleta de descuentos (24_wheel.sql). */
+    const val WHEEL_PRIZES_TABLE: String = "wheel_prizes"
+
+    /** Interruptor de la ruleta, en `site_settings`. */
+    const val SETTING_WHEEL: String = "ruleta_visible"
+
     /** Interruptor del widget flotante de eventos, en `site_settings`. */
     const val SETTING_EVENTS_WIDGET: String = "widget_eventos_visible"
 
