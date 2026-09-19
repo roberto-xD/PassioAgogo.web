@@ -20,11 +20,17 @@ import models.SiteSettingDto
 import models.SpinOutcome
 import models.WheelPrize
 import models.WheelPrizeDto
+import models.WheelTerm
+import models.WheelTermDto
 
-/** Lo que necesita la pantalla: si la sección está encendida y qué sectores dibujar. */
+/**
+ * Lo que necesita la pantalla: si la sección está encendida, qué sectores dibujar y las
+ * bases de la promoción.
+ */
 data class WheelBundle(
     val visible: Boolean = false,
     val prizes: List<WheelPrize> = emptyList(),
+    val terms: List<WheelTerm> = emptyList(),
 )
 
 @Serializable
@@ -89,7 +95,24 @@ class WheelRepository(
                 WheelPrize(id = id, rotulo = rotulo.trim(), detalle = dto.detalle.orEmpty().trim())
             }
 
-        NetworkResult.Success(WheelBundle(visible = visible, prizes = prizes))
+        // Las bases van aparte y toleran el fallo: si la tabla todavía no existe —el
+        // script 25 no se ha corrido— la ruleta debe seguir girando sin ellas, no caerse
+        // entera. Lo único que se pierde es el botón de "Bases de la promoción".
+        val terms = runCatching {
+            supabase.from(SupabaseConfig.WHEEL_TERMS_TABLE)
+                .select(columns = Columns.raw("id, titulo, cuerpo, orden")) {
+                    order("orden", Order.ASCENDING)
+                }
+                .decodeList<WheelTermDto>()
+                .mapNotNull { dto ->
+                    val id = dto.id ?: return@mapNotNull null
+                    val titulo = dto.titulo?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                    val cuerpo = dto.cuerpo?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                    WheelTerm(id = id, titulo = titulo.trim(), cuerpo = cuerpo.trim())
+                }
+        }.getOrDefault(emptyList())
+
+        NetworkResult.Success(WheelBundle(visible = visible, prizes = prizes, terms = terms))
     }
 
     /** Pide un giro. El resultado ya viene decidido y registrado del servidor. */

@@ -22,6 +22,28 @@ data class WheelPrize(
     val detalle: String,
 )
 
+/** Cláusula de las bases tal y como llega de `wheel_terms` (25_wheel_terms.sql). */
+@Serializable
+data class WheelTermDto(
+    val id: String? = null,
+    val titulo: String? = null,
+    val cuerpo: String? = null,
+    val orden: Int = 0,
+)
+
+/**
+ * Cláusula lista para pintarse.
+ *
+ * Las bases viven en la base de datos y no en el código porque cambian —fechas de
+ * vigencia, productos excluidos— y recompilar la web para corregir una fecha acabaría
+ * con unas bases desactualizadas publicadas.
+ */
+data class WheelTerm(
+    val id: String,
+    val titulo: String,
+    val cuerpo: String,
+)
+
 /**
  * Lo que devolvió el servidor tras girar.
  *

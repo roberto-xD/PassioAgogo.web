@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import models.SpinOutcome
 import models.WheelPrize
+import models.WheelTerm
 import network.ApiStatus
 import network.SpinResult
 import network.WheelRepository
@@ -18,6 +19,8 @@ data class WheelUiState(
     val isLoading: Boolean = true,
     val visible: Boolean = false,
     val prizes: List<WheelPrize> = emptyList(),
+    /** Bases de la promoción, en el orden en que se leen. Vacío si no hay ninguna. */
+    val terms: List<WheelTerm> = emptyList(),
     /** Hay una petición de giro en el aire o la ruleta sigue girando. */
     val spinning: Boolean = false,
     /**
@@ -63,6 +66,7 @@ class WheelViewModel(
                             errorMessage = null,
                             visible = result.data?.visible == true,
                             prizes = result.data?.prizes.orEmpty(),
+                            terms = result.data?.terms.orEmpty(),
                         )
                     }
                 }

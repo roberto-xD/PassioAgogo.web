@@ -39,6 +39,9 @@ object SupabaseConfig {
     /** Ruleta de descuentos (24_wheel.sql). */
     const val WHEEL_PRIZES_TABLE: String = "wheel_prizes"
 
+    /** Bases de la promoción de la ruleta (25_wheel_terms.sql). */
+    const val WHEEL_TERMS_TABLE: String = "wheel_terms"
+
     /** Interruptor de la ruleta, en `site_settings`. */
     const val SETTING_WHEEL: String = "ruleta_visible"
 

@@ -24,7 +24,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import models.SpinOutcome
+import models.WheelTerm
 import network.WhatsAppConfig
+import ui.components.BottomSheet
 import ui.components.ContentScreen
 import ui.components.FortuneWheel
 import ui.components.Paragraph
@@ -105,6 +107,58 @@ fun WheelScreen(
                 if (state.revealed) {
                     state.outcome?.let { premio -> ResultadoDelGiro(premio) }
                 }
+
+                if (state.terms.isNotEmpty()) {
+                    BasesDeLaPromocion(state.terms)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Enlace a las bases y la hoja que las muestra.
+ *
+ * Van en una hoja inferior y no en una pantalla aparte para no sacar a nadie de la
+ * ruleta: quien quiera leer la letra pequeña antes de girar vuelve de un toque.
+ */
+@Composable
+private fun BasesDeLaPromocion(terms: List<WheelTerm>) {
+    var abierto by remember { mutableStateOf(false) }
+
+    Text(
+        text = "Bases de la promoción",
+        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.SemiBold,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = PassionTheme.spacing.s5)
+            .clickable { abierto = true }
+            .padding(vertical = PassionTheme.spacing.s2),
+    )
+
+    if (abierto) {
+        BottomSheet(title = "Bases de la promoción", onDismiss = { abierto = false }) {
+            terms.forEachIndexed { indice, clausula ->
+                Text(
+                    text = clausula.titulo,
+                    color = PassionTheme.semantics.onBackgroundStrong,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(
+                        // La primera va pegada al título de la hoja; las demás necesitan
+                        // aire por encima para que se vean como cláusulas separadas.
+                        top = if (indice == 0) 0.dp else PassionTheme.spacing.s5,
+                        bottom = PassionTheme.spacing.s1,
+                    ),
+                )
+                Text(
+                    text = clausula.cuerpo,
+                    color = PassionTheme.semantics.onBackgroundMuted,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
         }
     }
