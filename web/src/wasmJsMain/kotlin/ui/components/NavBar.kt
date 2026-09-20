@@ -19,10 +19,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import ui.navigation.Screen
 import ui.theme.PassionTheme
+import viewmodel.CatalogSection
 
-private val PrimaryItems = listOf(
+/** Antes de las secciones del catálogo, que se insertan justo después de Catálogo. */
+private val ItemsAntesDeSecciones = listOf(
     Screen.Home,
     Screen.Catalog,
+)
+
+private val ItemsDespuesDeSecciones = listOf(
     Screen.About,
 //    Screen.Video,
     Screen.Podcast,
@@ -33,8 +38,20 @@ private val PrimaryItems = listOf(
     Screen.Help,
 )
 
+/**
+ * @param sections categorías con pantalla propia (26_category_sections). Vienen de la
+ *   base, así que separar un rubro nuevo no toca este archivo.
+ * @param currentSectionSlug la sección abierta, para marcarla; `null` fuera de ellas.
+ */
 @Composable
-fun NavBar(current: Screen, isAuthenticated: Boolean, onNavigate: (Screen) -> Unit) {
+fun NavBar(
+    current: Screen,
+    isAuthenticated: Boolean,
+    onNavigate: (Screen) -> Unit,
+    sections: List<CatalogSection> = emptyList(),
+    currentSectionSlug: String? = null,
+    onNavigateSection: (CatalogSection) -> Unit = {},
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -55,7 +72,22 @@ fun NavBar(current: Screen, isAuthenticated: Boolean, onNavigate: (Screen) -> Un
             modifier = Modifier.clickable { onNavigate(Screen.Home) },
         )
         Spacer(Modifier.width(PassionTheme.spacing.s2))
-        PrimaryItems.forEach { screen ->
+        ItemsAntesDeSecciones.forEach { screen ->
+            NavItem(
+                label = screen.title,
+                selected = screen == current,
+                onClick = { onNavigate(screen) },
+            )
+        }
+        // Las secciones van pegadas a Catálogo: son catálogo, solo que aparte.
+        sections.forEach { section ->
+            NavItem(
+                label = section.nombre,
+                selected = current == Screen.Section && section.slug == currentSectionSlug,
+                onClick = { onNavigateSection(section) },
+            )
+        }
+        ItemsDespuesDeSecciones.forEach { screen ->
             NavItem(
                 label = screen.title,
                 selected = screen == current,

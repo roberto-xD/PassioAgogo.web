@@ -57,6 +57,7 @@ import ui.screens.TermsScreen
 import ui.screens.VideoScreen
 import ui.screens.WheelScreen
 import viewmodel.AuthViewModel
+import viewmodel.CatalogSection
 import viewmodel.CatalogViewModel
 import viewmodel.ContactViewModel
 import viewmodel.EventsViewModel
@@ -92,12 +93,25 @@ fun App() {
     val current = route.screen
     val navigate: (Screen) -> Unit = { routeState.value = Route(it) }
     val openEvent: (String) -> Unit = { routeState.value = Route(Screen.Events, it) }
+    val openSection: (CatalogSection) -> Unit = {
+        routeState.value = Route(Screen.Section, it.slug)
+    }
 
     // Composición manual de dependencias (sin framework de DI) para mantener el
     // módulo simple y estable en el target web.
     val catalogViewModel = remember { CatalogViewModel(CatalogRepository()) }
     LaunchedEffect(Unit) { catalogViewModel.loadCatalog() }
     val catalogState by catalogViewModel.uiState.collectAsState()
+
+    // El ámbito del catálogo lo manda la URL: `#/catalogo` es el general y
+    // `#/seccion/<slug>` una sección. Cualquier otra pantalla no lo toca, para que al
+    // ir y volver el filtro siga donde estaba.
+    val sectionSlug = if (current == Screen.Section) route.id else null
+    LaunchedEffect(current, sectionSlug) {
+        if (current == Screen.Section || current == Screen.Catalog) {
+            catalogViewModel.setSection(sectionSlug)
+        }
+    }
 
     val contactViewModel = remember { ContactViewModel(ContactRepository()) }
     val contactState by contactViewModel.uiState.collectAsState()
@@ -145,6 +159,9 @@ fun App() {
                 current = current,
                 isAuthenticated = authState.isAuthenticated,
                 onNavigate = navigate,
+                sections = catalogState.sections,
+                currentSectionSlug = sectionSlug,
+                onNavigateSection = openSection,
             )
 
             // Área de contenido: sirve de recorte para los elementos HTML superpuestos
@@ -163,7 +180,9 @@ fun App() {
                             galleryState = galleryState,
                             onExploreCatalog = { navigate(Screen.Catalog) },
                         )
-                        Screen.Catalog -> CatalogScreen(
+                        // Misma pantalla para el catálogo general y para una sección: lo
+                        // único que cambia es el ámbito, que ya resolvió el ViewModel.
+                        Screen.Catalog, Screen.Section -> CatalogScreen(
                             state = catalogState,
                             onSelectCategory = catalogViewModel::selectCategory,
                             onSelectSubcategory = catalogViewModel::selectSubcategory,

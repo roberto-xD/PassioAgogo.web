@@ -46,12 +46,19 @@ data class VariantDto(
     val activo: Boolean? = null,
 )
 
-/** Fila mínima de categories: jerarquía (promos/filtro) + nombre para los chips. */
+/**
+ * Fila mínima de categories: jerarquía (promos/filtro) + nombre para los chips.
+ *
+ * [seccion] marca las categorías raíz que tienen pantalla propia (26_category_sections):
+ * con valor, la categoría y todo su subárbol salen del catálogo principal y se ven solo
+ * en `#/seccion/<seccion>`.
+ */
 @Serializable
 data class CategoryRefDto(
     val id: String? = null,
     val nombre: String? = null,
     @SerialName("parent_id") val parentId: String? = null,
+    val seccion: String? = null,
 )
 
 @Serializable

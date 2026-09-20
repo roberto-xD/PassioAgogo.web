@@ -67,9 +67,20 @@ class CatalogRepository(
             .decodeList<PromotionDto>()
 
         // Categorías: jerarquía para expandir promos y nombres para el filtro de la UI.
-        val categoryRefs = supabase.from(SupabaseConfig.CATEGORIES_TABLE)
-            .select(columns = Columns.raw("id, nombre, parent_id"))
-            .decodeList<CategoryRefDto>()
+        //
+        // `seccion` se pide aparte porque es columna nueva (26_category_sections): si el
+        // script todavía no se ha corrido, PostgREST rechaza la consulta entera con un
+        // 400 y el catálogo se quedaría en blanco. Se reintenta sin ella y lo único que
+        // se pierde es la separación por secciones.
+        val categoryRefs = runCatching {
+            supabase.from(SupabaseConfig.CATEGORIES_TABLE)
+                .select(columns = Columns.raw("id, nombre, parent_id, seccion"))
+                .decodeList<CategoryRefDto>()
+        }.getOrElse {
+            supabase.from(SupabaseConfig.CATEGORIES_TABLE)
+                .select(columns = Columns.raw("id, nombre, parent_id"))
+                .decodeList<CategoryRefDto>()
+        }
 
         // Diccionario de los `attributes`: convierte {"material":"silicona"} en la chip
         // "🧴 Silicona". El RLS (script 20) deja leer los activos sin sesión.

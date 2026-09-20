@@ -46,10 +46,26 @@ fun CatalogScreen(
     var selectedProduct by remember { mutableStateOf<PGDataCard?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        if (!state.isLoading && state.errorMessage == null) {
+        // En una sección el encabezado no es decoración: sin él, una pantalla con los
+        // mismos chips y la misma rejilla que el catálogo no se distingue de él.
+        state.currentSection?.let { seccion ->
+            Text(
+                text = seccion.nombre,
+                color = PassionTheme.semantics.onBackgroundStrong,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(
+                    start = PassionTheme.spacing.s4,
+                    end = PassionTheme.spacing.s4,
+                    top = PassionTheme.spacing.s5,
+                ),
+            )
+        }
+        if (!state.isLoading && state.errorMessage == null && !state.sectionMissing) {
             SearchField(query = state.searchQuery, onQueryChange = onSearchChange)
         }
-        if (state.categories.isNotEmpty()) {
+        // Con una sección inexistente los chips serían los del catálogo general:
+        // ofrecerlos bajo ese encabezado solo despistaría.
+        if (state.categories.isNotEmpty() && !state.sectionMissing) {
             CategoryChips(
                 categories = state.categories,
                 selectedId = state.selectedCategoryId,
@@ -81,6 +97,11 @@ fun CatalogScreen(
                     title = "No se pudo cargar el catálogo",
                     detail = state.errorMessage,
                 )
+                state.sectionMissing -> Message(
+                    title = "Esa sección ya no existe",
+                    detail = "Puede que la hayamos renombrado. Busca lo que querías " +
+                        "en el catálogo.",
+                )
                 state.products.isEmpty() && state.searchQuery.isNotBlank() -> Message(
                     title = "Sin resultados para \"${state.searchQuery}\"",
                     detail = "Prueba con otras palabras o quita el filtro.",
@@ -92,6 +113,10 @@ fun CatalogScreen(
                 state.products.isEmpty() && state.selectedCategoryId != null -> Message(
                     title = "Sin productos en esta categoría",
                     detail = "Prueba con otra categoría.",
+                )
+                state.products.isEmpty() && state.currentSection != null -> Message(
+                    title = "Estamos surtiendo ${state.currentSection.nombre}",
+                    detail = "Esta sección todavía no tiene productos. Vuelve pronto.",
                 )
                 state.products.isEmpty() -> Message(
                     title = "Catálogo próximamente",

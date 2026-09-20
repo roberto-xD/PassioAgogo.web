@@ -8,6 +8,8 @@ enum class Screen(val route: String, val title: String) {
     Video("video", "Video"),
     Podcast("podcast", "Podcast"),
     Events("eventos", "Eventos"),
+    /** Catálogo acotado a una categoría con pantalla propia: `#/seccion/<slug>`. */
+    Section("seccion", "Sección"),
     Care("uso-y-cuidados", "Uso y cuidados"),
     Wheel("ruleta", "Gira y gana"),
     Contact("contacto", "Contacto"),
@@ -26,8 +28,9 @@ enum class Screen(val route: String, val title: String) {
 /**
  * Destino completo: una pantalla y, si la tiene, la cosa concreta que muestra.
  *
- * El [id] existe para las pantallas de ficha, hoy la de un evento (`#/eventos/<id>`).
- * Al viajar en la URL, la ficha se puede compartir y el botón de atrás del navegador
+ * El [id] existe para las pantallas de ficha —la de un evento, `#/eventos/<id>`— y para
+ * las secciones del catálogo, donde es el slug de la categoría (`#/seccion/lenceria`).
+ * Al viajar en la URL, el destino se puede compartir y el botón de atrás del navegador
  * devuelve al listado, que es lo que cualquiera espera.
  */
 data class Route(val screen: Screen, val id: String? = null) {
