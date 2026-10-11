@@ -249,8 +249,11 @@ private fun TiraVertical(
     modifier: Modifier,
 ) {
     if (images.size < 2) return
+    // Sin scroll propio: la pantalla entera ya se desplaza, y anidar dos desplazamientos
+    // verticales hace que Compose mida con altura infinita y reviente. La tira crece
+    // hacia abajo y se recorre con el scroll de la página.
     Column(
-        modifier = modifier.verticalScroll(rememberScrollState()),
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s2),
     ) {
         images.forEachIndexed { indice, url ->
