@@ -236,6 +236,9 @@ private fun PanelDeImagen(
                 modifier = Modifier.fillMaxSize(),
                 pagerState = pagerState,
                 externalNavigation = saltos,
+                // El panel es parte de la página, no un visor a oscuras: el negro del
+                // diálogo abriría un agujero en medio del escaparate.
+                background = PassionTheme.semantics.imagePlaceholder,
             )
         }
     }

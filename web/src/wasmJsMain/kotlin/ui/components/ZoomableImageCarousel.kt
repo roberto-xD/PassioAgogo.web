@@ -48,6 +48,9 @@ private const val AUTO_ADVANCE_MS = 4_000L
  * @param externalNavigation contador que quien iza el estado incrementa al mover el
  *   carrusel por su cuenta. Reinicia la cuenta atrás del pase automático, igual que hacen
  *   las flechas; sin él, una miniatura recién pulsada podía saltar sola al instante.
+ * @param background lo que se ve alrededor de una foto que no llena el marco. Negro por
+ *   omisión, que es lo que hace resaltar la imagen en un diálogo oscurecido; la ficha de
+ *   sección lo aclara para que el panel se lea como parte de la página.
  */
 @Composable
 fun ZoomableImageCarousel(
@@ -56,6 +59,7 @@ fun ZoomableImageCarousel(
     modifier: Modifier = Modifier,
     pagerState: PagerState = rememberPagerState(pageCount = { images.size }),
     externalNavigation: Int = 0,
+    background: Color = Color.Black,
 ) {
     if (images.isEmpty()) return
 
@@ -85,7 +89,7 @@ fun ZoomableImageCarousel(
 
     Box(
         modifier = modifier
-            .background(Color.Black)
+            .background(background)
             .hoverable(hoverInteraction),
     ) {
         HorizontalPager(
