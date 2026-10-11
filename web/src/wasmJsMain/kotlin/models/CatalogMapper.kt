@@ -1,6 +1,7 @@
 package models
 
 import network.SupabaseConfig
+import network.slugify
 import ui.pgmodels.PGDataCard
 import kotlin.math.roundToLong
 
@@ -70,10 +71,12 @@ fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
 
         PGDataCard(
             productTittle = product.nombre.orEmpty(),
+            slug = slugify(product.nombre.orEmpty()).ifBlank { product.id.orEmpty() },
             // La tarjeta muestra el resumen; `descripcion` queda para la ficha ampliada.
             productDescription = product.resumen.orEmpty(),
             productDetail = product.descripcion.orEmpty(),
             productBrand = product.marca.orEmpty(),
+            productCategory = product.categoria?.nombre.orEmpty(),
             productStore = product.marca ?: product.categoria?.nombre.orEmpty(),
             productRealPrice = best?.second?.let(::formatPrice).orEmpty(),
             productDiscountPrice = if (hasOffer) formatPrice(best.third) else "",

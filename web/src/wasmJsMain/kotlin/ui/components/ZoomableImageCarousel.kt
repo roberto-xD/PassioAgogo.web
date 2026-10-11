@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -41,16 +42,23 @@ private const val AUTO_ADVANCE_MS = 4_000L
  * al pasar el cursor, se reinicia al navegar a mano y se para mientras hay una imagen
  * acercada; flechas y puntos que se retiran con el zoom porque taparían el detalle que se
  * está mirando; y la pista de que la imagen se puede acercar.
+ *
+ * @param pagerState se puede izar para gobernarlo desde fuera —las miniaturas de la ficha
+ *   de sección—. Por omisión lo crea y lo gestiona él solo.
+ * @param externalNavigation contador que quien iza el estado incrementa al mover el
+ *   carrusel por su cuenta. Reinicia la cuenta atrás del pase automático, igual que hacen
+ *   las flechas; sin él, una miniatura recién pulsada podía saltar sola al instante.
  */
 @Composable
 fun ZoomableImageCarousel(
     images: List<String>,
     contentDescription: String,
     modifier: Modifier = Modifier,
+    pagerState: PagerState = rememberPagerState(pageCount = { images.size }),
+    externalNavigation: Int = 0,
 ) {
     if (images.isEmpty()) return
 
-    val pagerState = rememberPagerState(pageCount = { images.size })
     val hoverInteraction = remember { MutableInteractionSource() }
     val isHovered by hoverInteraction.collectIsHoveredAsState()
     val scope = rememberCoroutineScope()
@@ -67,7 +75,7 @@ fun ZoomableImageCarousel(
 
     // El efecto se rearranca al cambiar la pausa o al navegar a mano, nunca durante su
     // propia animación: así no puede cancelarse a sí mismo a media transición.
-    LaunchedEffect(images.size, isHovered, manualNavigation, zoomed) {
+    LaunchedEffect(images.size, isHovered, manualNavigation, externalNavigation, zoomed) {
         if (images.size < 2 || isHovered || zoomed) return@LaunchedEffect
         while (true) {
             delay(AUTO_ADVANCE_MS)

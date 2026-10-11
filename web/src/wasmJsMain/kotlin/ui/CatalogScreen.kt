@@ -36,12 +36,18 @@ import ui.theme.PassionTheme
 import viewmodel.CatalogUiState
 import viewmodel.CategoryOption
 
+/**
+ * @param onOpenProduct si se pasa, pulsar una tarjeta navega a la ficha con ruta propia
+ *   en lugar de abrir el diálogo. Lo usan las secciones, que presentan sus productos como
+ *   escaparate; el catálogo general conserva el diálogo.
+ */
 @Composable
 fun CatalogScreen(
     state: CatalogUiState,
     onSelectCategory: (String?) -> Unit,
     onSelectSubcategory: (String?) -> Unit,
     onSearchChange: (String) -> Unit,
+    onOpenProduct: ((PGDataCard) -> Unit)? = null,
 ) {
     var selectedProduct by remember { mutableStateOf<PGDataCard?>(null) }
 
@@ -122,7 +128,13 @@ fun CatalogScreen(
                     title = "Catálogo próximamente",
                     detail = "Aún no hay productos para mostrar.",
                 )
-                else -> ProductGrid(state, onProductClick = { selectedProduct = it })
+                else -> ProductGrid(
+                    state,
+                    onProductClick = { producto ->
+                        if (onOpenProduct != null) onOpenProduct(producto)
+                        else selectedProduct = producto
+                    },
+                )
             }
         }
     }

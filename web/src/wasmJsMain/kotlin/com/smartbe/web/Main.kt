@@ -53,6 +53,7 @@ import ui.screens.HomeScreen
 import ui.screens.LoginScreen
 import ui.screens.PodcastScreen
 import ui.screens.PrivacyScreen
+import ui.screens.SectionProductScreen
 import ui.screens.TermsScreen
 import ui.screens.VideoScreen
 import ui.screens.WheelScreen
@@ -95,6 +96,9 @@ fun App() {
     val openEvent: (String) -> Unit = { routeState.value = Route(Screen.Events, it) }
     val openSection: (CatalogSection) -> Unit = {
         routeState.value = Route(Screen.Section, it.slug)
+    }
+    val openSectionProduct: (ui.pgmodels.PGDataCard) -> Unit = { producto ->
+        routeState.value = Route(Screen.Section, routeState.value.id, producto.slug)
     }
 
     // Composición manual de dependencias (sin framework de DI) para mantener el
@@ -182,12 +186,38 @@ fun App() {
                         )
                         // Misma pantalla para el catálogo general y para una sección: lo
                         // único que cambia es el ámbito, que ya resolvió el ViewModel.
-                        Screen.Catalog, Screen.Section -> CatalogScreen(
-                            state = catalogState,
-                            onSelectCategory = catalogViewModel::selectCategory,
-                            onSelectSubcategory = catalogViewModel::selectSubcategory,
-                            onSearchChange = catalogViewModel::setSearchQuery,
-                        )
+                        // Con un tercer segmento en la URL se abre la ficha del producto.
+                        Screen.Catalog, Screen.Section -> if (
+                            current == Screen.Section && route.subId != null
+                        ) {
+                            // Se resuelve aquí y no en la pantalla porque reconstruye las
+                            // tarjetas de toda la sección: con `remember` eso ocurre al
+                            // cambiar el catálogo o el slug, no en cada recomposición.
+                            val producto = remember(catalogState.products, route.subId) {
+                                catalogViewModel.findInSection(route.subId)
+                            }
+                            SectionProductScreen(
+                                state = catalogState,
+                                product = producto,
+                                onBack = {
+                                    routeState.value = Route(Screen.Section, route.id)
+                                },
+                            )
+                        } else {
+                            CatalogScreen(
+                                state = catalogState,
+                                onSelectCategory = catalogViewModel::selectCategory,
+                                onSelectSubcategory = catalogViewModel::selectSubcategory,
+                                onSearchChange = catalogViewModel::setSearchQuery,
+                                // Solo dentro de una sección: el catálogo general
+                                // conserva su diálogo.
+                                onOpenProduct = if (current == Screen.Section) {
+                                    openSectionProduct
+                                } else {
+                                    null
+                                },
+                            )
+                        }
                         Screen.About -> AboutScreen()
                         Screen.Video -> VideoScreen()
                         Screen.Podcast -> PodcastScreen()

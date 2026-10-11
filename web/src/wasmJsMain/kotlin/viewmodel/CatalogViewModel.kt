@@ -172,6 +172,18 @@ class CatalogViewModel(
         }
     }
 
+    /**
+     * Un producto de la sección abierta, por su slug.
+     *
+     * Busca sobre toda la sección y no sobre lo que hay en pantalla: la ficha llega por
+     * URL compartida tanto como por un toque en la rejilla, y en el primer caso no hay
+     * ningún filtro aplicado que la contenga.
+     */
+    fun findInSection(slug: String?): PGDataCard? {
+        if (slug.isNullOrBlank()) return null
+        return visibleCards(null, null, "").firstOrNull { it.slug == slug }
+    }
+
     private fun visibleCards(
         categoryId: String?,
         subcategoryId: String?,

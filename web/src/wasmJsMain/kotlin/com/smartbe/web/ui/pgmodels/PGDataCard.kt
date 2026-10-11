@@ -12,11 +12,18 @@ data class PGAttributeChip(
 
 data class PGDataCard(
     val productTittle: String = "",
+    /**
+     * Fragmento de URL derivado del nombre: `#/seccion/lenceria/conjunto-de-encaje`.
+     * Solo lo usa la ficha de sección, que es la que tiene ruta propia.
+     */
+    val slug: String = "",
     /** Resumen corto: lo que muestra la tarjeta. */
     val productDescription: String = "",
     /** Descripción larga: solo se muestra en la ficha ampliada. */
     val productDetail: String = "",
     val productBrand: String = "",
+    /** Nombre de la categoría. La ficha de sección lo muestra sobre el título. */
+    val productCategory: String = "",
     val productStore: String = "",
     val productRealPrice: String = "",
     val productDiscountPrice: String = "",
