@@ -45,16 +45,29 @@ commit;
 -- ============================================================
 -- Lencería
 --
--- La categoría padre y un primer juego de subcategorías. Renombra o
--- borra las que no uses: no hay nada en el código que dependa de estos
--- nombres, la web dibuja las que encuentre.
+-- Si ya tienes una categoría raíz de lencería —con acento o sin él— se
+-- reutiliza esa y solo se le pone el slug. Crear otra al lado dejaría
+-- dos categorías de lo mismo y los productos repartidos entre ambas.
 -- ============================================================
+update categories
+   set seccion = 'lenceria'
+ where id = (
+   select id from categories
+    where parent_id is null
+      and translate(lower(trim(nombre)), 'áéíóúü', 'aeiouu') = 'lenceria'
+    order by nombre
+    limit 1
+ )
+ and not exists (select 1 from categories where seccion = 'lenceria');
+
+-- Solo si no había ninguna.
 insert into categories (nombre, descripcion, seccion)
 select 'Lencería', 'Lencería y ropa interior', 'lenceria'
-where not exists (
-  select 1 from categories where lower(trim(nombre)) = 'lencería'
-);
+where not exists (select 1 from categories where seccion = 'lenceria');
 
+-- Un primer juego de subcategorías. Renombra o borra las que no uses: no
+-- hay nada en el código que dependa de estos nombres, la web dibuja las
+-- que encuentre.
 insert into categories (nombre, parent_id)
 select nueva.nombre, madre.id
 from (values
@@ -90,4 +103,7 @@ order by categoria, c.parent_id nulls first, subcategoria;
 -- update categories set seccion = 'juguetes' where nombre = 'Juguetes';
 --
 -- Para devolver una categoria al catalogo principal:
--- update categories set seccion = null where nombre = 'Lencería';
+-- update categories set seccion = null where seccion = 'lenceria';
+--
+-- El nombre es el que se lee en la barra de navegacion, acentos incluidos:
+-- update categories set nombre = 'Lencería' where seccion = 'lenceria';
