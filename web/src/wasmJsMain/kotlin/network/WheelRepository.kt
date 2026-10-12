@@ -45,6 +45,19 @@ private data class SpinResponse(
     val error: String? = null,
 )
 
+/** Marcador de variable sin sustituir: `{{fecha_inicio}}`. */
+private val MARCADOR = Regex("""\{\{[a-z0-9_]+\}\}""")
+
+/**
+ * Deja el texto sin marcadores crudos.
+ *
+ * La vista ya los sustituye, así que normalmente no hay nada que hacer. Es la red para
+ * los dos casos en que sí llegan: la lectura de repliegue contra la tabla, y un marcador
+ * escrito en el cuerpo sin su variable en `wheel_term_vars`. Un «—» se lee como un dato
+ * que falta; `{{fecha_inicio}}` se lee como una web rota.
+ */
+private fun sinMarcadores(texto: String): String = MARCADOR.replace(texto, "—")
+
 /** El giro salió bien, o hay un motivo que contarle a la persona. */
 sealed interface SpinResult {
     data class Ganado(val outcome: SpinOutcome) : SpinResult
@@ -95,25 +108,38 @@ class WheelRepository(
                 WheelPrize(id = id, rotulo = rotulo.trim(), detalle = dto.detalle.orEmpty().trim())
             }
 
-        // Las bases van aparte y toleran el fallo: si la tabla todavía no existe —el
-        // script 25 no se ha corrido— la ruleta debe seguir girando sin ellas, no caerse
-        // entera. Lo único que se pierde es el botón de "Bases de la promoción".
-        val terms = runCatching {
-            supabase.from(SupabaseConfig.WHEEL_TERMS_TABLE)
-                .select(columns = Columns.raw("id, titulo, cuerpo, orden")) {
-                    order("orden", Order.ASCENDING)
-                }
-                .decodeList<WheelTermDto>()
-                .mapNotNull { dto ->
-                    val id = dto.id ?: return@mapNotNull null
-                    val titulo = dto.titulo?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                    val cuerpo = dto.cuerpo?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                    WheelTerm(id = id, titulo = titulo.trim(), cuerpo = cuerpo.trim())
-                }
-        }.getOrDefault(emptyList())
+        // Las bases van aparte y toleran el fallo: si la vista todavía no existe —el
+        // script 25 o el 27 sin correr— la ruleta debe seguir girando sin ellas, no
+        // caerse entera. Lo único que se pierde es el botón de "Bases de la promoción".
+        //
+        // Se lee la vista y no la tabla porque es la que trae los `{{marcadores}}` ya
+        // sustituidos. Si falla se reintenta contra la tabla: unas bases con algún dato
+        // sin resolver siguen siendo mejores que ninguna.
+        val terms = leerTerms(SupabaseConfig.WHEEL_TERMS_VIEW)
+            ?: leerTerms(SupabaseConfig.WHEEL_TERMS_TABLE)
+            ?: emptyList()
 
         NetworkResult.Success(WheelBundle(visible = visible, prizes = prizes, terms = terms))
     }
+
+    /** Las cláusulas de una tabla o vista, o `null` si no se pudo leer. */
+    private suspend fun leerTerms(origen: String): List<WheelTerm>? = runCatching {
+        supabase.from(origen)
+            .select(columns = Columns.raw("id, titulo, cuerpo, orden")) {
+                order("orden", Order.ASCENDING)
+            }
+            .decodeList<WheelTermDto>()
+            .mapNotNull { dto ->
+                val id = dto.id ?: return@mapNotNull null
+                val titulo = dto.titulo?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val cuerpo = dto.cuerpo?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                WheelTerm(
+                    id = id,
+                    titulo = titulo.trim(),
+                    cuerpo = sinMarcadores(cuerpo.trim()),
+                )
+            }
+    }.getOrNull()
 
     /** Pide un giro. El resultado ya viene decidido y registrado del servidor. */
     suspend fun spin(): SpinResult {

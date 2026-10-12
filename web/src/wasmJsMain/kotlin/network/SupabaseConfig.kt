@@ -42,6 +42,13 @@ object SupabaseConfig {
     /** Bases de la promoción de la ruleta (25_wheel_terms.sql). */
     const val WHEEL_TERMS_TABLE: String = "wheel_terms"
 
+    /**
+     * Vista que devuelve las bases con los `{{marcadores}}` ya sustituidos por los
+     * valores de `wheel_term_vars` (27_wheel_term_vars.sql). Es lo que debe leer la web:
+     * la tabla de arriba solo queda como repliegue mientras el script no esté corrido.
+     */
+    const val WHEEL_TERMS_VIEW: String = "v_wheel_terms"
+
     /** Interruptor de la ruleta, en `site_settings`. */
     const val SETTING_WHEEL: String = "ruleta_visible"
 
