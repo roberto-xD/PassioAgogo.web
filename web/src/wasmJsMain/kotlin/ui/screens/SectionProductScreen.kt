@@ -363,7 +363,7 @@ private fun TarjetaDeInformacion(product: PGDataCard, modifier: Modifier) {
                 .heightIn(min = 52.dp)
                 .padding(top = PassionTheme.spacing.s6),
         ) {
-            Text("Agregar al carrito", style = MaterialTheme.typography.labelLarge)
+            Text("Me interesa", style = MaterialTheme.typography.labelLarge)
         }
 
         Text(
