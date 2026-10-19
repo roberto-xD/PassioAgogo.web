@@ -1,5 +1,8 @@
 package ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -66,28 +69,40 @@ fun WheelScreen(
             )
 
             else -> {
-                Paragraph(
-                    "Un giro por persona. Lo que salga es tuyo: te damos un código para " +
-                        "que lo reclames cuando compres."
-                )
-
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    FortuneWheel(
-                        prizes = state.prizes,
-                        spinning = state.spinning,
-                        landingIndex = state.landingIndex,
-                        onSpin = onSpin,
-                        onLanded = onLanded,
-                        canSpin = state.canSpin,
-                        // El tope va antes de rellenar: al revés, `fillMaxWidth` fija el
-                        // ancho del padre como mínimo y `widthIn` ya no puede recortarlo.
-                        modifier = Modifier
-                            .widthIn(max = WHEEL_MAX_WIDTH)
-                            .fillMaxWidth(),
+                // Antes de girar se explica el trato; después manda el premio, y repetir
+                // «un giro por persona» junto al resultado solo quita sitio.
+                if (!state.revealed) {
+                    Paragraph(
+                        "Un giro por persona. Lo que salga es tuyo: te damos un código " +
+                            "para que lo reclames cuando compres."
                     )
+                }
+
+                // La ruleta se retira al revelar el premio: ya cumplió, y dejarla
+                // invitaría a volver a pulsarla cuando el giro está gastado.
+                AnimatedVisibility(
+                    visible = !state.revealed,
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        FortuneWheel(
+                            prizes = state.prizes,
+                            spinning = state.spinning,
+                            landingIndex = state.landingIndex,
+                            onSpin = onSpin,
+                            onLanded = onLanded,
+                            canSpin = state.canSpin,
+                            // El tope va antes de rellenar: al revés, `fillMaxWidth` fija
+                            // el ancho del padre como mínimo y `widthIn` ya no puede
+                            // recortarlo.
+                            modifier = Modifier
+                                .widthIn(max = WHEEL_MAX_WIDTH)
+                                .fillMaxWidth(),
+                        )
+                    }
                 }
 
                 state.errorMessage?.let { mensaje ->
