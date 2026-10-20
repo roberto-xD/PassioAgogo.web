@@ -48,7 +48,7 @@ fun CatalogScreen(
     onSelectSubcategory: (String?) -> Unit,
     onSearchChange: (String) -> Unit,
     onOpenProduct: ((PGDataCard) -> Unit)? = null,
-    onAddToCart: (PGDataCard) -> Unit = {},
+    onAddToCart: (PGDataCard, ui.pgmodels.PGVariant?) -> Unit = { _, _ -> },
 ) {
     var selectedProduct by remember { mutableStateOf<PGDataCard?>(null) }
 

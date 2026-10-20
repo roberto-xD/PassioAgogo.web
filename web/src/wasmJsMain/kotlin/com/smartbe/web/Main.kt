@@ -226,7 +226,7 @@ fun App() {
                                 onBack = {
                                     routeState.value = Route(Screen.Section, route.id)
                                 },
-                                onAddToCart = cartViewModel::add,
+                                onAddToCart = { producto, variante -> cartViewModel.add(producto, variante) },
                             )
                         } else {
                             CatalogScreen(
@@ -241,7 +241,7 @@ fun App() {
                                 } else {
                                     null
                                 },
-                                onAddToCart = cartViewModel::add,
+                                onAddToCart = { producto, variante -> cartViewModel.add(producto, variante) },
                             )
                         }
                         Screen.About -> AboutScreen()

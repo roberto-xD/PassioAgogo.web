@@ -3,6 +3,7 @@ package models
 import network.SupabaseConfig
 import network.slugify
 import ui.pgmodels.PGDataCard
+import ui.pgmodels.PGVariant
 import kotlin.math.roundToLong
 
 /**
@@ -69,6 +70,23 @@ fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
         val best = priced.minByOrNull { it.third }
         val hasOffer = best != null && best.third < best.second
 
+        // Las presentaciones, de la más barata a la más cara: la primera es la que el
+        // catálogo anuncia, así que es la que conviene traer seleccionada.
+        val variants = etiquetarVariantes(
+            priced.sortedBy { it.third }.map { (variant, base, final) ->
+                PGVariant(
+                    id = variant.id.orEmpty(),
+                    sku = variant.sku.orEmpty(),
+                    etiqueta = buildAttributeChips(variant.attributes, presetsByPair)
+                        .joinToString(" · ") { it.label },
+                    precio = final,
+                    precioLista = formatPrice(base),
+                    precioFinal = formatPrice(final),
+                    hasOffert = final < base,
+                )
+            }
+        )
+
         PGDataCard(
             productTittle = product.nombre.orEmpty(),
             slug = slugify(product.nombre.orEmpty()).ifBlank { product.id.orEmpty() },
@@ -89,7 +107,34 @@ fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
                 ?.let(SupabaseConfig::publicImageUrl).orEmpty(),
             images = product.imagenes.map(SupabaseConfig::publicImageUrl),
             attributes = buildAttributeChips(product.attributes, presetsByPair),
+            variants = variants,
         )
+    }
+}
+
+/**
+ * Asegura que no haya dos presentaciones con el mismo rótulo.
+ *
+ * Una variante sin atributos, o dos capturadas con los mismos, dejarían al selector con
+ * opciones indistinguibles: la persona elegiría a ciegas. Cuando pasa se recurre al SKU,
+ * que es único por definición, y si tampoco lo hay, a su posición en la lista.
+ */
+private fun etiquetarVariantes(variantes: List<PGVariant>): List<PGVariant> {
+    val repetidas = variantes.groupBy { it.etiqueta.lowercase() }
+        .filterValues { it.size > 1 }
+        .keys
+
+    return variantes.mapIndexed { indice, v ->
+        if (v.etiqueta.isNotBlank() && v.etiqueta.lowercase() !in repetidas) {
+            v
+        } else {
+            v.copy(
+                etiqueta = listOf(v.etiqueta, v.sku)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" · ")
+                    .ifBlank { "Opción ${indice + 1}" }
+            )
+        }
     }
 }
 

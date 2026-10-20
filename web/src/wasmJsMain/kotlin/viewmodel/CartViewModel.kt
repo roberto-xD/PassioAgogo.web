@@ -15,6 +15,7 @@ import network.CartStorage
 import network.EnvioResult
 import network.OrdersRepository
 import ui.pgmodels.PGDataCard
+import ui.pgmodels.PGVariant
 
 /** Tope por renglón. Más que esto deja de ser una compra y es un pedido a mayoreo. */
 private const val MAX_POR_RENGLON = 99
@@ -59,23 +60,35 @@ class CartViewModel(
      * renglón: `order_request_items` tiene única (solicitud, variante) y dos renglones
      * de lo mismo serían rechazados al enviar.
      */
-    fun add(product: PGDataCard, cantidad: Int = 1) {
-        if (product.variantId.isBlank()) return
+    fun add(product: PGDataCard, variant: PGVariant?, cantidad: Int = 1) {
+        // Sin variante elegida se usa la del precio anunciado, que es la más barata.
+        val elegida = variant
+            ?: product.variants.firstOrNull { it.id == product.variantId }
+            ?: product.variants.firstOrNull()
+            ?: return
+        if (elegida.id.isBlank()) return
+
         actualizar { cart ->
-            val existente = cart.items.firstOrNull { it.variantId == product.variantId }
+            val existente = cart.items.firstOrNull { it.variantId == elegida.id }
             val items = if (existente == null) {
                 cart.items + CartItem(
-                    variantId = product.variantId,
-                    nombre = product.productTittle,
-                    sku = product.productCode,
-                    precio = product.precioEstimado,
+                    variantId = elegida.id,
+                    // El nombre lleva la presentación: en el carrito, dos renglones del
+                    // mismo producto tienen que poder distinguirse.
+                    nombre = if (product.variants.size > 1 && elegida.etiqueta.isNotBlank()) {
+                        "${product.productTittle} · ${elegida.etiqueta}"
+                    } else {
+                        product.productTittle
+                    },
+                    sku = elegida.sku,
+                    precio = elegida.precio,
                     cantidad = cantidad.coerceIn(1, MAX_POR_RENGLON),
                     slug = product.slug,
                     imagen = product.urlImage,
                 )
             } else {
                 cart.items.map {
-                    if (it.variantId == product.variantId) {
+                    if (it.variantId == elegida.id) {
                         it.copy(cantidad = (it.cantidad + cantidad).coerceAtMost(MAX_POR_RENGLON))
                     } else {
                         it

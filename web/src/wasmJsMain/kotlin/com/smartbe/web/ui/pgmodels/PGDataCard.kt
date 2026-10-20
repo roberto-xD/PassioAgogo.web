@@ -10,6 +10,25 @@ data class PGAttributeChip(
     val emoji: String = "",
 )
 
+/**
+ * Una presentación concreta del producto: la que se pide y la que se cobra.
+ *
+ * [etiqueta] es lo que distingue a esta variante de sus hermanas —«Chocolate · 30 ml»—,
+ * sacada de sus propios `attributes`. Cuando no hay con qué distinguirlas se cae en el
+ * SKU, que al menos es único.
+ */
+data class PGVariant(
+    val id: String,
+    val sku: String = "",
+    val etiqueta: String = "",
+    /** Precio final, ya con la promoción aplicada. Es el que va al carrito. */
+    val precio: Double = 0.0,
+    /** Precio de lista formateado; solo se enseña tachado cuando hay oferta. */
+    val precioLista: String = "",
+    val precioFinal: String = "",
+    val hasOffert: Boolean = false,
+)
+
 data class PGDataCard(
     val productTittle: String = "",
     /**
@@ -45,4 +64,9 @@ data class PGDataCard(
     val images: List<String> = emptyList(),
     /** Rasgos informativos; solo aparecen en la ficha, no en la tarjeta. */
     val attributes: List<PGAttributeChip> = emptyList(),
+    /**
+     * Presentaciones disponibles, de la más barata a la más cara. Con más de una, la
+     * ficha enseña un selector; con una sola no hay nada que elegir.
+     */
+    val variants: List<PGVariant> = emptyList(),
 )

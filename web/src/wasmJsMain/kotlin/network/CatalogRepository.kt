@@ -38,7 +38,7 @@ class CatalogRepository(
                     "id, nombre, resumen, descripcion, marca, imagenes, attributes, " +
                         "category_id, activo, sobre_pedido, " +
                         "categories(nombre), " +
-                        "product_variants(id, sku, precio_venta, activo)"
+                        "product_variants(id, sku, precio_venta, activo, attributes)"
                 )
             ) {
                 // Sin filtro de `activo` aquí: la visibilidad se decide en el ViewModel

@@ -44,6 +44,8 @@ data class VariantDto(
     val sku: String? = null,
     @SerialName("precio_venta") val precioVenta: Double? = null,
     val activo: Boolean? = null,
+    /** Lo que distingue esta presentación: `{"sabor": "chocolate"}`. */
+    val attributes: JsonObject? = null,
 )
 
 /**

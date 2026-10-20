@@ -47,9 +47,11 @@ import coil3.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.launch
 import network.WhatsAppConfig
 import ui.components.AttributeChips
+import ui.components.VariantPicker
 import ui.components.ZoomableImageCarousel
 import ui.components.openInNewTab
 import ui.pgmodels.PGDataCard
+import ui.pgmodels.PGVariant
 import ui.theme.PassionTheme
 import viewmodel.CatalogUiState
 
@@ -86,7 +88,7 @@ fun SectionProductScreen(
     state: CatalogUiState,
     product: PGDataCard?,
     onBack: () -> Unit,
-    onAddToCart: (PGDataCard) -> Unit,
+    onAddToCart: (PGDataCard, PGVariant?) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -137,7 +139,10 @@ private fun Aviso(texto: String) {
 }
 
 @Composable
-private fun ProductoEnEscaparate(product: PGDataCard, onAddToCart: (PGDataCard) -> Unit) {
+private fun ProductoEnEscaparate(
+    product: PGDataCard,
+    onAddToCart: (PGDataCard, PGVariant?) -> Unit,
+) {
     val images = product.images.ifEmpty {
         listOfNotNull(product.urlImage.takeIf { it.isNotBlank() })
     }
@@ -309,11 +314,20 @@ private fun Miniatura(url: String, seleccionada: Boolean, onClick: () -> Unit) {
 @Composable
 private fun TarjetaDeInformacion(
     product: PGDataCard,
-    onAddToCart: (PGDataCard) -> Unit,
+    onAddToCart: (PGDataCard, PGVariant?) -> Unit,
     modifier: Modifier,
 ) {
     val forma = MaterialTheme.shapes.medium
     val semantics = PassionTheme.semantics
+
+    // La presentación elegida: arranca en la del precio anunciado, que es la más
+    // barata. `remember(product)` la reinicia al abrir la ficha de otro producto.
+    var elegida by remember(product) {
+        mutableStateOf(
+            product.variants.firstOrNull { it.id == product.variantId }
+                ?: product.variants.firstOrNull()
+        )
+    }
 
     Column(
         modifier = modifier
@@ -354,13 +368,20 @@ private fun TarjetaDeInformacion(
             modifier = Modifier.padding(top = PassionTheme.spacing.s1),
         )
 
-        Precio(product)
+        VariantPicker(
+            variants = product.variants,
+            selectedId = elegida?.id.orEmpty(),
+            onSelect = { elegida = it },
+            modifier = Modifier.padding(top = PassionTheme.spacing.s4),
+        )
+
+        Precio(product, elegida)
 
         // Agregar manda; «Me interesa» se queda al lado para quien prefiera escribir
         // antes de pedir nada.
         if (product.variantId.isNotBlank()) {
             Button(
-                onClick = { onAddToCart(product) },
+                onClick = { onAddToCart(product, elegida) },
                 shape = MaterialTheme.shapes.extraLarge,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -434,26 +455,28 @@ private fun TarjetaDeInformacion(
 }
 
 @Composable
-private fun Precio(product: PGDataCard) {
-    if (product.productRealPrice.isBlank()) return
+private fun Precio(product: PGDataCard, elegida: PGVariant?) {
+    val precioFinal = elegida?.precioFinal ?: product.productRealPrice
+    val precioLista = elegida?.precioLista ?: product.productRealPrice
+    val enOferta = elegida?.hasOffert ?: product.hasOffert
+    if (precioFinal.isBlank()) return
 
     Row(
         modifier = Modifier.padding(top = PassionTheme.spacing.s3),
         verticalAlignment = Alignment.Bottom,
     ) {
-        val conOferta = product.hasOffert && product.productDiscountPrice.isNotBlank()
         Text(
-            text = if (conOferta) product.productDiscountPrice else product.productRealPrice,
+            text = precioFinal,
             color = PassionTheme.semantics.onBackgroundStrong,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        if (conOferta) {
+        if (enOferta) {
             // El precio tachado al lado: sin él, un descuento es solo un número bajo.
             Text(
-                text = product.productRealPrice,
+                text = precioLista,
                 color = PassionTheme.semantics.onBackgroundMuted,
                 style = MaterialTheme.typography.bodyLarge,
                 textDecoration = TextDecoration.LineThrough,

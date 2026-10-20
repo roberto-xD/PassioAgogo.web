@@ -16,7 +16,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import network.WhatsAppConfig
 import ui.pgmodels.PGDataCard
+import ui.pgmodels.PGVariant
 import ui.theme.PassionTheme
 
 /**
@@ -41,7 +44,7 @@ import ui.theme.PassionTheme
 fun ProductDetailDialog(
     product: PGDataCard,
     onDismiss: () -> Unit,
-    onAddToCart: (PGDataCard) -> Unit = {},
+    onAddToCart: (PGDataCard, PGVariant?) -> Unit = { _, _ -> },
 ) {
     DetailDialogShell(
         onDismiss = onDismiss,
@@ -76,7 +79,16 @@ private fun ProductImages(product: PGDataCard, modifier: Modifier) {
 }
 
 @Composable
-private fun ColumnScope.ProductInfo(product: PGDataCard, onAddToCart: (PGDataCard) -> Unit) {
+private fun ColumnScope.ProductInfo(
+    product: PGDataCard,
+    onAddToCart: (PGDataCard, PGVariant?) -> Unit,
+) {
+    // La presentación elegida: arranca en la del precio anunciado, la más barata.
+    // `remember(product)` la reinicia al abrir otra ficha.
+    var elegida by remember(product) {
+        mutableStateOf(product.variants.firstOrNull { it.id == product.variantId }
+            ?: product.variants.firstOrNull())
+    }
     val semantics = PassionTheme.semantics
 
     if (product.productBrand.isNotBlank()) {
@@ -117,20 +129,31 @@ private fun ColumnScope.ProductInfo(product: PGDataCard, onAddToCart: (PGDataCar
         }
     }
 
-    if (product.productRealPrice.isNotBlank()) {
+    VariantPicker(
+        variants = product.variants,
+        selectedId = elegida?.id.orEmpty(),
+        onSelect = { elegida = it },
+        modifier = Modifier.padding(top = PassionTheme.spacing.s4),
+    )
+
+    val precioFinal = elegida?.precioFinal ?: product.productRealPrice
+    val precioLista = elegida?.precioLista ?: product.productRealPrice
+    val enOferta = elegida?.hasOffert ?: product.hasOffert
+
+    if (precioFinal.isNotBlank()) {
         Row(
             modifier = Modifier.padding(top = PassionTheme.spacing.s4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (product.hasOffert && product.productDiscountPrice.isNotBlank()) {
+            if (enOferta) {
                 Text(
-                    text = product.productDiscountPrice,
+                    text = precioFinal,
                     color = semantics.offer,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = product.productRealPrice,
+                    text = precioLista,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                     textDecoration = TextDecoration.LineThrough,
@@ -138,7 +161,7 @@ private fun ColumnScope.ProductInfo(product: PGDataCard, onAddToCart: (PGDataCar
                 )
             } else {
                 Text(
-                    text = product.productRealPrice,
+                    text = precioFinal,
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
@@ -185,7 +208,7 @@ private fun ColumnScope.ProductInfo(product: PGDataCard, onAddToCart: (PGDataCar
     // Sin variante no hay nada que pedir: ese producto solo se puede consultar.
     if (product.variantId.isNotBlank()) {
         Button(
-            onClick = { onAddToCart(product) },
+            onClick = { onAddToCart(product, elegida) },
             shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier.padding(bottom = PassionTheme.spacing.s2),
         ) {
