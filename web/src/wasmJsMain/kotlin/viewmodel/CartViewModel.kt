@@ -35,6 +35,12 @@ data class CartUiState(
     val pideSesion: Boolean = false,
     val solicitudes: List<Solicitud>? = null,
     val cargandoSolicitudes: Boolean = false,
+    /**
+     * Cuántas veces se ha añadido algo. No es el número de artículos: es un contador
+     * que solo sube, para que la pantalla sepa que hubo un añadido nuevo aunque el
+     * mensaje sea idéntico al anterior.
+     */
+    val agregados: Int = 0,
 ) {
     val unidades: Int get() = cart.unidades
     val canSubmit: Boolean
@@ -99,6 +105,7 @@ class CartViewModel(
             }
             cart.copy(items = items)
         }
+        _uiState.update { it.copy(agregados = it.agregados + 1) }
     }
 
     /** Fija la cantidad de un renglón; a cero, lo quita. */

@@ -5,6 +5,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -13,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
@@ -145,6 +150,22 @@ fun App() {
 
     val cartViewModel = remember { CartViewModel(OrdersRepository()) }
     val cartState by cartViewModel.uiState.collectAsState()
+
+    // Avisos de «agregado». La clave es el contador y no el carrito: dos añadidos
+    // seguidos del mismo artículo tienen que volver a avisar.
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(cartState.agregados) {
+        if (cartState.agregados > 0) {
+            // Reemplaza el aviso anterior en lugar de encolarlo: quien añade tres cosas
+            // seguidas quiere seguir comprando, no ver tres avisos uno tras otro.
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(
+                message = "Agregado correctamente",
+                withDismissAction = false,
+                duration = SnackbarDuration.Short,
+            )
+        }
+    }
 
     // Al abrir sesion se rellenan los datos de contacto con lo que ya sabemos, sin pisar
     // lo que la persona haya escrito: puede querer el pedido a nombre de otra.
@@ -314,6 +335,16 @@ fun App() {
                         Screen.Help -> HelpScreen()
                     }
                 }
+
+                // El aviso va dentro del área de contenido y por encima de ella, para
+                // que se vea también con un diálogo de producto abierto, que es desde
+                // donde más se añade.
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(PassionTheme.spacing.s4),
+                )
 
                 // Fuera del `when`: el anuncio flota sobre cualquier pantalla y conserva
                 // su estado al navegar. Dentro de este Box y no de la ventana entera para
