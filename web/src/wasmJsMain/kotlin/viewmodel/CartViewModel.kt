@@ -132,11 +132,16 @@ class CartViewModel(
     /**
      * Rellena los datos de contacto con lo que ya sabemos de la cuenta, sin pisar lo que
      * la persona haya escrito: puede querer que el pedido vaya a nombre de otra.
+     *
+     * De paso retira el aviso de "necesitas una cuenta". Se llama al abrir sesión, y a
+     * partir de ahí el aviso es falso: dejarlo puesto haría pensar que sigue faltando
+     * algo justo cuando ya se puede enviar.
      */
     fun prefill(nombre: String, email: String) = _uiState.update {
         it.copy(
             nombre = it.nombre.ifBlank { nombre },
             email = it.email.ifBlank { email },
+            pideSesion = false,
         )
     }
 
