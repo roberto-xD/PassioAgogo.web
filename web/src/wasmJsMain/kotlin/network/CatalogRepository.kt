@@ -32,22 +32,12 @@ class CatalogRepository(
             return@toResultFlow NetworkResult.Success(CatalogBundle())
         }
 
-        val products = supabase.from(SupabaseConfig.PRODUCTS_TABLE)
-            .select(
-                columns = Columns.raw(
-                    "id, nombre, resumen, descripcion, marca, imagenes, attributes, " +
-                        "category_id, activo, sobre_pedido, " +
-                        "categories(nombre), " +
-                        "product_variants(id, sku, precio_venta, activo, attributes)"
-                )
-            ) {
-                // Sin filtro de `activo` aquí: la visibilidad se decide en el ViewModel
-                // (activo o sobre pedido), para que el resultado sea el mismo tanto para
-                // un visitante anónimo como para un miembro del staff con sesión, cuyas
-                // políticas RLS son distintas.
-                order("nombre", Order.ASCENDING)
-            }
-            .decodeList<ProductDto>()
+        // `titulo` es columna nueva (29_variant_titulo): si el script no se ha corrido,
+        // PostgREST rechaza la consulta entera con un 400 y el catálogo se quedaría en
+        // blanco. Se reintenta sin ella y los rótulos vuelven a deducirse de los
+        // atributos, que es como funcionaba antes.
+        val products = leerProductos(conTitulo = true) ?: leerProductos(conTitulo = false)
+        ?: emptyList()
 
         // Promociones vigentes hoy (el RLS ya limita a activas para anon).
         val now = nowIso()
@@ -95,4 +85,28 @@ class CatalogRepository(
             CatalogBundle(products, promotions, categoryRefs, attributePresets)
         )
     }
+
+    /** El catálogo, o `null` si la consulta no pasó. */
+    private suspend fun leerProductos(conTitulo: Boolean): List<ProductDto>? = runCatching {
+        val variantes = if (conTitulo) {
+            "product_variants(id, sku, precio_venta, activo, attributes, titulo)"
+        } else {
+            "product_variants(id, sku, precio_venta, activo, attributes)"
+        }
+        supabase.from(SupabaseConfig.PRODUCTS_TABLE)
+            .select(
+                columns = Columns.raw(
+                    "id, nombre, resumen, descripcion, marca, imagenes, attributes, " +
+                        "category_id, activo, sobre_pedido, " +
+                        "categories(nombre), " + variantes
+                )
+            ) {
+                // Sin filtro de `activo` aquí: la visibilidad se decide en el ViewModel
+                // (activo o sobre pedido), para que el resultado sea el mismo tanto para
+                // un visitante anónimo como para un miembro del staff con sesión, cuyas
+                // políticas RLS son distintas.
+                order("nombre", Order.ASCENDING)
+            }
+            .decodeList<ProductDto>()
+    }.getOrNull()
 }

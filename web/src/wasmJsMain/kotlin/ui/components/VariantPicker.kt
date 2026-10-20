@@ -31,9 +31,8 @@ private val BORDE = 1.dp
  * Con una sola presentación no se dibuja nada: un selector de una opción no es una
  * elección, solo ruido.
  *
- * El precio va dentro de cada píldora cuando las variantes no cuestan lo mismo. Es el
- * dato que decide la compra, y obligar a seleccionar una para verlo convierte el
- * selector en una adivinanza.
+ * El precio va dentro de cada píldora. Es el dato que decide la compra, y obligar a
+ * seleccionar una para verlo convierte el selector en una adivinanza.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -44,8 +43,6 @@ fun VariantPicker(
     modifier: Modifier = Modifier,
 ) {
     if (variants.size < 2) return
-
-    val preciosDistintos = variants.map { it.precio }.distinct().size > 1
 
     Column(modifier = modifier) {
         Text(
@@ -62,7 +59,6 @@ fun VariantPicker(
                 Opcion(
                     variante = variante,
                     seleccionada = variante.id == selectedId,
-                    conPrecio = preciosDistintos,
                     onClick = { onSelect(variante) },
                 )
             }
@@ -71,12 +67,7 @@ fun VariantPicker(
 }
 
 @Composable
-private fun Opcion(
-    variante: PGVariant,
-    seleccionada: Boolean,
-    conPrecio: Boolean,
-    onClick: () -> Unit,
-) {
+private fun Opcion(variante: PGVariant, seleccionada: Boolean, onClick: () -> Unit) {
     val shape = MaterialTheme.shapes.extraLarge
     val fondo = if (seleccionada) MaterialTheme.colorScheme.primary
     else PassionTheme.semantics.overlayWeak
@@ -105,12 +96,10 @@ private fun Opcion(
             style = MaterialTheme.typography.labelLarge,
             fontWeight = if (seleccionada) FontWeight.SemiBold else FontWeight.Normal,
         )
-        if (conPrecio) {
-            Text(
-                text = variante.precioFinal,
-                color = contenido,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
+        Text(
+            text = variante.precioFinal,
+            color = contenido,
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }

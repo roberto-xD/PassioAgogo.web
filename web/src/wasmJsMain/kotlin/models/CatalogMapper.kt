@@ -74,11 +74,19 @@ fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
         // catálogo anuncia, así que es la que conviene traer seleccionada.
         val variants = etiquetarVariantes(
             priced.sortedBy { it.third }.map { (variant, base, final) ->
+                val titulo = variant.titulo.orEmpty().trim()
                 PGVariant(
                     id = variant.id.orEmpty(),
                     sku = variant.sku.orEmpty(),
-                    etiqueta = buildAttributeChips(variant.attributes, presetsByPair)
-                        .joinToString(" · ") { it.label },
+                    titulo = titulo,
+                    // El título escrito a mano manda; sin él se deduce de los atributos,
+                    // que es como funcionaba antes de 29_variant_titulo.
+                    etiqueta = titulo
+                        .sinPrefijoDe(product.nombre.orEmpty())
+                        .ifBlank {
+                            buildAttributeChips(variant.attributes, presetsByPair)
+                                .joinToString(" · ") { it.label }
+                        },
                     precio = final,
                     precioLista = formatPrice(base),
                     precioFinal = formatPrice(final),
@@ -113,27 +121,45 @@ fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
 }
 
 /**
- * Asegura que no haya dos presentaciones con el mismo rótulo.
+ * Quita del título el nombre del producto cuando lo lleva delante.
  *
- * Una variante sin atributos, o dos capturadas con los mismos, dejarían al selector con
- * opciones indistinguibles: la persona elegiría a ciegas. Cuando pasa se recurre al SKU,
- * que es único por definición, y si tampoco lo hay, a su posición en la lista.
+ * El título se siembra como «Aceite para masajes · Menta · 25 mL» para que sirva por sí
+ * solo —en el carrito, en administración—, pero dentro de la ficha ese nombre ya está
+ * escrito encima en grande: repetirlo en cada chip solo alarga la fila y entierra lo
+ * único que distingue a una presentación de otra.
+ */
+private fun String.sinPrefijoDe(producto: String): String {
+    val nombre = producto.trim()
+    if (nombre.isEmpty() || !startsWith(nombre, ignoreCase = true)) return this
+    return removeRange(0, nombre.length).trimStart(' ', '·', '-', ',').ifBlank { this }
+}
+
+/**
+ * Asegura que no haya dos presentaciones con el mismo rótulo **y el mismo precio**.
+ *
+ * Mientras se distingan por el precio, dos rótulos iguales son legibles. Cuando ni eso,
+ * la persona elegiría a ciegas, así que se numeran. No se recurre al SKU: es un código
+ * de inventario y no significa nada para quien compra.
  */
 private fun etiquetarVariantes(variantes: List<PGVariant>): List<PGVariant> {
-    val repetidas = variantes.groupBy { it.etiqueta.lowercase() }
+    val repetidas = variantes
+        .groupBy { it.etiqueta.lowercase() to it.precio }
         .filterValues { it.size > 1 }
         .keys
 
-    return variantes.mapIndexed { indice, v ->
-        if (v.etiqueta.isNotBlank() && v.etiqueta.lowercase() !in repetidas) {
-            v
-        } else {
-            v.copy(
-                etiqueta = listOf(v.etiqueta, v.sku)
-                    .filter { it.isNotBlank() }
-                    .joinToString(" · ")
-                    .ifBlank { "Opción ${indice + 1}" }
-            )
+    var sinRotulo = 0
+    val vistas = mutableMapOf<Pair<String, Double>, Int>()
+
+    return variantes.map { v ->
+        val clave = v.etiqueta.lowercase() to v.precio
+        when {
+            v.etiqueta.isBlank() -> v.copy(etiqueta = "Opción ${++sinRotulo}")
+            clave in repetidas -> {
+                val n = (vistas[clave] ?: 0) + 1
+                vistas[clave] = n
+                v.copy(etiqueta = "${v.etiqueta} ($n)")
+            }
+            else -> v
         }
     }
 }

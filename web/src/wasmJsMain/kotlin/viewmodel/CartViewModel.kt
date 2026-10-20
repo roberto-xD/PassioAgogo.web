@@ -73,12 +73,14 @@ class CartViewModel(
             val items = if (existente == null) {
                 cart.items + CartItem(
                     variantId = elegida.id,
-                    // El nombre lleva la presentación: en el carrito, dos renglones del
-                    // mismo producto tienen que poder distinguirse.
-                    nombre = if (product.variants.size > 1 && elegida.etiqueta.isNotBlank()) {
-                        "${product.productTittle} · ${elegida.etiqueta}"
-                    } else {
-                        product.productTittle
+                    // En el carrito, dos renglones del mismo producto tienen que poder
+                    // distinguirse. El título de la variante ya trae el nombre del
+                    // producto; sin título se compone a mano.
+                    nombre = when {
+                        elegida.titulo.isNotBlank() -> elegida.titulo
+                        product.variants.size > 1 && elegida.etiqueta.isNotBlank() ->
+                            "${product.productTittle} · ${elegida.etiqueta}"
+                        else -> product.productTittle
                     },
                     sku = elegida.sku,
                     precio = elegida.precio,

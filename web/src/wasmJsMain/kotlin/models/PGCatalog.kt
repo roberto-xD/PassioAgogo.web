@@ -46,6 +46,8 @@ data class VariantDto(
     val activo: Boolean? = null,
     /** Lo que distingue esta presentación: `{"sabor": "chocolate"}`. */
     val attributes: JsonObject? = null,
+    /** Rótulo escrito a mano (29_variant_titulo). Vacío: se deduce de los atributos. */
+    val titulo: String? = null,
 )
 
 /**

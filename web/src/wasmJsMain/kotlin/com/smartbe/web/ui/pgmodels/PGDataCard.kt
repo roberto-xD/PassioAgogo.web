@@ -13,13 +13,19 @@ data class PGAttributeChip(
 /**
  * Una presentación concreta del producto: la que se pide y la que se cobra.
  *
- * [etiqueta] es lo que distingue a esta variante de sus hermanas —«Chocolate · 30 ml»—,
- * sacada de sus propios `attributes`. Cuando no hay con qué distinguirlas se cae en el
- * SKU, que al menos es único.
+ * [etiqueta] es lo que distingue a esta variante de sus hermanas en el selector. Sale de
+ * [titulo] cuando lo hay, y si no, de sus propios `attributes`.
  */
 data class PGVariant(
     val id: String,
     val sku: String = "",
+    /**
+     * Rótulo escrito en la base (29_variant_titulo), con el nombre del producto
+     * incluido: «Aceite para masajes · Menta · 25 mL». Sirve por sí solo, así que es lo
+     * que se guarda en el carrito.
+     */
+    val titulo: String = "",
+    /** Lo que se lee en la chip: el título sin repetir el nombre del producto. */
     val etiqueta: String = "",
     /** Precio final, ya con la promoción aplicada. Es el que va al carrito. */
     val precio: Double = 0.0,
