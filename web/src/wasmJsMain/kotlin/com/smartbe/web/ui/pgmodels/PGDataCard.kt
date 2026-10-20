@@ -28,6 +28,14 @@ data class PGDataCard(
     val productRealPrice: String = "",
     val productDiscountPrice: String = "",
     val productCode: String = "",
+    /**
+     * Variante concreta que se pediría al añadir al carrito: la más barata de las
+     * activas, que es justo la del precio que muestra la tarjeta. Vacía si el producto
+     * no tiene ninguna, en cuyo caso no se puede pedir.
+     */
+    val variantId: String = "",
+    /** El mismo precio que [productDiscountPrice] o [productRealPrice], sin formatear. */
+    val precioEstimado: Double = 0.0,
     val hasOffert: Boolean = false,
     /** Se consigue por encargo aunque no esté disponible en tienda. */
     val sobrePedido: Boolean = false,

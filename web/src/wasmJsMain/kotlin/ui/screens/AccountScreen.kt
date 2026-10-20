@@ -19,6 +19,7 @@ fun AccountScreen(
     state: AuthUiState,
     onSignOut: () -> Unit,
     onGoToLogin: () -> Unit,
+    onGoToRequests: () -> Unit = {},
 ) {
     ContentScreen(title = "Mi cuenta") {
         if (!state.isAuthenticated) {
@@ -45,6 +46,11 @@ fun AccountScreen(
         }
 
         Spacer(Modifier.height(PassionTheme.spacing.s5))
+        Button(onClick = onGoToRequests, shape = MaterialTheme.shapes.extraLarge) {
+            Text("Mis solicitudes", style = MaterialTheme.typography.labelLarge)
+        }
+
+        Spacer(Modifier.height(PassionTheme.spacing.s3))
         Button(
             onClick = onSignOut,
             enabled = !state.isSubmitting,

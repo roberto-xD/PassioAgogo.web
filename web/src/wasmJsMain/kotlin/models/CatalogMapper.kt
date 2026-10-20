@@ -81,6 +81,8 @@ fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
             productRealPrice = best?.second?.let(::formatPrice).orEmpty(),
             productDiscountPrice = if (hasOffer) formatPrice(best.third) else "",
             productCode = best?.first?.sku.orEmpty(),
+            variantId = best?.first?.id.orEmpty(),
+            precioEstimado = best?.third ?: 0.0,
             hasOffert = hasOffer,
             sobrePedido = product.sobrePedido,
             urlImage = product.imagenes.firstOrNull()
@@ -103,7 +105,7 @@ private fun applyPromotion(base: Double, promo: PromotionDto?): Double {
 }
 
 /** "$1234.50" — String.format no existe en wasm; formateo manual a 2 decimales. */
-private fun formatPrice(value: Double): String {
+fun formatPrice(value: Double): String {
     val cents = (value * 100).roundToLong()
     val entero = cents / 100
     val dec = (cents % 100).toString().padStart(2, '0')

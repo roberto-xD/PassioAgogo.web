@@ -12,6 +12,8 @@ enum class Screen(val route: String, val title: String) {
     Section("seccion", "Sección"),
     Care("uso-y-cuidados", "Uso y cuidados"),
     Wheel("ruleta", "Gira y gana"),
+    Cart("carrito", "Mi solicitud"),
+    Requests("mis-solicitudes", "Mis solicitudes"),
     Contact("contacto", "Contacto"),
     Login("acceder", "Acceder"),
     Account("cuenta", "Mi cuenta"),

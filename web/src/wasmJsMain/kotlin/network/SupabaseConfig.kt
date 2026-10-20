@@ -55,6 +55,10 @@ object SupabaseConfig {
     /** Interruptor del widget flotante de eventos, en `site_settings`. */
     const val SETTING_EVENTS_WIDGET: String = "widget_eventos_visible"
 
+    /** Solicitudes de compra (23_order_requests.sql / 24_cliente_solicitudes.sql). */
+    const val ORDER_REQUESTS_TABLE: String = "order_requests"
+    const val ORDER_REQUEST_ITEMS_TABLE: String = "order_request_items"
+
     /** Bucket de Storage con las imágenes de producto. */
     const val IMAGES_BUCKET: String = "inventory"
 

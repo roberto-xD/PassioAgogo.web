@@ -86,6 +86,7 @@ fun SectionProductScreen(
     state: CatalogUiState,
     product: PGDataCard?,
     onBack: () -> Unit,
+    onAddToCart: (PGDataCard) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -119,7 +120,7 @@ fun SectionProductScreen(
                     "No encontramos este producto. Puede que ya no esté disponible."
                 )
 
-                else -> ProductoEnEscaparate(product)
+                else -> ProductoEnEscaparate(product, onAddToCart)
             }
         }
     }
@@ -136,7 +137,7 @@ private fun Aviso(texto: String) {
 }
 
 @Composable
-private fun ProductoEnEscaparate(product: PGDataCard) {
+private fun ProductoEnEscaparate(product: PGDataCard, onAddToCart: (PGDataCard) -> Unit) {
     val images = product.images.ifEmpty {
         listOfNotNull(product.urlImage.takeIf { it.isNotBlank() })
     }
@@ -176,6 +177,7 @@ private fun ProductoEnEscaparate(product: PGDataCard) {
                 )
                 TarjetaDeInformacion(
                     product = product,
+                    onAddToCart = onAddToCart,
                     modifier = Modifier.weight(1f).widthIn(min = 300.dp),
                 )
             }
@@ -200,7 +202,7 @@ private fun ProductoEnEscaparate(product: PGDataCard) {
                     actual = pagerState.currentPage,
                     onSelect = irA,
                 )
-                TarjetaDeInformacion(product = product, modifier = Modifier.fillMaxWidth())
+                TarjetaDeInformacion(product, onAddToCart, Modifier.fillMaxWidth())
             }
         }
     }
@@ -305,7 +307,11 @@ private fun Miniatura(url: String, seleccionada: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TarjetaDeInformacion(product: PGDataCard, modifier: Modifier) {
+private fun TarjetaDeInformacion(
+    product: PGDataCard,
+    onAddToCart: (PGDataCard) -> Unit,
+    modifier: Modifier,
+) {
     val forma = MaterialTheme.shapes.medium
     val semantics = PassionTheme.semantics
 
@@ -350,18 +356,47 @@ private fun TarjetaDeInformacion(product: PGDataCard, modifier: Modifier) {
 
         Precio(product)
 
+        // Agregar manda; «Me interesa» se queda al lado para quien prefiera escribir
+        // antes de pedir nada.
+        if (product.variantId.isNotBlank()) {
+            Button(
+                onClick = { onAddToCart(product) },
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .padding(top = PassionTheme.spacing.s6),
+            ) {
+                Text("Agregar a mi solicitud", style = MaterialTheme.typography.labelLarge)
+            }
+        }
+
         Button(
             onClick = { openInNewTab(WhatsAppConfig.enlaceParaProducto(product.productTittle)) },
             enabled = WhatsAppConfig.isConfigured,
             shape = MaterialTheme.shapes.extraLarge,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ),
+            colors = if (product.variantId.isNotBlank()) {
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                )
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 52.dp)
-                .padding(top = PassionTheme.spacing.s6),
+                .padding(
+                    top = if (product.variantId.isNotBlank()) PassionTheme.spacing.s2
+                    else PassionTheme.spacing.s6
+                ),
         ) {
             Text("Me interesa", style = MaterialTheme.typography.labelLarge)
         }

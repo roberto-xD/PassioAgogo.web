@@ -28,6 +28,7 @@ import kotlinx.browser.document
 import network.AuthRepository
 import network.CatalogRepository
 import network.ContactRepository
+import network.OrdersRepository
 import network.EventsRepository
 import network.GalleryRepository
 import network.GuidesRepository
@@ -52,12 +53,15 @@ import ui.screens.HelpScreen
 import ui.screens.HomeScreen
 import ui.screens.LoginScreen
 import ui.screens.PodcastScreen
+import ui.screens.CartScreen
 import ui.screens.PrivacyScreen
+import ui.screens.RequestsScreen
 import ui.screens.SectionProductScreen
 import ui.screens.TermsScreen
 import ui.screens.VideoScreen
 import ui.screens.WheelScreen
 import viewmodel.AuthViewModel
+import viewmodel.CartViewModel
 import viewmodel.CatalogSection
 import viewmodel.CatalogViewModel
 import viewmodel.ContactViewModel
@@ -139,10 +143,29 @@ fun App() {
     val authViewModel = remember { AuthViewModel(AuthRepository()) }
     val authState by authViewModel.uiState.collectAsState()
 
+    val cartViewModel = remember { CartViewModel(OrdersRepository()) }
+    val cartState by cartViewModel.uiState.collectAsState()
+
+    // Al abrir sesion se rellenan los datos de contacto con lo que ya sabemos, sin pisar
+    // lo que la persona haya escrito: puede querer el pedido a nombre de otra.
+    LaunchedEffect(authState.isAuthenticated, authState.profile) {
+        if (authState.isAuthenticated) {
+            cartViewModel.prefill(
+                nombre = authState.profile?.nombre.orEmpty(),
+                email = authState.accountEmail,
+            )
+        }
+    }
+
+    // Quien llega al acceso desde el carrito vuelve al carrito, no a su cuenta: estaba
+    // a medio enviar una solicitud y dejarlo en otra pantalla le hace repetir el camino.
+    var volverAlCarrito by remember { mutableStateOf(false) }
+
     // Al iniciar o cerrar sesión, mueve al usuario a la pantalla que corresponde.
     LaunchedEffect(authState.isAuthenticated) {
         if (authState.isAuthenticated && routeState.value.screen == Screen.Login) {
-            routeState.value = Route(Screen.Account)
+            routeState.value = if (volverAlCarrito) Route(Screen.Cart) else Route(Screen.Account)
+            volverAlCarrito = false
         } else if (!authState.isAuthenticated && routeState.value.screen == Screen.Account) {
             routeState.value = Route(Screen.Login)
         }
@@ -166,6 +189,7 @@ fun App() {
                 sections = catalogState.sections,
                 currentSectionSlug = sectionSlug,
                 onNavigateSection = openSection,
+                cartCount = cartState.unidades,
             )
 
             // Área de contenido: sirve de recorte para los elementos HTML superpuestos
@@ -202,6 +226,7 @@ fun App() {
                                 onBack = {
                                     routeState.value = Route(Screen.Section, route.id)
                                 },
+                                onAddToCart = cartViewModel::add,
                             )
                         } else {
                             CatalogScreen(
@@ -216,6 +241,7 @@ fun App() {
                                 } else {
                                     null
                                 },
+                                onAddToCart = cartViewModel::add,
                             )
                         }
                         Screen.About -> AboutScreen()
@@ -257,6 +283,31 @@ fun App() {
                             state = authState,
                             onSignOut = authViewModel::signOut,
                             onGoToLogin = { navigate(Screen.Login) },
+                            onGoToRequests = { navigate(Screen.Requests) },
+                        )
+                        Screen.Cart -> CartScreen(
+                            state = cartState,
+                            onSetCantidad = cartViewModel::setCantidad,
+                            onRemove = cartViewModel::remove,
+                            onNombreChange = cartViewModel::updateNombre,
+                            onTelefonoChange = cartViewModel::updateTelefono,
+                            onEmailChange = cartViewModel::updateEmail,
+                            onNotasChange = cartViewModel::updateNotas,
+                            onSubmit = cartViewModel::submit,
+                            onReset = cartViewModel::reset,
+                            onGoToLogin = {
+                                volverAlCarrito = true
+                                navigate(Screen.Login)
+                            },
+                            onGoToCatalog = { navigate(Screen.Catalog) },
+                            onGoToRequests = { navigate(Screen.Requests) },
+                        )
+                        Screen.Requests -> RequestsScreen(
+                            state = cartState,
+                            isAuthenticated = authState.isAuthenticated,
+                            onLoad = cartViewModel::loadSolicitudes,
+                            onGoToLogin = { navigate(Screen.Login) },
+                            onGoToCatalog = { navigate(Screen.Catalog) },
                         )
                         Screen.Terms -> TermsScreen()
                         Screen.Privacy -> PrivacyScreen()

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,11 +38,15 @@ import ui.theme.PassionTheme
  * sola: deja la conversación preparada para que la persona pulse enviar.
  */
 @Composable
-fun ProductDetailDialog(product: PGDataCard, onDismiss: () -> Unit) {
+fun ProductDetailDialog(
+    product: PGDataCard,
+    onDismiss: () -> Unit,
+    onAddToCart: (PGDataCard) -> Unit = {},
+) {
     DetailDialogShell(
         onDismiss = onDismiss,
         imagePane = { modifier -> ProductImages(product, modifier) },
-        infoPane = { ProductInfo(product) },
+        infoPane = { ProductInfo(product, onAddToCart) },
     )
 }
 
@@ -71,7 +76,7 @@ private fun ProductImages(product: PGDataCard, modifier: Modifier) {
 }
 
 @Composable
-private fun ColumnScope.ProductInfo(product: PGDataCard) {
+private fun ColumnScope.ProductInfo(product: PGDataCard, onAddToCart: (PGDataCard) -> Unit) {
     val semantics = PassionTheme.semantics
 
     if (product.productBrand.isNotBlank()) {
@@ -176,10 +181,30 @@ private fun ColumnScope.ProductInfo(product: PGDataCard) {
     }
 
     Spacer(Modifier.height(PassionTheme.spacing.s6))
+
+    // Sin variante no hay nada que pedir: ese producto solo se puede consultar.
+    if (product.variantId.isNotBlank()) {
+        Button(
+            onClick = { onAddToCart(product) },
+            shape = MaterialTheme.shapes.extraLarge,
+            modifier = Modifier.padding(bottom = PassionTheme.spacing.s2),
+        ) {
+            Text("Agregar a mi solicitud", style = MaterialTheme.typography.labelLarge)
+        }
+    }
+
     Button(
         onClick = { openInNewTab(WhatsAppConfig.enlaceParaProducto(product.productTittle)) },
         enabled = WhatsAppConfig.isConfigured,
         shape = MaterialTheme.shapes.extraLarge,
+        colors = if (product.variantId.isNotBlank()) {
+            ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            ButtonDefaults.buttonColors()
+        },
     ) {
         Text("Me interesa", style = MaterialTheme.typography.labelLarge)
     }

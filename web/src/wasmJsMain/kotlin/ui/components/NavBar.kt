@@ -42,6 +42,7 @@ private val ItemsDespuesDeSecciones = listOf(
  * @param sections categorías con pantalla propia (26_category_sections). Vienen de la
  *   base, así que separar un rubro nuevo no toca este archivo.
  * @param currentSectionSlug la sección abierta, para marcarla; `null` fuera de ellas.
+ * @param cartCount unidades en el carrito. A cero, la entrada no lleva cuenta.
  */
 @Composable
 fun NavBar(
@@ -51,6 +52,7 @@ fun NavBar(
     sections: List<CatalogSection> = emptyList(),
     currentSectionSlug: String? = null,
     onNavigateSection: (CatalogSection) -> Unit = {},
+    cartCount: Int = 0,
 ) {
     Row(
         modifier = Modifier
@@ -96,12 +98,20 @@ fun NavBar(
         }
 
         // Último elemento: acceso o cuenta, según haya sesión iniciada.
-//        val accountScreen = if (isAuthenticated) Screen.Account else Screen.Login
-//        NavItem(
-//            label = accountScreen.title,
-//            selected = current == Screen.Login || current == Screen.Account,
-//            onClick = { onNavigate(accountScreen) },
-//        )
+        val accountScreen = if (isAuthenticated) Screen.Account else Screen.Login
+        NavItem(
+            label = accountScreen.title,
+            selected = current == Screen.Login || current == Screen.Account,
+            onClick = { onNavigate(accountScreen) },
+        )
+
+        // El carrito va al final y lleva la cuenta: es lo que se consulta de un vistazo
+        // para saber si queda algo pendiente de enviar.
+        NavItem(
+            label = if (cartCount > 0) "Mi solicitud ($cartCount)" else "Mi solicitud",
+            selected = current == Screen.Cart || current == Screen.Requests,
+            onClick = { onNavigate(Screen.Cart) },
+        )
     }
 }
 

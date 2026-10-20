@@ -48,6 +48,7 @@ fun CatalogScreen(
     onSelectSubcategory: (String?) -> Unit,
     onSearchChange: (String) -> Unit,
     onOpenProduct: ((PGDataCard) -> Unit)? = null,
+    onAddToCart: (PGDataCard) -> Unit = {},
 ) {
     var selectedProduct by remember { mutableStateOf<PGDataCard?>(null) }
 
@@ -140,7 +141,11 @@ fun CatalogScreen(
     }
 
     selectedProduct?.let { product ->
-        ProductDetailDialog(product = product, onDismiss = { selectedProduct = null })
+        ProductDetailDialog(
+            product = product,
+            onDismiss = { selectedProduct = null },
+            onAddToCart = onAddToCart,
+        )
     }
 }
 
