@@ -42,6 +42,7 @@ import ui.CatalogScreen
 import ui.components.FloatingEventsWidget
 import ui.components.Footer
 import ui.components.LocalHtmlOverlayClip
+import ui.components.LocalSnackbarHostState
 import ui.components.NavBar
 import ui.navigation.Route
 import ui.navigation.Screen
@@ -223,7 +224,10 @@ fun App() {
                     .fillMaxWidth()
                     .onGloballyPositioned { contentBounds = it.boundsInWindow() }
             ) {
-                CompositionLocalProvider(LocalHtmlOverlayClip provides contentBounds) {
+                CompositionLocalProvider(
+                    LocalHtmlOverlayClip provides contentBounds,
+                    LocalSnackbarHostState provides snackbarHostState,
+                ) {
                     when (current) {
                         Screen.Home -> HomeScreen(
                             galleryState = galleryState,

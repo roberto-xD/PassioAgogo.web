@@ -17,9 +17,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +30,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import ui.theme.PassionTheme
+
+/**
+ * El avisador de la aplicación, accesible desde dentro de un diálogo.
+ *
+ * Un diálogo se dibuja en su propia capa, por encima del contenido: un snackbar puesto
+ * en la pantalla de fondo queda tapado y no se ve. Compartiendo el estado, el diálogo
+ * puede pintar su propio host y el aviso aparece donde sí se mira.
+ */
+val LocalSnackbarHostState = compositionLocalOf<SnackbarHostState?> { null }
 
 /** Por debajo de este ancho no caben imagen e información una al lado de la otra. */
 private val SIDE_BY_SIDE_MIN_WIDTH = 720.dp
@@ -95,6 +107,17 @@ fun DetailDialogShell(
                             )
                         }
                     }
+                }
+
+                // El aviso de la aplicación, repintado dentro del diálogo porque en la
+                // pantalla de fondo quedaría debajo de esta capa.
+                LocalSnackbarHostState.current?.let { host ->
+                    SnackbarHost(
+                        hostState = host,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(PassionTheme.spacing.s4),
+                    )
                 }
 
                 // Botón de cierre, siempre visible sobre la esquina superior derecha.
