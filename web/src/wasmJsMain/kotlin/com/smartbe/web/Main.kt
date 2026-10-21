@@ -30,6 +30,7 @@ import coil3.compose.setSingletonImageLoaderFactory
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import kotlinx.browser.document
+import kotlinx.coroutines.delay
 import network.AuthRepository
 import network.CatalogRepository
 import network.ContactRepository
@@ -75,6 +76,9 @@ import viewmodel.EventsViewModel
 import viewmodel.GalleryViewModel
 import viewmodel.GuidesViewModel
 import viewmodel.WheelViewModel
+
+/** Cada cuánto se comprueba que la sesión de la pantalla y la del cliente coincidan. */
+private const val SESION_POLL_MS = 500L
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
@@ -149,6 +153,18 @@ fun App() {
     val authViewModel = remember { AuthViewModel(AuthRepository()) }
     val authState by authViewModel.uiState.collectAsState()
 
+    // La sesión se comprueba desde la propia composición, como la ruta. El flujo del
+    // SDK debería bastar, pero en este target ya nos pasó que un cambio llegado desde
+    // una llamada del navegador no despertara a Compose: la barra se quedaba diciendo
+    // «Acceder» con la sesión ya abierta hasta recargar a mano. Comparar dos booleanos
+    // dos veces por segundo no cuesta nada y cierra esa puerta.
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(SESION_POLL_MS)
+            authViewModel.syncSession()
+        }
+    }
+
     val cartViewModel = remember { CartViewModel(OrdersRepository()) }
     val cartState by cartViewModel.uiState.collectAsState()
 
@@ -175,6 +191,7 @@ fun App() {
             cartViewModel.prefill(
                 nombre = authState.profile?.nombre.orEmpty(),
                 email = authState.accountEmail,
+                telefono = authState.profile?.telefono.orEmpty(),
             )
         }
     }
@@ -309,6 +326,9 @@ fun App() {
                             onSignOut = authViewModel::signOut,
                             onGoToLogin = { navigate(Screen.Login) },
                             onGoToRequests = { navigate(Screen.Requests) },
+                            onNombreChange = authViewModel::updatePerfilNombre,
+                            onTelefonoChange = authViewModel::updatePerfilTelefono,
+                            onSavePerfil = authViewModel::savePerfil,
                         )
                         Screen.Cart -> CartScreen(
                             state = cartState,
@@ -333,6 +353,7 @@ fun App() {
                             onLoad = cartViewModel::loadSolicitudes,
                             onGoToLogin = { navigate(Screen.Login) },
                             onGoToCatalog = { navigate(Screen.Catalog) },
+                            onGoToCart = { navigate(Screen.Cart) },
                         )
                         Screen.Terms -> TermsScreen()
                         Screen.Privacy -> PrivacyScreen()

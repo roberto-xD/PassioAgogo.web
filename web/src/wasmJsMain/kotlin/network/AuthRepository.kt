@@ -9,6 +9,7 @@ import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import models.ProfileDto
@@ -32,6 +33,16 @@ class AuthRepository(
     val isAuthenticated: Flow<Boolean>
         get() = if (!SupabaseConfig.isConfigured) flowOf(false)
         else supabase.auth.sessionStatus.map { it is SessionStatus.Authenticated }
+
+    /**
+     * Si hay sesión **en este instante**, sin pasar por el flujo.
+     *
+     * Lo usa la pantalla para comprobarlo de vez en cuando: si una emisión del flujo no
+     * llegara a despertar a Compose, la barra se quedaría diciendo «Acceder» con la
+     * sesión ya abierta.
+     */
+    fun hasSessionNow(): Boolean =
+        SupabaseConfig.isConfigured && supabase.auth.currentSessionOrNull() != null
 
     /** Correo del usuario actual, o cadena vacía si no hay sesión. */
     fun currentEmail(): String =
@@ -66,11 +77,38 @@ class AuthRepository(
         val userId = supabase.auth.currentUserOrNull()?.id ?: return null
         return runCatching {
             supabase.from("profiles")
-                .select(columns = Columns.raw("id, nombre, rol, activo")) {
+                .select(columns = Columns.raw("id, nombre, rol, activo, telefono")) {
                     filter { eq("id", userId) }
                 }
                 .decodeSingleOrNull<ProfileDto>()
         }.getOrNull()
+    }
+
+    /**
+     * Guarda nombre y teléfono del perfil propio (30_profile_telefono).
+     *
+     * Solo esas dos columnas: el rol y el estado de la cuenta los defiende un trigger en
+     * la base, no esta función.
+     */
+    suspend fun updateProfile(nombre: String, telefono: String): String? {
+        if (!SupabaseConfig.isConfigured) return "El acceso aún no está configurado."
+        val userId = supabase.auth.currentUserOrNull()?.id
+            ?: return "Tu sesión expiró. Vuelve a entrar."
+
+        return try {
+            supabase.from("profiles").update(
+                buildJsonObject {
+                    put("nombre", nombre.trim())
+                    if (telefono.isBlank()) put("telefono", JsonNull)
+                    else put("telefono", telefono.trim())
+                }
+            ) {
+                filter { eq("id", userId) }
+            }
+            null
+        } catch (e: Exception) {
+            friendlyProfileError(e.message.orEmpty())
+        }
     }
 
     private suspend fun runAuth(block: suspend () -> Unit): String? =
@@ -84,6 +122,25 @@ class AuthRepository(
                 friendlyAuthError(e.message.orEmpty())
             }
         }
+}
+
+private fun friendlyProfileError(raw: String): String {
+    val m = raw.lowercase()
+    return when {
+        // El trigger de 30_profile_telefono, o una columna que no se puede tocar.
+        "rol" in m && "administracion" in m ->
+            "No se pueden cambiar esos datos desde aquí."
+        "chk_profiles_telefono" in m ->
+            "Revisa el teléfono: debe tener entre 7 y 20 caracteres."
+        "row-level security" in m || "violates row-level" in m ->
+            "No tienes permiso para cambiar estos datos."
+        // La columna `telefono` no existe: falta correr el script 30.
+        "telefono" in m && "column" in m ->
+            "El teléfono aún no está disponible. Avísanos."
+        "failed to fetch" in m || "network" in m ->
+            "No se pudo conectar. Revisa tu conexión."
+        else -> "No se pudieron guardar los cambios. Inténtalo de nuevo."
+    }
 }
 
 /**

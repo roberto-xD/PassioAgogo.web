@@ -27,7 +27,19 @@ data class AuthUiState(
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null,
     val infoMessage: String? = null,
+    /** Datos del perfil mientras se editan en «Mi cuenta». */
+    val perfilNombre: String = "",
+    val perfilTelefono: String = "",
+    val guardandoPerfil: Boolean = false,
+    val perfilMensaje: String? = null,
+    val perfilError: String? = null,
 ) {
+    /** Hay algo distinto de lo guardado, y el nombre no quedó vacío. */
+    val perfilModificado: Boolean
+        get() = perfilNombre.trim().isNotEmpty() && (
+            perfilNombre.trim() != profile?.nombre.orEmpty().trim() ||
+                perfilTelefono.trim() != profile?.telefono.orEmpty().trim()
+            )
     val canSubmit: Boolean
         get() = !isSubmitting &&
             isValidEmail(email.trim()) &&
@@ -126,8 +138,61 @@ class AuthViewModel(
         }
     }
 
+    fun updatePerfilNombre(value: String) = _uiState.update {
+        it.copy(perfilNombre = value.take(MAX_NOMBRE), perfilError = null, perfilMensaje = null)
+    }
+
+    fun updatePerfilTelefono(value: String) = _uiState.update {
+        it.copy(perfilTelefono = value.take(20), perfilError = null, perfilMensaje = null)
+    }
+
+    fun savePerfil() {
+        val estado = _uiState.value
+        if (estado.guardandoPerfil || !estado.perfilModificado) return
+        _uiState.update { it.copy(guardandoPerfil = true, perfilError = null, perfilMensaje = null) }
+
+        scope.launch {
+            val error = repository.updateProfile(estado.perfilNombre, estado.perfilTelefono)
+            if (error != null) {
+                _uiState.update { it.copy(guardandoPerfil = false, perfilError = error) }
+            } else {
+                // Se relee en vez de dar por hecho lo enviado: así lo que se ve es lo
+                // que quedó guardado, recortes y normalizaciones de la base incluidos.
+                refreshProfile()
+                _uiState.update { it.copy(guardandoPerfil = false, perfilMensaje = "Datos guardados") }
+            }
+        }
+    }
+
+    /**
+     * Comprueba la sesión contra el cliente, sin esperar al flujo.
+     *
+     * La pantalla la llama cada poco. Si una emisión no llegara a despertar a Compose
+     * —cosa que ya nos pasó con el botón de atrás del navegador—, la barra seguiría
+     * diciendo «Acceder» con la sesión abierta hasta recargar a mano.
+     */
+    fun syncSession() {
+        val hay = repository.hasSessionNow()
+        if (hay == _uiState.value.isAuthenticated) return
+        _uiState.update {
+            it.copy(
+                isAuthenticated = hay,
+                accountEmail = if (hay) repository.currentEmail() else "",
+                profile = if (hay) it.profile else null,
+            )
+        }
+        if (hay) scope.launch { refreshProfile() }
+    }
+
     private suspend fun refreshProfile() {
         val profile = repository.loadProfile()
-        _uiState.update { it.copy(profile = profile) }
+        _uiState.update {
+            // Los campos de edición siguen al perfil mientras no se hayan tocado.
+            it.copy(
+                profile = profile,
+                perfilNombre = it.perfilNombre.ifBlank { profile?.nombre.orEmpty() },
+                perfilTelefono = it.perfilTelefono.ifBlank { profile?.telefono.orEmpty() },
+            )
+        }
     }
 }

@@ -146,10 +146,11 @@ class CartViewModel(
      * partir de ahí el aviso es falso: dejarlo puesto haría pensar que sigue faltando
      * algo justo cuando ya se puede enviar.
      */
-    fun prefill(nombre: String, email: String) = _uiState.update {
+    fun prefill(nombre: String, email: String, telefono: String = "") = _uiState.update {
         it.copy(
             nombre = it.nombre.ifBlank { nombre },
             email = it.email.ifBlank { email },
+            telefono = it.telefono.ifBlank { telefono },
             pideSesion = false,
         )
     }

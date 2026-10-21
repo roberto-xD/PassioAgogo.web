@@ -29,6 +29,11 @@ import viewmodel.CartUiState
  *
  * El RLS ya limita la consulta a las propias, así que aquí no hace falta filtrar por
  * nada: lo que llega es lo que esa persona puede ver.
+ *
+ * **No es el carrito.** Aquí está lo ya enviado; lo que se está armando vive en
+ * `#/carrito`. Los dos nombres se parecían demasiado y daba la impresión de que el
+ * carrito se vaciaba al entrar aquí, así que esta pantalla pasó a llamarse «Historial
+ * de solicitudes» y avisa cuando hay algo pendiente de enviar.
  */
 @Composable
 fun RequestsScreen(
@@ -37,14 +42,15 @@ fun RequestsScreen(
     onLoad: () -> Unit,
     onGoToLogin: () -> Unit,
     onGoToCatalog: () -> Unit,
+    onGoToCart: () -> Unit = {},
 ) {
     LaunchedEffect(isAuthenticated) {
         if (isAuthenticated) onLoad()
     }
 
-    ContentScreen(title = "Mis solicitudes") {
+    ContentScreen(title = "Historial de solicitudes") {
         if (!isAuthenticated) {
-            Paragraph("Accede para ver las solicitudes que has enviado.")
+            Paragraph("Accede para ver las solicitudes que ya enviaste.")
             Spacer(Modifier.height(PassionTheme.spacing.s3))
             Button(onClick = onGoToLogin, shape = MaterialTheme.shapes.extraLarge) {
                 Text("Acceder", style = MaterialTheme.typography.labelLarge)
@@ -62,8 +68,26 @@ fun RequestsScreen(
             )
 
             solicitudes.isEmpty() -> {
-                Paragraph("Todavía no has enviado ninguna solicitud.")
+                Paragraph(
+                    "Aquí aparecen las solicitudes que ya enviaste. Todavía no has " +
+                        "enviado ninguna."
+                )
                 Spacer(Modifier.height(PassionTheme.spacing.s3))
+                // Lo que la persona tiene a medio armar no está aquí sino en el
+                // carrito. Sin este aviso, ver la lista vacía con artículos ya
+                // elegidos parece que se perdieron.
+                if (state.cart.items.isNotEmpty()) {
+                    Paragraph(
+                        "Tienes ${state.unidades} artículo" +
+                            (if (state.unidades == 1) "" else "s") +
+                            " en tu solicitud sin enviar."
+                    )
+                    Spacer(Modifier.height(PassionTheme.spacing.s3))
+                    Button(onClick = onGoToCart, shape = MaterialTheme.shapes.extraLarge) {
+                        Text("Ver mi solicitud", style = MaterialTheme.typography.labelLarge)
+                    }
+                    Spacer(Modifier.height(PassionTheme.spacing.s2))
+                }
                 Button(onClick = onGoToCatalog, shape = MaterialTheme.shapes.extraLarge) {
                     Text("Ver el catálogo", style = MaterialTheme.typography.labelLarge)
                 }

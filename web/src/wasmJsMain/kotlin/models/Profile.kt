@@ -13,6 +13,8 @@ import kotlinx.serialization.Serializable
 data class ProfileDto(
     val id: String? = null,
     val nombre: String? = null,
-    val rol: String? = null, // admin | vendedor | cliente
+    val rol: String? = null, // admin | vendedor | cliente | promotor
     val activo: Boolean = true,
+    /** Teléfono de contacto guardado por la propia persona (30_profile_telefono). */
+    val telefono: String? = null,
 )
