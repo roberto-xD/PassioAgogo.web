@@ -221,7 +221,7 @@ private fun CategoryChips(
  * que se lea como una acotación de la fila superior y no como otro filtro independiente.
  */
 @Composable
-private fun Chip(
+internal fun Chip(
     label: String,
     selected: Boolean,
     secondLevel: Boolean = false,

@@ -32,7 +32,7 @@ import viewmodel.AddressUiState
  * entre pedirle su domicilio a secas y pedírselo explicando quién podrá verlo.
  */
 @Composable
-fun ColumnScope.DireccionSection(
+fun DireccionSection(
     state: AddressUiState,
     onEditar: ((Direccion) -> Direccion) -> Unit,
     onGuardar: () -> Unit,
@@ -46,8 +46,8 @@ fun ColumnScope.DireccionSection(
     }
 
     Paragraph(
-        "Se guarda cifrada: solo tú y la tienda pueden leerla. Ni siquiera aparece " +
-            "en claro en nuestra base de datos."
+        "Se guarda cifrada: solo tú y la tienda pueden leerla. Ni siquiera es legible " +
+            "directamente en nuestra base de datos."
     )
 
     // Sobre guardado que esta pestaña no puede abrir. No se distingue el motivo porque

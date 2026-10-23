@@ -63,7 +63,6 @@ import ui.screens.LoginScreen
 import ui.screens.PodcastScreen
 import ui.screens.CartScreen
 import ui.screens.PrivacyScreen
-import ui.screens.RequestsScreen
 import ui.screens.SectionProductScreen
 import ui.screens.TermsScreen
 import ui.screens.VideoScreen
@@ -342,13 +341,16 @@ fun App() {
                             onSubmit = authViewModel::submit,
                         )
                         Screen.Account -> AccountScreen(
-                            state = authState,
+                            authState = authState,
+                            cartState = cartState,
                             onSignOut = authViewModel::signOut,
                             onGoToLogin = { navigate(Screen.Login) },
-                            onGoToRequests = { navigate(Screen.Requests) },
                             onNombreChange = authViewModel::updatePerfilNombre,
                             onTelefonoChange = authViewModel::updatePerfilTelefono,
                             onSavePerfil = authViewModel::savePerfil,
+                            onLoad = cartViewModel::loadSolicitudes,
+                            onGoToCatalog = { navigate(Screen.Catalog) },
+                            onGoToCart = { navigate(Screen.Cart) },
                             direccion = addressState,
                             onEditarDireccion = addressViewModel::editar,
                             onGuardarDireccion = addressViewModel::guardar,
@@ -369,15 +371,7 @@ fun App() {
                                 navigate(Screen.Login)
                             },
                             onGoToCatalog = { navigate(Screen.Catalog) },
-                            onGoToRequests = { navigate(Screen.Requests) },
-                        )
-                        Screen.Requests -> RequestsScreen(
-                            state = cartState,
-                            isAuthenticated = authState.isAuthenticated,
-                            onLoad = cartViewModel::loadSolicitudes,
-                            onGoToLogin = { navigate(Screen.Login) },
-                            onGoToCatalog = { navigate(Screen.Catalog) },
-                            onGoToCart = { navigate(Screen.Cart) },
+                            onGoToRequests = { navigate(Screen.Account) },
                         )
                         Screen.Terms -> TermsScreen()
                         Screen.Privacy -> PrivacyScreen()

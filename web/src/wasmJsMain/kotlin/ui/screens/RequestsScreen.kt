@@ -12,14 +12,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import models.Solicitud
 import models.formatPrice
-import ui.components.ContentScreen
 import ui.components.Paragraph
 import ui.theme.PassionTheme
 import viewmodel.CartUiState
@@ -36,65 +34,48 @@ import viewmodel.CartUiState
  * de solicitudes» y avisa cuando hay algo pendiente de enviar.
  */
 @Composable
-fun RequestsScreen(
+fun AccountHistoryContent(
     state: CartUiState,
-    isAuthenticated: Boolean,
-    onLoad: () -> Unit,
-    onGoToLogin: () -> Unit,
     onGoToCatalog: () -> Unit,
     onGoToCart: () -> Unit = {},
 ) {
-    LaunchedEffect(isAuthenticated) {
-        if (isAuthenticated) onLoad()
-    }
+    Spacer(Modifier.height(PassionTheme.spacing.s2))
+    val solicitudes = state.solicitudes
+    when {
+        state.cargandoSolicitudes && solicitudes == null ->
+            Paragraph("Cargando tus solicitudes…")
 
-    ContentScreen(title = "Historial de solicitudes") {
-        if (!isAuthenticated) {
-            Paragraph("Accede para ver las solicitudes que ya enviaste.")
-            Spacer(Modifier.height(PassionTheme.spacing.s3))
-            Button(onClick = onGoToLogin, shape = MaterialTheme.shapes.extraLarge) {
-                Text("Acceder", style = MaterialTheme.typography.labelLarge)
-            }
-            return@ContentScreen
-        }
+        solicitudes == null -> Paragraph(
+            "No pudimos cargar tus solicitudes. Vuelve a intentarlo más tarde."
+        )
 
-        val solicitudes = state.solicitudes
-        when {
-            state.cargandoSolicitudes && solicitudes == null ->
-                Paragraph("Cargando tus solicitudes…")
-
-            solicitudes == null -> Paragraph(
-                "No pudimos cargar tus solicitudes. Vuelve a intentarlo más tarde."
-            )
-
-            solicitudes.isEmpty() -> {
-                Paragraph(
-                    "Aquí aparecen las solicitudes que ya enviaste. Todavía no has " +
+        solicitudes.isEmpty() -> {
+            Paragraph(
+                "Aquí aparecen las solicitudes que ya enviaste. Todavía no has " +
                         "enviado ninguna."
-                )
-                Spacer(Modifier.height(PassionTheme.spacing.s3))
-                // Lo que la persona tiene a medio armar no está aquí sino en el
-                // carrito. Sin este aviso, ver la lista vacía con artículos ya
-                // elegidos parece que se perdieron.
-                if (state.cart.items.isNotEmpty()) {
-                    Paragraph(
-                        "Tienes ${state.unidades} artículo" +
+            )
+            Spacer(Modifier.height(PassionTheme.spacing.s3))
+            // Lo que la persona tiene a medio armar no está aquí sino en el
+            // carrito. Sin este aviso, ver la lista vacía con artículos ya
+            // elegidos parece que se perdieron.
+            if (state.cart.items.isNotEmpty()) {
+                Paragraph(
+                    "Tienes ${state.unidades} artículo" +
                             (if (state.unidades == 1) "" else "s") +
                             " en tu solicitud sin enviar."
-                    )
-                    Spacer(Modifier.height(PassionTheme.spacing.s3))
-                    Button(onClick = onGoToCart, shape = MaterialTheme.shapes.extraLarge) {
-                        Text("Ver mi solicitud", style = MaterialTheme.typography.labelLarge)
-                    }
-                    Spacer(Modifier.height(PassionTheme.spacing.s2))
+                )
+                Spacer(Modifier.height(PassionTheme.spacing.s3))
+                Button(onClick = onGoToCart, shape = MaterialTheme.shapes.extraLarge) {
+                    Text("Ver mi solicitud", style = MaterialTheme.typography.labelLarge)
                 }
-                Button(onClick = onGoToCatalog, shape = MaterialTheme.shapes.extraLarge) {
-                    Text("Ver el catálogo", style = MaterialTheme.typography.labelLarge)
-                }
+                Spacer(Modifier.height(PassionTheme.spacing.s2))
             }
-
-            else -> solicitudes.forEach { Tarjeta(it) }
+            Button(onClick = onGoToCatalog, shape = MaterialTheme.shapes.extraLarge) {
+                Text("Ver el catálogo", style = MaterialTheme.typography.labelLarge)
+            }
         }
+
+        else -> solicitudes.forEach { Tarjeta(it) }
     }
 }
 

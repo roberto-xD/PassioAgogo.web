@@ -109,7 +109,7 @@ fun NavBar(
         // para saber si queda algo pendiente de enviar.
         NavItem(
             label = if (cartCount > 0) "Mi solicitud ($cartCount)" else "Mi solicitud",
-            selected = current == Screen.Cart || current == Screen.Requests,
+            selected = current == Screen.Cart,
             onClick = { onNavigate(Screen.Cart) },
         )
     }
