@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import models.ProfileDto
+import network.AddressCrypto
+import network.AddressRepository
 import network.AuthRepository
 
 /** Contraseña mínima admitida por Supabase Auth por defecto. */
@@ -33,6 +35,11 @@ data class AuthUiState(
     val guardandoPerfil: Boolean = false,
     val perfilMensaje: String? = null,
     val perfilError: String? = null,
+    /**
+     * Sal del cliente para derivar su clave de cifrado. No es secreta: su trabajo es
+     * que la misma contraseña en dos cuentas distintas no dé la misma clave.
+     */
+    val kdfSalt: String = "",
 ) {
     /** Hay algo distinto de lo guardado, y el nombre no quedó vacío. */
     val perfilModificado: Boolean
@@ -49,6 +56,7 @@ data class AuthUiState(
 
 class AuthViewModel(
     private val repository: AuthRepository,
+    private val addresses: AddressRepository = AddressRepository(),
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -103,6 +111,10 @@ class AuthViewModel(
                 )
             }
 
+            // El cifrado se prepara aquí y no después porque este es el único momento
+            // en que la web tiene la contraseña. Un paso más tarde ya se ha borrado.
+            if (error == null) prepararCifrado(state.password)
+
             _uiState.update {
                 when {
                     error != null -> it.copy(isSubmitting = false, errorMessage = error)
@@ -124,6 +136,9 @@ class AuthViewModel(
     fun signOut() {
         scope.launch {
             _uiState.update { it.copy(isSubmitting = true) }
+            // Primero la clave: si el cierre de sesión fallara, lo que no puede quedar
+            // es la clave de descifrado viva en una pestaña que alguien más usará.
+            AddressCrypto.olvidarClave()
             val error = repository.signOut()
             _uiState.update {
                 it.copy(
@@ -133,6 +148,7 @@ class AuthViewModel(
                     password = "",
                     nombre = "",
                     infoMessage = null,
+                    kdfSalt = "",
                 )
             }
         }
@@ -184,6 +200,29 @@ class AuthViewModel(
         if (hay) scope.launch { refreshProfile() }
     }
 
+    /**
+     * Deriva la clave de cifrado del cliente y la deja en la pestaña.
+     *
+     * La sal vive en su perfil. Si aún no tiene —primera vez, o cuenta creada antes de
+     * que esto existiera— se genera una y se guarda. No es secreta, así que guardarla
+     * en claro no quita nada.
+     */
+    private suspend fun prepararCifrado(password: String) {
+        if (password.isBlank()) return
+
+        val perfil = repository.loadProfile()
+        val sal = perfil?.kdfSalt?.takeIf { it.isNotBlank() }
+            ?: AddressCrypto.nuevaSal()?.also { nueva ->
+                // Si no se puede guardar, no se deriva con ella: una clave derivada de
+                // una sal que la próxima sesión no conocerá dejaría el sobre inabrible.
+                if (!addresses.guardarSal(nueva)) return
+            }
+            ?: return
+
+        AddressCrypto.derivarYRecordar(password, sal)
+        _uiState.update { it.copy(kdfSalt = sal) }
+    }
+
     private suspend fun refreshProfile() {
         val profile = repository.loadProfile()
         _uiState.update {
@@ -192,6 +231,7 @@ class AuthViewModel(
                 profile = profile,
                 perfilNombre = it.perfilNombre.ifBlank { profile?.nombre.orEmpty() },
                 perfilTelefono = it.perfilTelefono.ifBlank { profile?.telefono.orEmpty() },
+                kdfSalt = it.kdfSalt.ifBlank { profile?.kdfSalt.orEmpty() },
             )
         }
     }

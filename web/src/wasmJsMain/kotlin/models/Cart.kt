@@ -45,6 +45,18 @@ data class NuevaSolicitudDto(
     @SerialName("cliente_email") val clienteEmail: String? = null,
     val notas: String? = null,
     @SerialName("created_by") val createdBy: String,
+    // La dirección va copiada, no referenciada: si el cliente se muda después, el
+    // pedido viejo tiene que conservar adónde se envió de verdad. Se copia el sobre
+    // tal cual, así que enviar no necesita la clave.
+    @SerialName("dir_version") val dirVersion: Int? = null,
+    @SerialName("dir_contenido") val dirContenido: String? = null,
+    @SerialName("dir_iv") val dirIv: String? = null,
+    @SerialName("dir_dk_usuario") val dirDkUsuario: String? = null,
+    @SerialName("dir_iv_usuario") val dirIvUsuario: String? = null,
+    @SerialName("dir_salt_usuario") val dirSaltUsuario: String? = null,
+    @SerialName("dir_kdf_iteraciones") val dirKdfIteraciones: Int? = null,
+    @SerialName("dir_dk_admin") val dirDkAdmin: String? = null,
+    @SerialName("dir_admin_key_id") val dirAdminKeyId: String? = null,
 )
 
 @Serializable

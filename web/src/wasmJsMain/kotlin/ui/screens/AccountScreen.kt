@@ -15,6 +15,8 @@ import ui.components.FormField
 import ui.components.Paragraph
 import ui.components.SectionTitle
 import ui.theme.PassionTheme
+import network.Direccion
+import viewmodel.AddressUiState
 import viewmodel.AuthUiState
 
 @Composable
@@ -26,6 +28,10 @@ fun AccountScreen(
     onNombreChange: (String) -> Unit = {},
     onTelefonoChange: (String) -> Unit = {},
     onSavePerfil: () -> Unit = {},
+    direccion: AddressUiState = AddressUiState(),
+    onEditarDireccion: ((Direccion) -> Direccion) -> Unit = {},
+    onGuardarDireccion: () -> Unit = {},
+    onBorrarDireccion: () -> Unit = {},
 ) {
     ContentScreen(title = "Mi cuenta") {
         if (!state.isAuthenticated) {
@@ -93,6 +99,16 @@ fun AccountScreen(
                     style = MaterialTheme.typography.labelLarge,
                 )
             }
+        }
+
+        if (state.profile != null) {
+            Spacer(Modifier.height(PassionTheme.spacing.s4))
+            DireccionSection(
+                state = direccion,
+                onEditar = onEditarDireccion,
+                onGuardar = onGuardarDireccion,
+                onBorrar = onBorrarDireccion,
+            )
         }
 
         Spacer(Modifier.height(PassionTheme.spacing.s6))

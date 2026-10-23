@@ -33,6 +33,7 @@ import kotlinx.browser.document
 import kotlinx.coroutines.delay
 import network.AuthRepository
 import network.CatalogRepository
+import network.AddressRepository
 import network.ContactRepository
 import network.OrdersRepository
 import network.EventsRepository
@@ -68,6 +69,7 @@ import ui.screens.TermsScreen
 import ui.screens.VideoScreen
 import ui.screens.WheelScreen
 import viewmodel.AuthViewModel
+import viewmodel.AddressViewModel
 import viewmodel.CartViewModel
 import viewmodel.CatalogSection
 import viewmodel.CatalogViewModel
@@ -167,6 +169,24 @@ fun App() {
 
     val cartViewModel = remember { CartViewModel(OrdersRepository()) }
     val cartState by cartViewModel.uiState.collectAsState()
+
+    val addressViewModel = remember { AddressViewModel(AddressRepository()) }
+    val addressState by addressViewModel.uiState.collectAsState()
+
+    // La dirección se carga cuando ya se sabe la sal, que llega con el perfil. Sin sal
+    // no se puede derivar nada, así que antes no habría con qué abrir el sobre.
+    LaunchedEffect(authState.isAuthenticated, authState.kdfSalt) {
+        if (authState.isAuthenticated && authState.kdfSalt.isNotBlank()) {
+            addressViewModel.cargar(authState.kdfSalt)
+        } else if (!authState.isAuthenticated) {
+            addressViewModel.limpiar()
+        }
+    }
+
+    // El sobre se copia tal cual a la solicitud: enviar no necesita la clave.
+    LaunchedEffect(addressState.sobre) {
+        cartViewModel.setDireccion(addressState.sobre)
+    }
 
     // Avisos de «agregado». La clave es el contador y no el carrito: dos añadidos
     // seguidos del mismo artículo tienen que volver a avisar.
@@ -329,6 +349,10 @@ fun App() {
                             onNombreChange = authViewModel::updatePerfilNombre,
                             onTelefonoChange = authViewModel::updatePerfilTelefono,
                             onSavePerfil = authViewModel::savePerfil,
+                            direccion = addressState,
+                            onEditarDireccion = addressViewModel::editar,
+                            onGuardarDireccion = addressViewModel::guardar,
+                            onBorrarDireccion = addressViewModel::borrar,
                         )
                         Screen.Cart -> CartScreen(
                             state = cartState,

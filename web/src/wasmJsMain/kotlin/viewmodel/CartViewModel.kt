@@ -14,6 +14,7 @@ import models.Solicitud
 import network.CartStorage
 import network.EnvioResult
 import network.OrdersRepository
+import network.SobreDireccion
 import ui.pgmodels.PGDataCard
 import ui.pgmodels.PGVariant
 
@@ -160,6 +161,13 @@ class CartViewModel(
         it.copy(folioEnviado = null, pideSesion = false, errorMessage = null)
     }
 
+    /** El sobre de la dirección, puesto desde fuera; se copia tal cual a la solicitud. */
+    private var sobreDireccion: SobreDireccion? = null
+
+    fun setDireccion(sobre: SobreDireccion?) {
+        sobreDireccion = sobre
+    }
+
     fun submit() {
         val estado = _uiState.value
         if (!estado.canSubmit) return
@@ -172,6 +180,7 @@ class CartViewModel(
                 telefono = estado.telefono,
                 email = estado.email,
                 notas = estado.notas,
+                direccion = sobreDireccion,
             )
             when (resultado) {
                 is EnvioResult.Enviada -> {

@@ -44,6 +44,7 @@ class OrdersRepository(
         telefono: String,
         email: String,
         notas: String,
+        direccion: SobreDireccion? = null,
     ): EnvioResult {
         if (!SupabaseConfig.isConfigured) {
             return EnvioResult.Fallo("El envío de solicitudes aún no está configurado.")
@@ -62,6 +63,15 @@ class OrdersRepository(
                         clienteEmail = email.trim().ifBlank { null },
                         notas = notas.trim().ifBlank { null },
                         createdBy = userId,
+                        dirVersion = direccion?.version,
+                        dirContenido = direccion?.contenido,
+                        dirIv = direccion?.iv,
+                        dirDkUsuario = direccion?.dkUsuario,
+                        dirIvUsuario = direccion?.ivUsuario,
+                        dirSaltUsuario = direccion?.saltUsuario,
+                        dirKdfIteraciones = direccion?.kdfIteraciones,
+                        dirDkAdmin = direccion?.dkAdmin,
+                        dirAdminKeyId = direccion?.adminKeyId,
                     )
                 ) { select() }
                 .decodeSingle<SolicitudDto>()

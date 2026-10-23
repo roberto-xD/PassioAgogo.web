@@ -77,7 +77,7 @@ class AuthRepository(
         val userId = supabase.auth.currentUserOrNull()?.id ?: return null
         return runCatching {
             supabase.from("profiles")
-                .select(columns = Columns.raw("id, nombre, rol, activo, telefono")) {
+                .select(columns = Columns.raw("id, nombre, rol, activo, telefono, kdf_salt")) {
                     filter { eq("id", userId) }
                 }
                 .decodeSingleOrNull<ProfileDto>()

@@ -17,4 +17,6 @@ data class ProfileDto(
     val activo: Boolean = true,
     /** Teléfono de contacto guardado por la propia persona (30_profile_telefono). */
     val telefono: String? = null,
+    /** Sal pública para derivar la clave de cifrado del cliente (31). */
+    @kotlinx.serialization.SerialName("kdf_salt") val kdfSalt: String? = null,
 )

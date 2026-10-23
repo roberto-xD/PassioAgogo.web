@@ -59,6 +59,10 @@ object SupabaseConfig {
     const val ORDER_REQUESTS_TABLE: String = "order_requests"
     const val ORDER_REQUEST_ITEMS_TABLE: String = "order_request_items"
 
+    /** Direcciones cifradas y clave pública de administración (31). */
+    const val USER_ADDRESSES_TABLE: String = "user_addresses"
+    const val CRYPTO_KEYS_TABLE: String = "crypto_keys"
+
     /** Bucket de Storage con las imágenes de producto. */
     const val IMAGES_BUCKET: String = "inventory"
 
