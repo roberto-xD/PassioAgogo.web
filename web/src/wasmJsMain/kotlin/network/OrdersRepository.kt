@@ -6,6 +6,7 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import models.CartItem
+import models.MetodoEntrega
 import models.NuevaSolicitudDto
 import models.NuevoItemDto
 import models.Solicitud
@@ -44,6 +45,7 @@ class OrdersRepository(
         telefono: String,
         email: String,
         notas: String,
+        entrega: MetodoEntrega = MetodoEntrega.Domicilio,
         direccion: SobreDireccion? = null,
     ): EnvioResult {
         if (!SupabaseConfig.isConfigured) {
@@ -53,28 +55,42 @@ class OrdersRepository(
 
         val userId = supabase.auth.currentUserOrNull()?.id ?: return EnvioResult.SinSesion
 
+        // La solicitud, en dos versiones: con columna propia para el método de entrega y
+        // sin ella. La segunda es para una base donde 32_metodo_entrega.sql todavía no se
+        // ha corrido: en vez de dejar la elección sin registrar, la anota en las notas.
+        fun cabecera(conColumna: Boolean) = NuevaSolicitudDto(
+            clienteNombre = nombre.trim(),
+            clienteTelefono = telefono.trim().ifBlank { null },
+            clienteEmail = email.trim().ifBlank { null },
+            notas = when {
+                conColumna -> notas.trim().ifBlank { null }
+                else -> listOf(entrega.etiqueta, notas.trim())
+                    .filter { it.isNotBlank() }
+                    .joinToString("\n")
+            },
+            createdBy = userId,
+            metodoEntrega = if (conColumna) entrega.clave else null,
+            dirVersion = direccion?.version,
+            dirContenido = direccion?.contenido,
+            dirIv = direccion?.iv,
+            dirDkUsuario = direccion?.dkUsuario,
+            dirIvUsuario = direccion?.ivUsuario,
+            dirSaltUsuario = direccion?.saltUsuario,
+            dirKdfIteraciones = direccion?.kdfIteraciones,
+            dirDkAdmin = direccion?.dkAdmin,
+            dirAdminKeyId = direccion?.adminKeyId,
+        )
+
         var solicitudId: String? = null
         return try {
-            val creada = supabase.from(SupabaseConfig.ORDER_REQUESTS_TABLE)
-                .insert(
-                    NuevaSolicitudDto(
-                        clienteNombre = nombre.trim(),
-                        clienteTelefono = telefono.trim().ifBlank { null },
-                        clienteEmail = email.trim().ifBlank { null },
-                        notas = notas.trim().ifBlank { null },
-                        createdBy = userId,
-                        dirVersion = direccion?.version,
-                        dirContenido = direccion?.contenido,
-                        dirIv = direccion?.iv,
-                        dirDkUsuario = direccion?.dkUsuario,
-                        dirIvUsuario = direccion?.ivUsuario,
-                        dirSaltUsuario = direccion?.saltUsuario,
-                        dirKdfIteraciones = direccion?.kdfIteraciones,
-                        dirDkAdmin = direccion?.dkAdmin,
-                        dirAdminKeyId = direccion?.adminKeyId,
-                    )
-                ) { select() }
-                .decodeSingle<SolicitudDto>()
+            val creada = try {
+                insertarCabecera(cabecera(conColumna = true))
+            } catch (e: Exception) {
+                // Un 400 por columna desconocida se rechaza antes de escribir nada, así
+                // que reintentar no deja a medias ninguna solicitud.
+                if (!faltaLaColumna(e.message.orEmpty())) throw e
+                insertarCabecera(cabecera(conColumna = false))
+            }
 
             val id = creada.id ?: return EnvioResult.Fallo(
                 "No se pudo registrar la solicitud. Inténtalo de nuevo."
@@ -103,6 +119,11 @@ class OrdersRepository(
             EnvioResult.Fallo(mensajeDeError(e.message.orEmpty()))
         }
     }
+
+    private suspend fun insertarCabecera(fila: NuevaSolicitudDto): SolicitudDto =
+        supabase.from(SupabaseConfig.ORDER_REQUESTS_TABLE)
+            .insert(fila) { select() }
+            .decodeSingle()
 
     /** Las solicitudes de quien tiene la sesión abierta, de la más reciente a la más vieja. */
     suspend fun misSolicitudes(): List<Solicitud>? {
@@ -139,6 +160,13 @@ class OrdersRepository(
 
 /** "2026-10-20T18:04:11.123Z" → "2026-10-20". Para el historial basta el día. */
 private fun soloFecha(iso: String): String = iso.substringBefore('T')
+
+/** PostgREST se queja de una columna que no existe; distinto de que falte un permiso. */
+private fun faltaLaColumna(raw: String): Boolean {
+    val m = raw.lowercase()
+    return "metodo_entrega" in m &&
+        ("does not exist" in m || "no existe" in m || "pgrst204" in m || "schema cache" in m)
+}
 
 private fun mensajeDeError(raw: String): String {
     val m = raw.lowercase()

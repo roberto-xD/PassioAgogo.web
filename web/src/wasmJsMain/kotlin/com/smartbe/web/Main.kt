@@ -187,6 +187,12 @@ fun App() {
         cartViewModel.setDireccion(addressState.sobre)
     }
 
+    // El carrito exige dirección para enviar a domicilio, pero solo a quien tiene sesión:
+    // sin ella no hay dónde guardarla.
+    LaunchedEffect(authState.isAuthenticated) {
+        cartViewModel.setAutenticado(authState.isAuthenticated)
+    }
+
     // Avisos de «agregado». La clave es el contador y no el carrito: dos añadidos
     // seguidos del mismo artículo tienen que volver a avisar.
     val snackbarHostState = remember { SnackbarHostState() }
@@ -364,6 +370,8 @@ fun App() {
                             onTelefonoChange = cartViewModel::updateTelefono,
                             onEmailChange = cartViewModel::updateEmail,
                             onNotasChange = cartViewModel::updateNotas,
+                            onEntregaChange = cartViewModel::setEntrega,
+                            onConfirmadoChange = cartViewModel::setConfirmado,
                             onSubmit = cartViewModel::submit,
                             onReset = cartViewModel::reset,
                             onGoToLogin = {
@@ -372,6 +380,9 @@ fun App() {
                             },
                             onGoToCatalog = { navigate(Screen.Catalog) },
                             onGoToRequests = { navigate(Screen.Account) },
+                            direccion = addressState,
+                            onEditarDireccion = addressViewModel::editar,
+                            onGuardarDireccion = addressViewModel::guardar,
                         )
                         Screen.Terms -> TermsScreen()
                         Screen.Privacy -> PrivacyScreen()

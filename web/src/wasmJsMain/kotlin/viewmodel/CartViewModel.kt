@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import models.Cart
 import models.CartItem
+import models.MetodoEntrega
 import models.Solicitud
 import network.CartStorage
 import network.EnvioResult
@@ -21,6 +22,9 @@ import ui.pgmodels.PGVariant
 /** Tope por renglón. Más que esto deja de ser una compra y es un pedido a mayoreo. */
 private const val MAX_POR_RENGLON = 99
 
+/** Un teléfono mexicano, ya sin espacios ni guiones. */
+private const val DIGITOS_TELEFONO = 10
+
 data class CartUiState(
     val cart: Cart = Cart(),
     /** Datos de contacto que acompañan a la solicitud. */
@@ -28,6 +32,17 @@ data class CartUiState(
     val telefono: String = "",
     val email: String = "",
     val notas: String = "",
+    val entrega: MetodoEntrega = MetodoEntrega.Domicilio,
+    /**
+     * La casilla de «entiendo cómo sigue esto». Sin marcarla no se puede enviar: lo que
+     * dice —que el trato continúa por WhatsApp y que ahí se paga— es la única parte del
+     * proceso que la web no puede enseñar por sí misma.
+     */
+    val confirmado: Boolean = false,
+    /** Hay dirección guardada, se pueda abrir en esta sesión o no. */
+    val hayDireccion: Boolean = false,
+    /** Sin sesión no hay dónde guardar una dirección cifrada, ni a quién atribuir el pedido. */
+    val autenticado: Boolean = false,
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null,
     /** Folio de la solicitud recién enviada; con él se enseña el acuse. */
@@ -44,8 +59,29 @@ data class CartUiState(
     val agregados: Int = 0,
 ) {
     val unidades: Int get() = cart.unidades
+
+    /** El teléfono es obligatorio: es por donde sigue el trato. */
+    val telefonoCompleto: Boolean
+        get() = telefono.count { it.isDigit() } >= DIGITOS_TELEFONO
+
+    /**
+     * Para enviar a domicilio hace falta un domicilio. No se exige poder *leerlo*: si el
+     * sobre está guardado pero esta sesión no lo abre, igual se copia a la solicitud y la
+     * tienda lo descifra con su propia clave.
+     *
+     * Sin sesión no se exige: no hay dónde guardarlo. Quien llegue así se topa primero
+     * con el aviso de que necesita una cuenta, y la dirección se le pide al volver.
+     */
+    val faltaDireccion: Boolean
+        get() = autenticado && entrega == MetodoEntrega.Domicilio && !hayDireccion
+
     val canSubmit: Boolean
-        get() = !isSubmitting && cart.items.isNotEmpty() && nombre.trim().isNotEmpty()
+        get() = !isSubmitting &&
+            cart.items.isNotEmpty() &&
+            nombre.trim().isNotEmpty() &&
+            telefonoCompleto &&
+            confirmado &&
+            !faltaDireccion
 }
 
 /**
@@ -139,6 +175,12 @@ class CartViewModel(
     fun updateEmail(v: String) = _uiState.update { it.copy(email = v, errorMessage = null) }
     fun updateNotas(v: String) = _uiState.update { it.copy(notas = v) }
 
+    fun setEntrega(v: MetodoEntrega) = _uiState.update { it.copy(entrega = v, errorMessage = null) }
+
+    fun setConfirmado(v: Boolean) = _uiState.update { it.copy(confirmado = v) }
+
+    fun setAutenticado(v: Boolean) = _uiState.update { it.copy(autenticado = v) }
+
     /**
      * Rellena los datos de contacto con lo que ya sabemos de la cuenta, sin pisar lo que
      * la persona haya escrito: puede querer que el pedido vaya a nombre de otra.
@@ -166,6 +208,7 @@ class CartViewModel(
 
     fun setDireccion(sobre: SobreDireccion?) {
         sobreDireccion = sobre
+        _uiState.update { it.copy(hayDireccion = sobre != null) }
     }
 
     fun submit() {
@@ -180,7 +223,10 @@ class CartViewModel(
                 telefono = estado.telefono,
                 email = estado.email,
                 notas = estado.notas,
-                direccion = sobreDireccion,
+                entrega = estado.entrega,
+                // Para recoger en persona no se manda el domicilio, aunque esté
+                // guardado: la tienda no lo necesita y lo que no se manda no se filtra.
+                direccion = sobreDireccion.takeIf { estado.entrega == MetodoEntrega.Domicilio },
             )
             when (resultado) {
                 is EnvioResult.Enviada -> {
@@ -192,6 +238,9 @@ class CartViewModel(
                             isSubmitting = false,
                             cart = Cart(),
                             notas = "",
+                            // La casilla vuelve a su sitio: es por solicitud, no por
+                            // sesión, y la siguiente tiene que confirmarse igual.
+                            confirmado = false,
                             folioEnviado = resultado.folio,
                             solicitudes = null,
                         )

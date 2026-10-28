@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import network.WhatsAppConfig
 import ui.components.ContentScreen
+import ui.components.DataCard
 import ui.components.copyToClipboard
 import ui.components.openInNewTab
 import ui.components.Paragraph
@@ -151,25 +152,12 @@ private fun OfferGrid() {
 
 @Composable
 private fun RowScope.OfferCard(titulo: String, texto: String) {
-    Column(
+    DataCard(
+        titulo = titulo,
         modifier = Modifier
             .weight(1f)
-            .fillMaxHeight()
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant,
-                MaterialTheme.shapes.medium,
-            )
-            .padding(PassionTheme.spacing.s4),
+            .fillMaxHeight(),
     ) {
-        Text(
-            text = titulo,
-            color = PassionTheme.semantics.onBackgroundStrong,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-        )
         Text(
             text = texto,
             color = PassionTheme.semantics.onBackgroundMuted,

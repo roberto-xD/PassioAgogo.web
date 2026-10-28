@@ -37,8 +37,12 @@ fun DireccionSection(
     onEditar: ((Direccion) -> Direccion) -> Unit,
     onGuardar: () -> Unit,
     onBorrar: () -> Unit,
+    /** Nulo cuando el bloque ya va dentro de algo con su propio título, como el carrito. */
+    titulo: String? = "Dirección de envío",
+    /** Borrar la dirección es cosa de «Mi cuenta»: en el carrito solo se captura. */
+    conBorrar: Boolean = true,
 ) {
-    SectionTitle("Dirección de envío")
+    titulo?.let { SectionTitle(it) }
 
     if (state.cargando) {
         Paragraph("Cargando…")
@@ -112,7 +116,7 @@ fun DireccionSection(
                 style = MaterialTheme.typography.labelLarge,
             )
         }
-        if (state.hayGuardada) {
+        if (state.hayGuardada && conBorrar) {
             Spacer(Modifier.height(0.dp))
             Button(
                 onClick = onBorrar,
@@ -127,6 +131,43 @@ fun DireccionSection(
                 Text("Eliminar", style = MaterialTheme.typography.labelLarge)
             }
         }
+    }
+}
+
+/**
+ * La dirección guardada, de solo lectura.
+ *
+ * Se parte en dos líneas en lugar de usar [Direccion.resumen] porque aquí se va a
+ * comprobar antes de enviar un pedido: un renglón corrido invita a darlo por bueno de un
+ * vistazo, y lo que se quiere es que se lea.
+ */
+@Composable
+fun DireccionTexto(d: Direccion) {
+    val calle = listOf(d.calle, d.interior.takeIf { it.isNotBlank() }?.let { "int. $it" })
+        .filterNotNull()
+        .filter { it.isNotBlank() }
+        .joinToString(", ")
+    val lugar = listOf(
+        d.colonia,
+        listOf(d.cp, d.ciudad).filter { it.isNotBlank() }.joinToString(" "),
+        d.estado,
+    ).filter { it.isNotBlank() }.joinToString(", ")
+
+    listOf(calle, lugar).filter { it.isNotBlank() }.forEach { linea ->
+        Text(
+            text = linea,
+            color = PassionTheme.semantics.onBackgroundStrong,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s1),
+        )
+    }
+    if (d.referencias.isNotBlank()) {
+        Text(
+            text = d.referencias,
+            color = PassionTheme.semantics.onBackgroundMuted,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s1),
+        )
     }
 }
 

@@ -16,10 +16,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,12 +36,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.rememberAsyncImagePainter
 import models.CartItem
+import models.MetodoEntrega
 import models.formatPrice
+import network.Direccion
+import ui.Chip
 import ui.components.ContentScreen
+import ui.components.DataCard
+import ui.components.DataLine
 import ui.components.FormField
 import ui.components.Paragraph
 import ui.components.SectionTitle
 import ui.theme.PassionTheme
+import viewmodel.AddressUiState
 import viewmodel.CartUiState
 
 /** Lado de la miniatura de cada renglón. */
@@ -58,11 +70,16 @@ fun CartScreen(
     onTelefonoChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onNotasChange: (String) -> Unit,
+    onEntregaChange: (MetodoEntrega) -> Unit,
+    onConfirmadoChange: (Boolean) -> Unit,
     onSubmit: () -> Unit,
     onReset: () -> Unit,
     onGoToLogin: () -> Unit,
     onGoToCatalog: () -> Unit,
     onGoToRequests: () -> Unit,
+    direccion: AddressUiState = AddressUiState(),
+    onEditarDireccion: ((Direccion) -> Direccion) -> Unit = {},
+    onGuardarDireccion: () -> Unit = {},
 ) {
     ContentScreen(title = "Mi solicitud") {
         // Acuse: ocupa la pantalla entera porque es el final del camino, y mezclarlo con
@@ -128,24 +145,50 @@ fun CartScreen(
         )
 
         SectionTitle("¿A nombre de quién?")
-        FormField(
-            value = state.nombre,
-            onValueChange = onNombreChange,
-            label = "Nombre *",
+        DatosCliente(
+            state = state,
+            onNombreChange = onNombreChange,
+            onTelefonoChange = onTelefonoChange,
+            onEmailChange = onEmailChange,
         )
-        FormField(
-            value = state.telefono,
-            onValueChange = onTelefonoChange,
-            label = "Teléfono",
-            keyboardType = KeyboardType.Phone,
-            supportingText = "Por aquí te contactamos para cerrar el pedido.",
-        )
-        FormField(
-            value = state.email,
-            onValueChange = onEmailChange,
-            label = "Correo",
-            keyboardType = KeyboardType.Email,
-        )
+
+        SectionTitle("¿Cómo lo quieres recibir?")
+        Row(
+            modifier = Modifier.padding(top = PassionTheme.spacing.s1),
+            horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s2),
+        ) {
+            MetodoEntrega.entries.forEach { metodo ->
+                Chip(
+                    label = metodo.etiqueta,
+                    selected = state.entrega == metodo,
+                    onClick = { onEntregaChange(metodo) },
+                )
+            }
+        }
+
+        Spacer(Modifier.height(PassionTheme.spacing.s3))
+        when (state.entrega) {
+            MetodoEntrega.Domicilio -> EntregaDomicilio(
+                autenticado = state.autenticado,
+                direccion = direccion,
+                onEditarDireccion = onEditarDireccion,
+                onGuardarDireccion = onGuardarDireccion,
+            )
+            MetodoEntrega.Personal -> DataCard(
+                titulo = "Entrega en persona",
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = "Las entregas personales se realizan únicamente en CDMX y " +
+                        "solo en las áreas de cobertura disponibles, en los días y " +
+                        "horarios acordados previamente vía WhatsApp.",
+                    color = PassionTheme.semantics.onBackgroundMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+                )
+            }
+        }
+
         FormField(
             value = state.notas,
             onValueChange = onNotasChange,
@@ -171,7 +214,10 @@ fun CartScreen(
 
         state.errorMessage?.let { Aviso(texto = it, esError = true) }
 
-        Spacer(Modifier.height(PassionTheme.spacing.s5))
+        Spacer(Modifier.height(PassionTheme.spacing.s4))
+        Confirmacion(marcado = state.confirmado, onMarcar = onConfirmadoChange)
+
+        Spacer(Modifier.height(PassionTheme.spacing.s4))
         Button(
             onClick = onSubmit,
             enabled = state.canSubmit,
@@ -183,6 +229,173 @@ fun CartScreen(
                 style = MaterialTheme.typography.labelLarge,
             )
         }
+        // Un botón apagado sin explicación se lee como una app rota. Se dice lo que
+        // falta, y solo eso: en cuanto se cumple, el texto desaparece.
+        queFalta(state)?.let {
+            Text(
+                text = it,
+                color = PassionTheme.semantics.onBackgroundSubtle,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+            )
+        }
+    }
+}
+
+/** Lo que impide enviar, en el orden en que la persona se lo encuentra al bajar. */
+private fun queFalta(state: CartUiState): String? = when {
+    state.isSubmitting -> null
+    state.nombre.trim().isEmpty() -> "Falta el nombre."
+    !state.telefonoCompleto -> "Falta tu teléfono de contacto."
+    state.faltaDireccion -> "Falta guardar la dirección de envío."
+    !state.confirmado -> "Marca la casilla para continuar."
+    else -> null
+}
+
+/**
+ * Los datos de contacto, en texto.
+ *
+ * Se enseñan y no se editan porque ya están en la cuenta y este no es el sitio para
+ * cambiarlos. La excepción es el teléfono: sin él no hay por dónde seguir el pedido, así
+ * que si falta se pide aquí mismo en lugar de mandar a la persona a «Mi cuenta» y de
+ * vuelta.
+ */
+@Composable
+private fun DatosCliente(
+    state: CartUiState,
+    onNombreChange: (String) -> Unit,
+    onTelefonoChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+) {
+    DataCard(titulo = null, modifier = Modifier.fillMaxWidth()) {
+        if (state.nombre.isBlank()) {
+            FormField(
+                value = state.nombre,
+                onValueChange = onNombreChange,
+                label = "Nombre *",
+            )
+        } else {
+            DataLine("Nombre", state.nombre)
+        }
+
+        if (state.telefono.isBlank()) {
+            FormField(
+                value = state.telefono,
+                // Solo dígitos: con espacios y guiones de por medio, «¿son diez?» deja
+                // de ser una pregunta que la pantalla pueda responder.
+                onValueChange = { v -> onTelefonoChange(v.filter { it.isDigit() }.take(10)) },
+                label = "Teléfono *",
+                keyboardType = KeyboardType.Phone,
+                supportingText = "10 dígitos. Por aquí seguimos tu pedido.",
+            )
+        } else {
+            DataLine("Teléfono", state.telefono)
+        }
+
+        if (state.email.isBlank()) {
+            FormField(
+                value = state.email,
+                onValueChange = onEmailChange,
+                label = "Correo",
+                keyboardType = KeyboardType.Email,
+            )
+        } else {
+            DataLine("Correo", state.email)
+        }
+    }
+}
+
+/**
+ * La tarjeta de «Se enviará a:».
+ *
+ * Con dirección guardada se enseña en texto; sin ella se captura aquí mismo, reutilizando
+ * el mismo bloque de «Mi cuenta» para que se cifre igual. Mandar a la persona a otra
+ * pantalla a mitad de un pedido es la mejor forma de que no vuelva.
+ */
+@Composable
+private fun EntregaDomicilio(
+    autenticado: Boolean,
+    direccion: AddressUiState,
+    onEditarDireccion: ((Direccion) -> Direccion) -> Unit,
+    onGuardarDireccion: () -> Unit,
+) {
+    var editando by remember { mutableStateOf(false) }
+    val guardada = direccion.hayGuardada && !direccion.bloqueada
+
+    DataCard(titulo = "Se enviará a:", modifier = Modifier.fillMaxWidth()) {
+        when {
+            // Sin sesión no hay dónde guardarla: enseñar el formulario aquí sería dar un
+            // botón que no puede funcionar.
+            !autenticado -> Text(
+                text = "Te pedimos la dirección al acceder. Se guarda cifrada en tu " +
+                    "navegador: solo tú y la tienda pueden leerla.",
+                color = PassionTheme.semantics.onBackgroundMuted,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+            )
+
+            direccion.cargando -> Paragraph("Cargando…")
+
+            guardada && !editando -> {
+                DireccionTexto(direccion.direccion)
+                Text(
+                    text = "Cambiar",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier
+                        .padding(top = PassionTheme.spacing.s2)
+                        .clip(MaterialTheme.shapes.extraSmall)
+                        .clickable { editando = true }
+                        .padding(vertical = PassionTheme.spacing.s1),
+                )
+            }
+
+            else -> DireccionSection(
+                state = direccion,
+                onEditar = onEditarDireccion,
+                onGuardar = onGuardarDireccion,
+                onBorrar = {},
+                titulo = null,
+                conBorrar = false,
+            )
+        }
+    }
+
+    // Guardar desde aquí cierra el formulario y deja la dirección a la vista, que es la
+    // señal de que quedó registrada.
+    LaunchedEffect(direccion.sobre) {
+        if (direccion.hayGuardada && !direccion.bloqueada) editando = false
+    }
+}
+
+/** La casilla que habilita el envío. */
+@Composable
+private fun Confirmacion(marcado: Boolean, onMarcar: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            // Toda la fila es pulsable, no solo el cuadrito: en un teléfono acertarle a
+            // la casilla sola es una lotería.
+            .clickable { onMarcar(!marcado) }
+            .padding(vertical = PassionTheme.spacing.s1),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Checkbox(checked = marcado, onCheckedChange = onMarcar)
+        Text(
+            text = "Al dar click en «Enviar solicitud» el proceso de compra continúa vía " +
+                "mensaje directo en WhatsApp, donde se le dará seguimiento al método de " +
+                "envío / entrega seleccionado, y podrás realizar el pago de manera " +
+                "electrónica.",
+            color = PassionTheme.semantics.onBackgroundMuted,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier
+                .weight(1f)
+                .padding(
+                    start = PassionTheme.spacing.s2,
+                    top = PassionTheme.spacing.s3,
+                ),
+        )
     }
 }
 

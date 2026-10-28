@@ -1,5 +1,7 @@
 package models
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -33,11 +35,23 @@ data class Cart(val items: List<CartItem> = emptyList()) {
 }
 
 /**
+ * Cómo quiere recibir el pedido quien lo solicita.
+ *
+ * El valor que viaja a la base es [clave], no el nombre de la constante: así renombrar
+ * algo aquí no cambia lo que ya está guardado en `order_requests`.
+ */
+enum class MetodoEntrega(val clave: String, val etiqueta: String) {
+    Domicilio("domicilio", "Envío a domicilio"),
+    Personal("personal", "Recoger personalmente"),
+}
+
+/**
  * Fila que se inserta en `order_requests` al enviar (23_order_requests.sql).
  *
  * `total_estimado` no se manda: lo calcula un trigger a partir de los artículos, y
  * mandarlo solo daría pie a que el total del cliente y el de la base discrepen.
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class NuevaSolicitudDto(
     @SerialName("cliente_nombre") val clienteNombre: String,
@@ -45,6 +59,12 @@ data class NuevaSolicitudDto(
     @SerialName("cliente_email") val clienteEmail: String? = null,
     val notas: String? = null,
     @SerialName("created_by") val createdBy: String,
+    // A nulo no se serializa, y por eso el campo se declara así: en una base donde
+    // 32_metodo_entrega.sql todavía no se ha corrido, mandar «metodo_entrega: null»
+    // sería tan rechazado como mandar un valor. El repositorio reintenta con nulo y la
+    // elección se va anotada en las notas.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("metodo_entrega") val metodoEntrega: String? = null,
     // La dirección va copiada, no referenciada: si el cliente se muda después, el
     // pedido viejo tiene que conservar adónde se envió de verdad. Se copia el sobre
     // tal cual, así que enviar no necesita la clave.
