@@ -268,7 +268,7 @@ private fun DatosCliente(
     onEmailChange: (String) -> Unit,
 ) {
     DataCard(titulo = null, modifier = Modifier.fillMaxWidth()) {
-        if (state.nombre.isBlank()) {
+        if (!state.nombreEnPerfil) {
             FormField(
                 value = state.nombre,
                 onValueChange = onNombreChange,
@@ -278,7 +278,7 @@ private fun DatosCliente(
             DataLine("Nombre", state.nombre)
         }
 
-        if (state.telefono.isBlank()) {
+        if (!state.telefonoEnPerfil) {
             FormField(
                 value = state.telefono,
                 // Solo dígitos: con espacios y guiones de por medio, «¿son diez?» deja
@@ -292,7 +292,7 @@ private fun DatosCliente(
             DataLine("Teléfono", state.telefono)
         }
 
-        if (state.email.isBlank()) {
+        if (!state.emailEnPerfil) {
             FormField(
                 value = state.email,
                 onValueChange = onEmailChange,

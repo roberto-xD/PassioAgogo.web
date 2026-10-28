@@ -22,8 +22,13 @@ import ui.pgmodels.PGVariant
 /** Tope por renglón. Más que esto deja de ser una compra y es un pedido a mayoreo. */
 private const val MAX_POR_RENGLON = 99
 
-/** Un teléfono mexicano, ya sin espacios ni guiones. */
-private const val DIGITOS_TELEFONO = 10
+/**
+ * Un teléfono mexicano, ya sin espacios ni guiones.
+ *
+ * Lo comparten el carrito, que lo exige para enviar, y el perfil, que se queda con el que
+ * se escribió. Si cambia la regla, cambia en los dos sitios a la vez.
+ */
+internal const val DIGITOS_TELEFONO = 10
 
 data class CartUiState(
     val cart: Cart = Cart(),
@@ -39,6 +44,15 @@ data class CartUiState(
      * proceso que la web no puede enseñar por sí misma.
      */
     val confirmado: Boolean = false,
+    /**
+     * Qué datos trajo la cuenta. Lo que vino de ahí se enseña en texto; lo que no, se pide.
+     *
+     * Son banderas y no «¿está vacío el campo?» porque eso cambiaría de respuesta en
+     * cuanto se teclea la primera letra: el campo se convertiría en texto a media palabra.
+     */
+    val nombreEnPerfil: Boolean = false,
+    val telefonoEnPerfil: Boolean = false,
+    val emailEnPerfil: Boolean = false,
     /** Hay dirección guardada, se pueda abrir en esta sesión o no. */
     val hayDireccion: Boolean = false,
     /** Sin sesión no hay dónde guardar una dirección cifrada, ni a quién atribuir el pedido. */
@@ -194,6 +208,9 @@ class CartViewModel(
             nombre = it.nombre.ifBlank { nombre },
             email = it.email.ifBlank { email },
             telefono = it.telefono.ifBlank { telefono },
+            nombreEnPerfil = nombre.isNotBlank(),
+            emailEnPerfil = email.isNotBlank(),
+            telefonoEnPerfil = telefono.isNotBlank(),
             pideSesion = false,
         )
     }

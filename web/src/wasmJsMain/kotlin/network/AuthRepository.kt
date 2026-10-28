@@ -111,6 +111,29 @@ class AuthRepository(
         }
     }
 
+    /**
+     * Solo el teléfono, para el que se escribe al pedir.
+     *
+     * Tiene función propia en vez de reusar [updateProfile] porque aquella escribe también
+     * el nombre: pasarle uno vacío, o el que llevara el pedido, pisaría el de la cuenta.
+     */
+    suspend fun updateTelefono(telefono: String): String? {
+        if (!SupabaseConfig.isConfigured) return "El acceso aún no está configurado."
+        val userId = supabase.auth.currentUserOrNull()?.id
+            ?: return "Tu sesión expiró. Vuelve a entrar."
+
+        return try {
+            supabase.from("profiles").update(
+                buildJsonObject { put("telefono", telefono.trim()) }
+            ) {
+                filter { eq("id", userId) }
+            }
+            null
+        } catch (e: Exception) {
+            friendlyProfileError(e.message.orEmpty())
+        }
+    }
+
     private suspend fun runAuth(block: suspend () -> Unit): String? =
         if (!SupabaseConfig.isConfigured) {
             "El acceso aún no está configurado."

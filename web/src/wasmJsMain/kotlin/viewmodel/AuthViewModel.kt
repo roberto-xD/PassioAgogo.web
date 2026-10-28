@@ -181,6 +181,27 @@ class AuthViewModel(
     }
 
     /**
+     * Se queda con el teléfono que la persona escribió al enviar una solicitud.
+     *
+     * Así no se le vuelve a pedir en el siguiente pedido. **No pisa el que ya hubiera**:
+     * una solicitud puede ir a nombre de otra persona, y su teléfono no tiene por qué
+     * convertirse en el contacto de la cuenta. Ese se cambia en «Mi cuenta», a propósito.
+     *
+     * Falla en silencio: la solicitud ya se envió y el teléfono viaja en ella. Un aviso
+     * de error aquí hablaría de algo que a quien acaba de pedir no le importa.
+     */
+    fun recordarTelefono(telefono: String) {
+        val estado = _uiState.value
+        val digitos = telefono.filter { it.isDigit() }
+        if (!estado.isAuthenticated || digitos.length < DIGITOS_TELEFONO) return
+        if (estado.profile?.telefono.orEmpty().isNotBlank()) return
+
+        scope.launch {
+            if (repository.updateTelefono(digitos) == null) refreshProfile()
+        }
+    }
+
+    /**
      * Comprueba la sesión contra el cliente, sin esperar al flujo.
      *
      * La pantalla la llama cada poco. Si una emisión no llegara a despertar a Compose

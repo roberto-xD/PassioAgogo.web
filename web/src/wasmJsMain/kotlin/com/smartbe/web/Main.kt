@@ -193,6 +193,15 @@ fun App() {
         cartViewModel.setAutenticado(authState.isAuthenticated)
     }
 
+    // Enviada la solicitud, el teléfono que se escribió al pedir se queda en el perfil
+    // para no volver a pedirlo. Se hace al enviar y no al teclear: hasta ese momento es
+    // un campo a medias, no el contacto de nadie.
+    LaunchedEffect(cartState.folioEnviado) {
+        if (cartState.folioEnviado != null) {
+            authViewModel.recordarTelefono(cartState.telefono)
+        }
+    }
+
     // Avisos de «agregado». La clave es el contador y no el carrito: dos añadidos
     // seguidos del mismo artículo tienen que volver a avisar.
     val snackbarHostState = remember { SnackbarHostState() }
