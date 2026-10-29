@@ -237,7 +237,9 @@ export function armarPaquete(
  * Si no contesta se sigue adelante con lo que haya: mejor intentar la cotización que no
  * intentarla.
  */
-async function lugarDe(cp: string): Promise<{ ciudad: string; estado: string } | null> {
+async function lugarDe(
+  cp: string,
+): Promise<{ ciudad: string; estado: string; colonia: string } | null> {
   try {
     const r = await fetch(`https://geocodes.envia.com/zipcode/MX/${cp}`, {
       signal: AbortSignal.timeout(6000),
@@ -247,7 +249,20 @@ async function lugarDe(cp: string): Promise<{ ciudad: string; estado: string } |
     const fila = Array.isArray(filas) ? filas[0] : null;
     const codigo = fila?.state?.code?.["2digit"] ?? "";
     if (!codigo) return null;
-    return { ciudad: fila.locality ?? "", estado: codigo };
+
+    // Una colonia cualquiera de ese código postal. Paquetexpress rechaza la cotización
+    // sin ella —«El nombre de la Colonia destino es obligatoria»—, y para dar precio le
+    // basta con que sea válida: lo que mueve la tarifa es el código postal. Así se la
+    // contenta **sin preguntarle a la persona dónde vive**: no mandamos su colonia,
+    // mandamos una del código. La de verdad hará falta al generar la guía, y para
+    // entonces la abre la app de control.
+    const colonias: string[] = Array.isArray(fila.suburbs) ? fila.suburbs : [];
+
+    return {
+      ciudad: fila.locality ?? "",
+      estado: codigo,
+      colonia: colonias.find((c) => typeof c === "string" && c.trim()) ?? "",
+    };
   } catch (_e) {
     return null;
   }
@@ -306,7 +321,9 @@ async function listarCarriers(): Promise<string[]> {
 async function cotizarCon(
   carrier: string,
   base: Record<string, unknown>,
-): Promise<{ carrier: string; opciones: Opcion[]; motivo?: string }> {
+): Promise<
+  { carrier: string; opciones: Opcion[]; motivo?: string; ejemplo?: unknown }
+> {
   const peticion = {
     ...base,
     shipment: { ...(base.shipment as Record<string, unknown>), carrier },
@@ -350,7 +367,9 @@ async function cotizarCon(
       .map((t) => aOpcion(t, carrier))
       .filter((o): o is Opcion => o !== null);
 
-    return { carrier, opciones };
+    // Una tarifa tal y como llega, para poder mapear campos que no están documentados
+    // sin tener que adivinar dos veces.
+    return { carrier, opciones, ...(DEBUG ? { ejemplo: tarifas[0] } : {}) };
   } catch (e) {
     return { carrier, opciones: [], motivo: String(e) };
   }
@@ -385,19 +404,49 @@ function aOpcion(t: Record<string, unknown>, carrier: string): Opcion | null {
   const precio = Number(t.totalPrice ?? t.total_price ?? t.price ?? NaN);
   if (!Number.isFinite(precio)) return null;
 
-  const dias = Number(
-    t.deliveryEstimate ?? t.delivery_estimate ?? t.deliveryDays ?? NaN,
-  );
-
   return {
     // Si la tarifa no se nombra a sí misma, se sabe igual: se pidió a esa paquetería.
-    paqueteria: String(t.carrier ?? carrier),
-    servicio: String(t.service ?? ""),
-    descripcion: String(t.serviceDescription ?? t.service_description ?? ""),
+    paqueteria: String(t.carrier ?? carrier).trim(),
+    servicio: String(t.service ?? "").trim(),
+    // Envia devuelve descripciones con espacios de sobra («DHL Economy »).
+    descripcion: String(t.serviceDescription ?? t.service_description ?? "").trim(),
     precio,
-    moneda: String(t.currency ?? "MXN"),
-    dias: Number.isFinite(dias) ? dias : null,
+    moneda: String(t.currency ?? "MXN").trim(),
+    dias: diasDe(t),
   };
+}
+
+/**
+ * Los días de entrega, se llamen como se llamen.
+ *
+ * Envia no documenta el campo y las tarifas reales no traían ninguno de los nombres que
+ * probé primero, así que se buscan varios y se acepta tanto un número de días como una
+ * fecha de entrega, que es la otra forma habitual de decirlo.
+ */
+function diasDe(t: Record<string, unknown>): number | null {
+  const candidatos = [
+    t.deliveryEstimate,
+    t.delivery_estimate,
+    t.deliveryDays,
+    t.delivery_days,
+    t.estimatedDeliveryDays,
+    t.days,
+  ];
+  for (const c of candidatos) {
+    const n = Number(c);
+    if (Number.isFinite(n) && n > 0) return Math.round(n);
+  }
+
+  // Una fecha: se cuenta cuántos días faltan desde hoy.
+  for (const c of [t.deliveryDate, t.delivery_date, t.deliveryEstimateDate]) {
+    if (typeof c !== "string" || !c.trim()) continue;
+    const fecha = Date.parse(c);
+    if (!Number.isFinite(fecha)) continue;
+    const dias = Math.ceil((fecha - Date.now()) / 86_400_000);
+    if (dias > 0 && dias < 60) return dias;
+  }
+
+  return null;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -512,6 +561,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       name: "Destinatario",
       phone: origen.telefono,
       street: "Domicilio conocido",
+      district: destino?.colonia ?? "",
       city: destino?.ciudad ?? "",
       state: destino?.estado ?? "",
       country: "MX",
@@ -580,6 +630,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
             tarifas: r.opciones.length,
             motivo: r.motivo,
           })),
+          // Una tarifa cruda, la primera que haya: es lo que falta para nombrar bien el
+          // campo de los días de entrega, que Envia no documenta.
+          ejemploCrudo: resultados.find((r) => r.ejemplo)?.ejemplo,
         }
         : {}),
     },
