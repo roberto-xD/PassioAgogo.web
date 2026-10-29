@@ -12,6 +12,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class OpcionEnvio(
     val paqueteria: String = "",
+    /** El nombre como se escribe: «FedEx», no «fedex». */
+    val nombre: String = "",
+    /** Logo de la paquetería. Vacío si el catálogo de Envia no lo trae. */
+    val logo: String = "",
     val servicio: String = "",
     val descripcion: String = "",
     val precio: Double = 0.0,
@@ -26,7 +30,8 @@ data class OpcionEnvio(
     val entrega: String = "",
 ) {
     /** Lo que se lee en la tarjeta: «Estafeta Terrestre», ya sin el nombre repetido. */
-    val titulo: String get() = descripcion.ifBlank { "$paqueteria $servicio".trim() }
+    val titulo: String get() = descripcion.ifBlank { "$nombre $servicio".trim() }
+        .ifBlank { "$paqueteria $servicio".trim() }
 
     /** Identifica la opción entre las demás de la lista. */
     val clave: String get() = "$paqueteria/$servicio"

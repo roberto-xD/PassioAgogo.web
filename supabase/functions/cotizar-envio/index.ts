@@ -155,6 +155,10 @@ interface Opcion {
   moneda: string;
   /** Días estimados, cuando se sabe el número. */
   dias: number | null;
+  /** El nombre como se escribe: «FedEx», no «fedex». */
+  nombre: string;
+  /** Logo de la paquetería, si el catálogo lo trae. Vacío si no. */
+  logo: string;
   /** Lo que promete la paquetería con sus palabras: «2-4 días». */
   entrega: string;
   /**
@@ -363,6 +367,26 @@ function elegirOpciones(todas: Opcion[]): Opcion[] {
 let carriersEnMemoria: string[] | null = null;
 
 /**
+ * Cómo se llama y cómo se ve cada paquetería, del catálogo de Envia.
+ *
+ * El nombre bonito —«FedEx», no «fedex»— y el logo, si lo trae. Un logo se reconoce de
+ * un vistazo y el nombre en minúsculas parece un error de la página.
+ */
+const marcas = new Map<string, { nombre: string; logo: string }>();
+
+/** La primera fila del catálogo tal cual, para ver qué campos trae de verdad. */
+let catalogoCrudo: unknown = null;
+
+/** El logo, se llame como se llame en el catálogo. */
+function logoDe(f: Record<string, unknown>): string {
+  for (const clave of ["logo", "image", "img", "icon", "logoUrl", "logo_url", "url"]) {
+    const v = f?.[clave];
+    if (typeof v === "string" && v.startsWith("http")) return v;
+  }
+  return "";
+}
+
+/**
  * Con qué paqueterías cotizar.
  *
  * `/ship/rate` **exige** una: pedir sin `carrier` devuelve «Required property missing».
@@ -381,12 +405,21 @@ async function listarCarriers(): Promise<string[]> {
     if (r.ok) {
       const cuerpo = await r.json();
       const filas = Array.isArray(cuerpo?.data) ? cuerpo.data : [];
+      catalogoCrudo = filas[0] ?? null;
+
       // El nombre del campo no está documentado, así que se prueban los candidatos
       // razonables antes de darse por vencido.
       const nombres = filas
-        .map((f: Record<string, unknown>) =>
-          String(f?.carrier ?? f?.name ?? f?.code ?? "").trim().toLowerCase()
-        )
+        .map((f: Record<string, unknown>) => {
+          const clave = String(f?.carrier ?? f?.name ?? f?.code ?? "").trim().toLowerCase();
+          if (clave) {
+            marcas.set(clave, {
+              nombre: String(f?.carrierDescription ?? f?.description ?? f?.name ?? "").trim(),
+              logo: logoDe(f),
+            });
+          }
+          return clave;
+        })
         .filter((n: string) => n.length > 0);
 
       if (nombres.length > 0) {
@@ -495,9 +528,17 @@ function aOpcion(t: Record<string, unknown>, carrier: string): Opcion | null {
   const precio = Number(t.totalPrice ?? t.total_price ?? t.price ?? NaN);
   if (!Number.isFinite(precio)) return null;
 
+  const clave = String(t.carrier ?? carrier).trim();
+  const marca = marcas.get(clave.toLowerCase());
+
   return {
     // Si la tarifa no se nombra a sí misma, se sabe igual: se pidió a esa paquetería.
-    paqueteria: String(t.carrier ?? carrier).trim(),
+    paqueteria: clave,
+    // La propia tarifa trae el nombre escrito; el catálogo es el respaldo. Sin ninguno
+    // de los dos, la clave con la inicial en mayúscula antes que «fedex» en minúsculas.
+    nombre: String(t.carrierDescription ?? marca?.nombre ?? "").trim() ||
+      clave.replace(/^./, (c) => c.toUpperCase()),
+    logo: marca?.logo ?? "",
     servicio: String(t.service ?? "").trim(),
     // Envia devuelve descripciones con espacios de sobra («DHL Economy »).
     descripcion: String(t.serviceDescription ?? t.service_description ?? "").trim(),
@@ -730,6 +771,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
           // Una tarifa cruda, la primera que haya: es lo que falta para nombrar bien el
           // campo de los días de entrega, que Envia no documenta.
           ejemploCrudo: resultados.find((r) => r.ejemplo)?.ejemplo,
+          // Una fila del catálogo de paqueterías, para saber si trae logo y con qué
+          // nombre lo llama. Sin esto habría que adivinarlo.
+          catalogoCrudo,
           // Lo que se descartó al filtrar, para poder ajustar los topes con datos.
           descartadas: todas
             .filter((o) => !opciones.includes(o))

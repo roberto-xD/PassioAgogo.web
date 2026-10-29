@@ -55,6 +55,9 @@ import viewmodel.CartUiState
 /** Lado de la miniatura de cada renglón. */
 private val MINIATURA = 64.dp
 
+/** Lado del logo de la paquetería en la lista de opciones de envío. */
+private val LOGO_PAQUETERIA = 44.dp
+
 /**
  * Lo que «Día siguiente» significa de verdad.
  *
@@ -126,48 +129,8 @@ fun CartScreen(
             return@ContentScreen
         }
 
-        Paragraph(
-            "Esto es una solicitud, no una compra cerrada. La revisamos, confirmamos " +
-                "disponibilidad y precio del día, y te contactamos para cerrar el pedido."
-        )
-
-        state.cart.items.forEach { item ->
-            Renglon(
-                item = item,
-                onSetCantidad = { onSetCantidad(item.variantId, it) },
-                onRemove = { onRemove(item.variantId) },
-            )
-        }
-
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant,
-            modifier = Modifier.padding(vertical = PassionTheme.spacing.s4),
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = "Total estimado",
-                color = PassionTheme.semantics.onBackgroundStrong,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = formatPrice(state.cart.total),
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        Text(
-            text = "No incluye envío. El precio final se confirma al atender la solicitud.",
-            color = PassionTheme.semantics.onBackgroundSubtle,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(top = PassionTheme.spacing.s1),
-        )
-
+        // Primero a nombre de quién va: es lo que la cuenta ya sabe, se lee de un
+        // vistazo y deja arriba lo único que puede faltar por escribir.
         SectionTitle("¿A nombre de quién?")
         DatosCliente(
             state = state,
@@ -175,6 +138,15 @@ fun CartScreen(
             onTelefonoChange = onTelefonoChange,
             onEmailChange = onEmailChange,
         )
+
+        Spacer(Modifier.height(PassionTheme.spacing.s4))
+        state.cart.items.forEach { item ->
+            Renglon(
+                item = item,
+                onSetCantidad = { onSetCantidad(item.variantId, it) },
+                onRemove = { onRemove(item.variantId) },
+            )
+        }
 
         SectionTitle("¿Cómo lo quieres recibir?")
         Row(
@@ -223,12 +195,17 @@ fun CartScreen(
             }
         }
 
+        // El total va después de elegir cómo recibirlo, porque hasta aquí no se sabe
+        // cuánto cuesta el envío: enseñarlo antes obligaba a decir «no incluye envío»,
+        // que era avisar de que la cifra de arriba no era la cifra.
+        Totales(state)
+
         FormField(
             value = state.notas,
             onValueChange = onNotasChange,
             label = "Notas",
             singleLine = false,
-            supportingText = "Tallas, colores, horarios de entrega… lo que quieras que sepamos.",
+            supportingText = "Lo que quieras que sepamos.",
         )
 
         if (state.pideSesion) {
@@ -403,6 +380,65 @@ private fun EntregaDomicilio(
 }
 
 /**
+ * Productos, envío y total.
+ *
+ * El envío solo aparece cuando ya se eligió uno: un renglón «Envío — $0» mientras no se
+ * ha cotizado diría que es gratis.
+ */
+@Composable
+private fun Totales(state: CartUiState) {
+    val envio = state.envioElegido?.precio ?: 0.0
+
+    HorizontalDivider(
+        color = MaterialTheme.colorScheme.outlineVariant,
+        modifier = Modifier.padding(vertical = PassionTheme.spacing.s4),
+    )
+
+    if (state.envioElegido != null) {
+        RenglonTotal("Productos", formatPrice(state.cart.total), fuerte = false)
+        RenglonTotal(
+            etiqueta = "Envío · ${state.envioElegido.titulo}",
+            valor = formatPrice(envio),
+            fuerte = false,
+        )
+        Spacer(Modifier.height(PassionTheme.spacing.s2))
+    }
+
+    RenglonTotal("Total estimado", formatPrice(state.cart.total + envio), fuerte = true)
+}
+
+@Composable
+private fun RenglonTotal(etiqueta: String, valor: String, fuerte: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = PassionTheme.spacing.s1),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = etiqueta,
+            color = if (fuerte) PassionTheme.semantics.onBackgroundStrong
+            else PassionTheme.semantics.onBackgroundMuted,
+            style = if (fuerte) MaterialTheme.typography.titleMedium
+            else MaterialTheme.typography.bodyMedium,
+            fontWeight = if (fuerte) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Text(
+            text = valor,
+            color = if (fuerte) MaterialTheme.colorScheme.primary
+            else PassionTheme.semantics.onBackgroundStrong,
+            style = if (fuerte) MaterialTheme.typography.titleMedium
+            else MaterialTheme.typography.bodyMedium,
+            fontWeight = if (fuerte) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(start = PassionTheme.spacing.s3),
+        )
+    }
+}
+
+/**
  * El bloque de cotización: botón, lista de opciones y el aviso de plazos.
  *
  * Se cotiza al pulsar y no al abrir el carrito. Cada cotización son varias llamadas a
@@ -510,6 +546,19 @@ private fun FilaEnvio(opcion: OpcionEnvio, elegida: Boolean, onClick: () -> Unit
             .padding(PassionTheme.spacing.s4),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // El logo se reconoce antes de leer. Si el catálogo de Envia no lo trae, el
+        // renglón se queda sin él y no pasa nada: el nombre va en el título.
+        if (opcion.logo.isNotBlank()) {
+            Image(
+                painter = rememberAsyncImagePainter(opcion.logo),
+                contentDescription = opcion.nombre,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .size(LOGO_PAQUETERIA)
+                    .padding(end = PassionTheme.spacing.s3),
+            )
+        }
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = opcion.titulo,
