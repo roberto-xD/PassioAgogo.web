@@ -37,9 +37,11 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.rememberAsyncImagePainter
 import models.CartItem
 import models.MetodoEntrega
+import models.OpcionEnvio
 import models.formatPrice
 import network.Direccion
 import ui.Chip
+import ui.components.BottomSheet
 import ui.components.ContentScreen
 import ui.components.DataCard
 import ui.components.DataLine
@@ -52,6 +54,26 @@ import viewmodel.CartUiState
 
 /** Lado de la miniatura de cada renglón. */
 private val MINIATURA = 64.dp
+
+/**
+ * Lo que «Día siguiente» significa de verdad.
+ *
+ * Va en una hoja aparte y no suelto bajo la lista: es largo, y puesto ahí nadie leería
+ * ni el principio. Pero tiene que estar junto a los plazos, porque es justo donde
+ * alguien acaba de leer «Día siguiente» y se hace una idea que conviene corregir antes
+ * de que pague.
+ */
+private const val AVISO_TIEMPOS =
+    "Después de enviar la solicitud y una vez comprobado el pago, el paquete se " +
+        "recolecta / entrega con paquetería hasta el siguiente día hábil, implicando " +
+        "que los pedidos confirmados los días viernes, sábado o domingo se procesan a " +
+        "partir del lunes (o martes en caso de ser feriado) esto debido a que las " +
+        "mismas paqueterías no procesan envíos en fines de semana. Por lo tanto los " +
+        "envíos marcados como «Al día siguiente» pueden tardar más de un día en ser " +
+        "entregados. Una vez el paquete es procesado por la paquetería los tiempos de " +
+        "entrega dependen exclusivamente de ellos, sin embargo siempre estamos " +
+        "pendientes en caso de presentarse cualquier inconveniente y dispuestos a " +
+        "apoyar en tanto nos sea posible."
 
 /**
  * Carrito y envío de la solicitud de compra.
@@ -72,6 +94,8 @@ fun CartScreen(
     onNotasChange: (String) -> Unit,
     onEntregaChange: (MetodoEntrega) -> Unit,
     onConfirmadoChange: (Boolean) -> Unit,
+    onCotizarEnvio: (String) -> Unit = {},
+    onElegirEnvio: (OpcionEnvio) -> Unit = {},
     onSubmit: () -> Unit,
     onReset: () -> Unit,
     onGoToLogin: () -> Unit,
@@ -168,12 +192,22 @@ fun CartScreen(
 
         Spacer(Modifier.height(PassionTheme.spacing.s3))
         when (state.entrega) {
-            MetodoEntrega.Domicilio -> EntregaDomicilio(
-                autenticado = state.autenticado,
-                direccion = direccion,
-                onEditarDireccion = onEditarDireccion,
-                onGuardarDireccion = onGuardarDireccion,
-            )
+            MetodoEntrega.Domicilio -> {
+                EntregaDomicilio(
+                    autenticado = state.autenticado,
+                    direccion = direccion,
+                    onEditarDireccion = onEditarDireccion,
+                    onGuardarDireccion = onGuardarDireccion,
+                )
+                // Debajo de la tarjeta de la dirección, porque es de su código postal de
+                // donde sale el precio: puesto antes no tendría a dónde cotizar.
+                OpcionesDeEnvio(
+                    state = state,
+                    cp = direccion.direccion.cp,
+                    onCotizar = onCotizarEnvio,
+                    onElegir = onElegirEnvio,
+                )
+            }
             MetodoEntrega.Personal -> DataCard(
                 titulo = "Entrega en persona",
                 modifier = Modifier.fillMaxWidth(),
@@ -365,6 +399,134 @@ private fun EntregaDomicilio(
     // señal de que quedó registrada.
     LaunchedEffect(direccion.sobre) {
         if (direccion.hayGuardada && !direccion.bloqueada) editando = false
+    }
+}
+
+/**
+ * El bloque de cotización: botón, lista de opciones y el aviso de plazos.
+ *
+ * Se cotiza al pulsar y no al abrir el carrito. Cada cotización son varias llamadas a
+ * paqueterías, y quien solo entra a ver qué lleva en el carrito no tiene por qué
+ * esperarlas.
+ */
+@Composable
+private fun OpcionesDeEnvio(
+    state: CartUiState,
+    cp: String,
+    onCotizar: (String) -> Unit,
+    onElegir: (OpcionEnvio) -> Unit,
+) {
+    // Sin dirección guardada no hay código postal al que cotizar, y el botón solo
+    // serviría para enseñar un error que ya anuncia la tarjeta de arriba.
+    if (!state.autenticado || cp.length != 5) return
+
+    var verAviso by remember { mutableStateOf(false) }
+    val opciones = state.opcionesEnvio
+
+    Spacer(Modifier.height(PassionTheme.spacing.s3))
+
+    if (opciones == null) {
+        Button(
+            onClick = { onCotizar(cp) },
+            enabled = !state.cotizando,
+            shape = MaterialTheme.shapes.extraLarge,
+        ) {
+            Text(
+                text = if (state.cotizando) "Calculando…" else "Ver opciones de envío",
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+        state.errorEnvio?.let { Aviso(texto = it, esError = true) }
+        return
+    }
+
+    Text(
+        text = "Opciones de envío",
+        color = PassionTheme.semantics.onBackgroundStrong,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(bottom = PassionTheme.spacing.s2),
+    )
+
+    opciones.forEach { opcion ->
+        FilaEnvio(
+            opcion = opcion,
+            elegida = opcion.clave == state.envioElegido?.clave,
+            onClick = { onElegir(opcion) },
+        )
+    }
+
+    if (state.envioRecortado) {
+        Text(
+            text = "Tu pedido es grande: el costo definitivo puede subir un poco y te " +
+                "lo confirmamos antes de cobrarlo.",
+            color = PassionTheme.semantics.onBackgroundMuted,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+        )
+    }
+
+    // El aviso de plazos va al final de la lista, que es donde alguien acaba de ver un
+    // «Día siguiente» y conviene explicarle qué significa de verdad.
+    Text(
+        text = "Sobre los tiempos de entrega",
+        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.labelLarge,
+        modifier = Modifier
+            .padding(top = PassionTheme.spacing.s3)
+            .clip(MaterialTheme.shapes.extraSmall)
+            .clickable { verAviso = true }
+            .padding(vertical = PassionTheme.spacing.s1),
+    )
+
+    if (verAviso) {
+        BottomSheet(title = "Sobre los tiempos de entrega", onDismiss = { verAviso = false }) {
+            Paragraph(AVISO_TIEMPOS)
+        }
+    }
+}
+
+/** Una opción de envío, elegible. */
+@Composable
+private fun FilaEnvio(opcion: OpcionEnvio, elegida: Boolean, onClick: () -> Unit) {
+    val forma = MaterialTheme.shapes.medium
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = PassionTheme.spacing.s2)
+            .clip(forma)
+            .border(
+                width = if (elegida) 2.dp else 1.dp,
+                color = if (elegida) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.outlineVariant,
+                shape = forma,
+            )
+            .clickable(onClick = onClick)
+            .padding(PassionTheme.spacing.s4),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = opcion.titulo,
+                color = PassionTheme.semantics.onBackgroundStrong,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (elegida) FontWeight.SemiBold else FontWeight.Normal,
+            )
+            if (opcion.entrega.isNotBlank()) {
+                Text(
+                    text = opcion.entrega,
+                    color = PassionTheme.semantics.onBackgroundMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        Text(
+            text = formatPrice(opcion.precio),
+            color = if (elegida) MaterialTheme.colorScheme.primary
+            else PassionTheme.semantics.onBackgroundStrong,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 

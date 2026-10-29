@@ -8,6 +8,8 @@ import io.github.jan.supabase.postgrest.query.Order
 import models.CartItem
 import models.MetodoEntrega
 import models.NuevaSolicitudDto
+import models.OpcionEnvio
+import models.formatPrice
 import models.NuevoItemDto
 import models.Solicitud
 import models.SolicitudDto
@@ -47,6 +49,7 @@ class OrdersRepository(
         notas: String,
         entrega: MetodoEntrega = MetodoEntrega.Domicilio,
         direccion: SobreDireccion? = null,
+        envio: OpcionEnvio? = null,
     ): EnvioResult {
         if (!SupabaseConfig.isConfigured) {
             return EnvioResult.Fallo("El envío de solicitudes aún no está configurado.")
@@ -64,12 +67,20 @@ class OrdersRepository(
             clienteEmail = email.trim().ifBlank { null },
             notas = when {
                 conColumna -> notas.trim().ifBlank { null }
-                else -> listOf(entrega.etiqueta, notas.trim())
-                    .filter { it.isNotBlank() }
-                    .joinToString("\n")
+                // Sin las columnas, lo elegido se anota en las notas antes que perderse.
+                else -> listOf(
+                    entrega.etiqueta,
+                    envio?.let { "Envío: ${it.descripcion} · ${formatPrice(it.precio)}" }.orEmpty(),
+                    notas.trim(),
+                ).filter { it.isNotBlank() }.joinToString("\n")
             },
             createdBy = userId,
             metodoEntrega = if (conColumna) entrega.clave else null,
+            envioPaqueteria = if (conColumna) envio?.paqueteria else null,
+            envioServicio = if (conColumna) envio?.servicio else null,
+            envioDescripcion = if (conColumna) envio?.descripcion else null,
+            envioCosto = if (conColumna) envio?.precio else null,
+            envioEntrega = if (conColumna) envio?.entrega else null,
             dirVersion = direccion?.version,
             dirContenido = direccion?.contenido,
             dirIv = direccion?.iv,
@@ -164,7 +175,10 @@ private fun soloFecha(iso: String): String = iso.substringBefore('T')
 /** PostgREST se queja de una columna que no existe; distinto de que falte un permiso. */
 private fun faltaLaColumna(raw: String): Boolean {
     val m = raw.lowercase()
-    return "metodo_entrega" in m &&
+    val nombra = "metodo_entrega" in m || "envio_paqueteria" in m ||
+        "envio_servicio" in m || "envio_descripcion" in m ||
+        "envio_costo" in m || "envio_entrega" in m
+    return nombra &&
         ("does not exist" in m || "no existe" in m || "pgrst204" in m || "schema cache" in m)
 }
 

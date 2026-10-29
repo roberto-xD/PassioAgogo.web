@@ -381,6 +381,8 @@ fun App() {
                             onNotasChange = cartViewModel::updateNotas,
                             onEntregaChange = cartViewModel::setEntrega,
                             onConfirmadoChange = cartViewModel::setConfirmado,
+                            onCotizarEnvio = cartViewModel::cotizarEnvio,
+                            onElegirEnvio = cartViewModel::elegirEnvio,
                             onSubmit = cartViewModel::submit,
                             onReset = cartViewModel::reset,
                             onGoToLogin = {

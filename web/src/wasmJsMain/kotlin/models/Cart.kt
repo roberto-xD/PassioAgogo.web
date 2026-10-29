@@ -65,6 +65,18 @@ data class NuevaSolicitudDto(
     // elección se va anotada en las notas.
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("metodo_entrega") val metodoEntrega: String? = null,
+    // El envío elegido (35_order_requests_envio.sql). Mismo trato que el método: a nulo
+    // no se serializa, así que una base sin esas columnas no rechaza la solicitud.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("envio_paqueteria") val envioPaqueteria: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("envio_servicio") val envioServicio: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("envio_descripcion") val envioDescripcion: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("envio_costo") val envioCosto: Double? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("envio_entrega") val envioEntrega: String? = null,
     // La dirección va copiada, no referenciada: si el cliente se muda después, el
     // pedido viejo tiene que conservar adónde se envió de verdad. Se copia el sobre
     // tal cual, así que enviar no necesita la clave.

@@ -11,10 +11,13 @@ import kotlinx.coroutines.launch
 import models.Cart
 import models.CartItem
 import models.MetodoEntrega
+import models.OpcionEnvio
 import models.Solicitud
 import network.CartStorage
+import network.CotizacionResult
 import network.EnvioResult
 import network.OrdersRepository
+import network.ShippingRepository
 import network.SobreDireccion
 import ui.pgmodels.PGDataCard
 import ui.pgmodels.PGVariant
@@ -55,6 +58,14 @@ data class CartUiState(
     val emailEnPerfil: Boolean = false,
     /** Hay dirección guardada, se pueda abrir en esta sesión o no. */
     val hayDireccion: Boolean = false,
+    /** Opciones de envío cotizadas, o null si todavía no se han pedido. */
+    val opcionesEnvio: List<OpcionEnvio>? = null,
+    val cotizando: Boolean = false,
+    val errorEnvio: String? = null,
+    /** La elegida; viaja con la solicitud para que administración sepa con qué enviar. */
+    val envioElegido: OpcionEnvio? = null,
+    /** El bulto excede la caja mayor: lo cotizado va por debajo de la guía. */
+    val envioRecortado: Boolean = false,
     /** Sin sesión no hay dónde guardar una dirección cifrada, ni a quién atribuir el pedido. */
     val autenticado: Boolean = false,
     val isSubmitting: Boolean = false,
@@ -107,6 +118,7 @@ data class CartUiState(
  */
 class CartViewModel(
     private val repository: OrdersRepository,
+    private val shipping: ShippingRepository = ShippingRepository(),
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
     private val _uiState = MutableStateFlow(CartUiState(cart = CartStorage.load()))
@@ -189,11 +201,58 @@ class CartViewModel(
     fun updateEmail(v: String) = _uiState.update { it.copy(email = v, errorMessage = null) }
     fun updateNotas(v: String) = _uiState.update { it.copy(notas = v) }
 
-    fun setEntrega(v: MetodoEntrega) = _uiState.update { it.copy(entrega = v, errorMessage = null) }
+    fun setEntrega(v: MetodoEntrega) = _uiState.update {
+        olvidarCotizacion(it).copy(entrega = v, errorMessage = null)
+    }
 
     fun setConfirmado(v: Boolean) = _uiState.update { it.copy(confirmado = v) }
 
     fun setAutenticado(v: Boolean) = _uiState.update { it.copy(autenticado = v) }
+
+    /**
+     * Pide las opciones de envío para el código postal de la dirección guardada.
+     *
+     * Se dispara con un botón y no al abrir el carrito: cada cotización son varias
+     * llamadas a paqueterías, y quien solo viene a ver qué lleva en el carrito no tiene
+     * por qué pagarlas en espera.
+     */
+    fun cotizarEnvio(cpDestino: String) {
+        if (_uiState.value.cotizando) return
+        _uiState.update { it.copy(cotizando = true, errorEnvio = null) }
+
+        scope.launch {
+            when (val r = shipping.cotizar(cpDestino, _uiState.value.cart.items)) {
+                is CotizacionResult.Lista -> _uiState.update {
+                    it.copy(
+                        cotizando = false,
+                        opcionesEnvio = r.opciones,
+                        envioRecortado = r.recortado,
+                        // Preseleccionada la más barata, que es la primera: así quien no
+                        // quiera elegir tiene una válida sin hacer nada.
+                        envioElegido = r.opciones.firstOrNull(),
+                    )
+                }
+                is CotizacionResult.Fallo -> _uiState.update {
+                    it.copy(cotizando = false, errorEnvio = r.mensaje, opcionesEnvio = null)
+                }
+            }
+        }
+    }
+
+    fun elegirEnvio(opcion: OpcionEnvio) = _uiState.update { it.copy(envioElegido = opcion) }
+
+    /**
+     * Olvida lo cotizado.
+     *
+     * Se llama al cambiar el carrito o el método de entrega: un precio calculado para
+     * otro bulto, o para un envío que ya no es a domicilio, es peor que no tener ninguno.
+     */
+    private fun olvidarCotizacion(estado: CartUiState) = estado.copy(
+        opcionesEnvio = null,
+        envioElegido = null,
+        envioRecortado = false,
+        errorEnvio = null,
+    )
 
     /**
      * Rellena los datos de contacto con lo que ya sabemos de la cuenta, sin pisar lo que
@@ -244,6 +303,7 @@ class CartViewModel(
                 // Para recoger en persona no se manda el domicilio, aunque esté
                 // guardado: la tienda no lo necesita y lo que no se manda no se filtra.
                 direccion = sobreDireccion.takeIf { estado.entrega == MetodoEntrega.Domicilio },
+                envio = estado.envioElegido.takeIf { estado.entrega == MetodoEntrega.Domicilio },
             )
             when (resultado) {
                 is EnvioResult.Enviada -> {
@@ -287,7 +347,8 @@ class CartViewModel(
         _uiState.update { estado ->
             val nuevo = bloque(estado.cart)
             CartStorage.save(nuevo)
-            estado.copy(cart = nuevo, errorMessage = null)
+            // Cambió lo que va dentro de la caja, así que lo cotizado dejó de valer.
+            olvidarCotizacion(estado).copy(cart = nuevo, errorMessage = null)
         }
     }
 }
