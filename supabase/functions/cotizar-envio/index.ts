@@ -67,6 +67,29 @@ const CARRIERS_FIJOS = (Deno.env.get("ENVIA_CARRIERS") ?? "")
  * pantalla sin ninguna opción.
  */
 const CARRIERS_DE_RESPALDO = ["fedex", "dhl", "estafeta", "redpack", "paquetexpress"];
+
+/** Cuántas opciones enseñar. Una lista larga no ayuda a decidir, la estorba. */
+const MAX_OPCIONES = Number(Deno.env.get("ENVIA_MAX_OPCIONES") ?? "4");
+
+/**
+ * Una sola opción por paquetería, la más barata suya.
+ *
+ * Sin esto, una paquetería con tres servicios ocupa media lista y tapa a las demás.
+ */
+const UNA_POR_PAQUETERIA = (Deno.env.get("ENVIA_UNA_POR_PAQUETERIA") ?? "1") !== "0";
+
+/** Esconder los servicios que terminan en sucursal. Ver [llegaADomicilio]. */
+const SOLO_A_DOMICILIO = (Deno.env.get("ENVIA_SOLO_A_DOMICILIO") ?? "1") !== "0";
+
+/**
+ * Descarta lo que cueste más de N veces la opción más barata. 0 = no descartar nada.
+ *
+ * Es el filtro **por regla** para no enseñar disparates, en lugar de tachar paqueterías
+ * por su nombre: lo caro depende de la ruta, no de la empresa. FedEx pedía 501 pesos a
+ * Morelia por recargos de zona extendida y combustible, y en una entrega dentro de la
+ * ciudad puede ser la más barata. Tachándola por nombre se perdería ese caso.
+ */
+const FACTOR_MAX = Number(Deno.env.get("ENVIA_FACTOR_MAX") ?? "0");
 const ALLOWED_ORIGINS = (Deno.env.get("CONTACT_ALLOWED_ORIGINS") ?? "*")
   .split(",")
   .map((o) => o.trim())
@@ -126,7 +149,18 @@ interface Opcion {
   descripcion: string;
   precio: number;
   moneda: string;
+  /** Días estimados, cuando se sabe el número. */
   dias: number | null;
+  /** Lo que promete la paquetería con sus palabras: «2-4 días». */
+  entrega: string;
+  /**
+   * El paquete llega a la puerta del cliente.
+   *
+   * Falso en los servicios «ocurre» de destino, donde el cliente recoge en sucursal.
+   * Son más baratos y tienen su sitio, pero no son lo que alguien entiende por «envío a
+   * domicilio»: ofrecerlos ahí sin decirlo se descubre cuando el paquete no llega.
+   */
+  aDomicilio: boolean;
 }
 
 function corsHeaders(origin: string | null): Record<string, string> {
@@ -266,6 +300,35 @@ async function lugarDe(
   } catch (_e) {
     return null;
   }
+}
+
+/**
+ * De todas las tarifas, las que vale la pena enseñar.
+ *
+ * El orden importa: primero se quita lo que no es lo que se pidió —un servicio que
+ * termina en sucursal no es envío a domicilio—, y solo después se recorta por precio y
+ * por cantidad. Al revés, la lista podría quedarse con opciones baratas que no sirven.
+ */
+function elegirOpciones(todas: Opcion[]): Opcion[] {
+  let lista = [...todas].sort((a, b) => a.precio - b.precio);
+
+  if (SOLO_A_DOMICILIO) lista = lista.filter((o) => o.aDomicilio);
+
+  if (UNA_POR_PAQUETERIA) {
+    const vistas = new Set<string>();
+    lista = lista.filter((o) => {
+      if (vistas.has(o.paqueteria)) return false;
+      vistas.add(o.paqueteria);
+      return true;
+    });
+  }
+
+  if (FACTOR_MAX > 0 && lista.length > 0) {
+    const masBarata = lista[0].precio;
+    lista = lista.filter((o) => o.precio <= masBarata * FACTOR_MAX);
+  }
+
+  return MAX_OPCIONES > 0 ? lista.slice(0, MAX_OPCIONES) : lista;
 }
 
 /** Paqueterías descubiertas, mientras esta instancia siga viva. */
@@ -413,40 +476,47 @@ function aOpcion(t: Record<string, unknown>, carrier: string): Opcion | null {
     precio,
     moneda: String(t.currency ?? "MXN").trim(),
     dias: diasDe(t),
+    // Viene como texto —«2-4 días»—, no como número. Se pasa tal cual: es lo que la
+    // paquetería promete y con sus palabras, y un rango dice más que una cifra sola.
+    entrega: String(t.deliveryEstimate ?? "").trim(),
+    aDomicilio: llegaADomicilio(String(t.service ?? "")),
   };
 }
 
 /**
- * Los días de entrega, se llamen como se llamen.
+ * Días estimados, de donde Envia los pone de verdad.
  *
- * Envia no documenta el campo y las tarifas reales no traían ninguno de los nombres que
- * probé primero, así que se buscan varios y se acepta tanto un número de días como una
- * fecha de entrega, que es la otra forma habitual de decirlo.
+ * `deliveryEstimate` es texto («2-4 días») y `deliveryDate` un objeto con la fecha y los
+ * días de diferencia. Ninguno de los dos era lo que supuse al principio.
  */
 function diasDe(t: Record<string, unknown>): number | null {
-  const candidatos = [
-    t.deliveryEstimate,
-    t.delivery_estimate,
-    t.deliveryDays,
-    t.delivery_days,
-    t.estimatedDeliveryDays,
-    t.days,
-  ];
-  for (const c of candidatos) {
+  const fecha = t.deliveryDate as Record<string, unknown> | undefined;
+  const diferencia = Number(fecha?.dateDifference ?? NaN);
+  if (Number.isFinite(diferencia) && diferencia > 0) return Math.round(diferencia);
+
+  // Por si alguna paquetería lo manda como número suelto.
+  for (const c of [t.deliveryEstimate, t.deliveryDays, t.delivery_days]) {
     const n = Number(c);
     if (Number.isFinite(n) && n > 0) return Math.round(n);
   }
-
-  // Una fecha: se cuenta cuántos días faltan desde hoy.
-  for (const c of [t.deliveryDate, t.delivery_date, t.deliveryEstimateDate]) {
-    if (typeof c !== "string" || !c.trim()) continue;
-    const fecha = Date.parse(c);
-    if (!Number.isFinite(fecha)) continue;
-    const dias = Math.ceil((fecha - Date.now()) / 86_400_000);
-    if (dias > 0 && dias < 60) return dias;
-  }
-
   return null;
+}
+
+/**
+ * Si el servicio deja el paquete en la puerta del cliente.
+ *
+ * Los nombres acaban en dos letras que dicen origen y destino: `o` de «ocurre»
+ * —sucursal— y `d` de «domicilio». `ground_od` sale de sucursal y llega a domicilio;
+ * `ground_do` sale de domicilio y **termina en sucursal**, con el cliente yendo a
+ * recogerlo. Sin sufijo se entiende puerta a puerta, que es como cotiza FedEx.
+ *
+ * La diferencia no es de matiz: son los servicios más baratos de la lista, y colarlos
+ * bajo «envío a domicilio» se descubre el día que el paquete no llega a la casa.
+ */
+function llegaADomicilio(servicio: string): boolean {
+  const sufijo = servicio.toLowerCase().match(/_([od])([od])$/);
+  if (!sufijo) return true;
+  return sufijo[2] === "d";
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -589,9 +659,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const carriers = await listarCarriers();
   const resultados = await Promise.all(carriers.map((c) => cotizarCon(c, peticion)));
 
-  const opciones = resultados
-    .flatMap((r) => r.opciones)
-    .sort((a, b) => a.precio - b.precio);
+  const todas = resultados.flatMap((r) => r.opciones);
+  const opciones = elegirOpciones(todas);
 
   // Que todas fallen sí es un problema; que fallen algunas es lo normal, porque no
   // todas cubren todas las rutas.
@@ -633,6 +702,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
           // Una tarifa cruda, la primera que haya: es lo que falta para nombrar bien el
           // campo de los días de entrega, que Envia no documenta.
           ejemploCrudo: resultados.find((r) => r.ejemplo)?.ejemplo,
+          // Lo que se descartó al filtrar, para poder ajustar los topes con datos.
+          descartadas: todas
+            .filter((o) => !opciones.includes(o))
+            .map((o) => `${o.paqueteria} ${o.servicio} $${o.precio}` +
+              (o.aDomicilio ? "" : " (termina en sucursal)")),
         }
         : {}),
     },
