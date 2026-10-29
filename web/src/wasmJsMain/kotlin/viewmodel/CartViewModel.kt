@@ -283,8 +283,16 @@ class CartViewModel(
     private var sobreDireccion: SobreDireccion? = null
 
     fun setDireccion(sobre: SobreDireccion?) {
+        // Cambió la dirección: lo cotizado era para otro destino. Mantenerlo enseñaría
+        // el precio de llegar a un sitio al que ya no se va, y es un precio que la
+        // persona acaba pagando.
+        val cambio = sobre?.contenido != sobreDireccion?.contenido
         sobreDireccion = sobre
-        _uiState.update { it.copy(hayDireccion = sobre != null) }
+
+        _uiState.update { estado ->
+            val base = if (cambio) olvidarCotizacion(estado) else estado
+            base.copy(hayDireccion = sobre != null)
+        }
     }
 
     fun submit() {
