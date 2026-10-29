@@ -84,7 +84,7 @@ fun DireccionSection(
         keyboardType = KeyboardType.Number,
         supportingText = when {
             state.buscandoCp -> "Buscando…"
-            state.cpResuelto -> "${d.ciudad}, ${d.estado}"
+            state.cpResuelto -> lugarLegible(d.ciudad, d.estado)
             d.cp.length == 5 -> "No reconocimos este código. Escribe ciudad y estado a mano."
             else -> null
         },
@@ -160,6 +160,25 @@ fun DireccionSection(
         }
     }
 }
+
+/**
+ * «Ciudad de México, Ciudad de Mexico» no informa de nada: dice dos veces lo mismo, y la
+ * segunda con una falta. Pasa en la capital, donde ciudad y estado se llaman igual.
+ */
+private fun lugarLegible(ciudad: String, estado: String): String {
+    fun normal(s: String) = s.trim().lowercase()
+        .let { t -> buildString { t.forEach { append(DESACENTUADO[it] ?: it) } } }
+
+    return when {
+        ciudad.isBlank() -> estado
+        estado.isBlank() || normal(ciudad) == normal(estado) -> ciudad
+        else -> "$ciudad, $estado"
+    }
+}
+
+private val DESACENTUADO = mapOf(
+    'á' to 'a', 'é' to 'e', 'í' to 'i', 'ó' to 'o', 'ú' to 'u', 'ü' to 'u',
+)
 
 /** Las colonias del código postal, para elegir con un toque en vez de teclearlas. */
 @OptIn(ExperimentalLayoutApi::class)
