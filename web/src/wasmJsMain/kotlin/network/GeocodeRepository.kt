@@ -3,42 +3,26 @@ package network
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.js.Js
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/**
- * Catálogo de códigos postales de Envia. **Público y sin token**, por eso se consulta
- * desde el navegador y no hay Edge Function de por medio: no hay ningún secreto que
- * esconder aquí.
- */
-private const val GEOCODES = "https://geocodes.envia.com/zipcode/MX"
-
 private val json = Json { ignoreUnknownKeys = true }
 
+/**
+ * Lo que devuelve la función `geocode`, que ya viene masticado: la forma es nuestra, no
+ * la de Envia, y solo trae lo que la pantalla usa.
+ */
 @Serializable
-private data class CodigoDto(
-    // La clave empieza por dígito, así que no puede ser un nombre de propiedad.
-    @SerialName("2digit") val dosLetras: String? = null,
-)
-
-@Serializable
-private data class EstadoDto(val name: String? = null, val code: CodigoDto? = null)
-
-@Serializable
-private data class CpDto(
-    @SerialName("zip_code") val cp: String? = null,
-    /**
-     * La ciudad. Fuera de la capital coincide con el municipio —Monterrey, Guadalajara—;
-     * en la Ciudad de México `locality` dice «Ciudad de México» y la alcaldía va aparte.
-     * Es la forma en que una paquetería espera leer el renglón.
-     */
-    val locality: String? = null,
-    val state: EstadoDto? = null,
-    /** Las colonias de ese código postal. */
-    val suburbs: List<String> = emptyList(),
+private data class LugarDto(
+    val cp: String? = null,
+    val ciudad: String? = null,
+    val estado: String? = null,
+    val estadoCodigo: String? = null,
+    val colonias: List<String> = emptyList(),
 )
 
 /** Lo que un código postal dice de sí mismo. */
@@ -59,7 +43,12 @@ data class LugarDelCp(
  * y Envia espera un código de dos letras; esa diferencia no se nota al capturar, se nota
  * el día que la guía se rechaza y el paquete no sale.
  *
- * Nunca estorba: si el servicio no contesta o el código no existe, devuelve `null` y la
+ * Va contra la Edge Function `geocode` y no contra Envia directamente. El catálogo de
+ * Envia es público y el navegador podría consultarlo solo, pero entonces Envia vería la
+ * IP de cada cliente y el código postal que teclea, incluso el de quien nunca llega a
+ * comprar. Por la función solo ven el servidor.
+ *
+ * Nunca estorba: si la función no contesta o el código no existe, devuelve `null` y la
  * dirección se sigue escribiendo a mano. Es una ayuda, no un requisito.
  */
 class GeocodeRepository(
@@ -72,25 +61,29 @@ class GeocodeRepository(
         val limpio = cp.filter { it.isDigit() }
         if (limpio.length != 5) return null
         if (cache.containsKey(limpio)) return cache[limpio]
+        if (!SupabaseConfig.isConfigured) return null
 
         val lugar = runCatching {
-            val respuesta = client.get("$GEOCODES/$limpio")
+            val respuesta = client.get(
+                "${SupabaseConfig.URL}/functions/v1/geocode?cp=$limpio"
+            ) {
+                header(HttpHeaders.Authorization, "Bearer ${SupabaseConfig.ANON_KEY}")
+                header("apikey", SupabaseConfig.ANON_KEY)
+            }
             if (!respuesta.status.isSuccess()) return@runCatching null
 
-            // Un código que no existe contesta 200 con una lista vacía, no con un error.
-            val filas = json.decodeFromString<List<CpDto>>(respuesta.bodyAsText())
-            val fila = filas.firstOrNull() ?: return@runCatching null
-
-            val codigo = fila.state?.code?.dosLetras.orEmpty()
-            // Sin código de estado la respuesta no sirve para lo único que la queremos.
+            // Un código que no existe contesta 200 con `{"encontrado": false}`: sin
+            // código de estado, que es lo único que no se puede suplir a mano.
+            val fila = json.decodeFromString<LugarDto>(respuesta.bodyAsText())
+            val codigo = fila.estadoCodigo.orEmpty()
             if (codigo.isBlank()) return@runCatching null
 
             LugarDelCp(
                 cp = fila.cp ?: limpio,
-                ciudad = fila.locality.orEmpty(),
-                estado = fila.state?.name.orEmpty(),
+                ciudad = fila.ciudad.orEmpty(),
+                estado = fila.estado.orEmpty(),
                 estadoCodigo = codigo,
-                colonias = fila.suburbs.filter { it.isNotBlank() },
+                colonias = fila.colonias.filter { it.isNotBlank() },
             )
         }.getOrNull()
 
