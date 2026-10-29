@@ -68,15 +68,19 @@ const CARRIERS_FIJOS = (Deno.env.get("ENVIA_CARRIERS") ?? "")
  */
 const CARRIERS_DE_RESPALDO = ["fedex", "dhl", "estafeta", "redpack", "paquetexpress"];
 
-/** Cuántas opciones enseñar. Una lista larga no ayuda a decidir, la estorba. */
-const MAX_OPCIONES = Number(Deno.env.get("ENVIA_MAX_OPCIONES") ?? "4");
+/** Tope de opciones en la lista final. */
+const MAX_OPCIONES = Number(Deno.env.get("ENVIA_MAX_OPCIONES") ?? "8");
 
 /**
- * Una sola opción por paquetería, la más barata suya.
+ * Cuántos servicios enseñar de cada paquetería, repartidos por precio.
  *
- * Sin esto, una paquetería con tres servicios ocupa media lista y tapa a las demás.
+ * Con 1 sale la más barata. Con 2, **la más barata y la más cara**: casi todas tienen un
+ * terrestre lento y un express, y hay quien paga por el express. Enseñar solo lo barato
+ * se lo esconde a quien tiene prisa. Con 3 o más se reparten entre esos dos extremos.
+ *
+ * 0 = sin límite por paquetería; entonces manda [MAX_OPCIONES].
  */
-const UNA_POR_PAQUETERIA = (Deno.env.get("ENVIA_UNA_POR_PAQUETERIA") ?? "1") !== "0";
+const POR_PAQUETERIA = Number(Deno.env.get("ENVIA_OPCIONES_POR_PAQUETERIA") ?? "2");
 
 /** Esconder los servicios que terminan en sucursal. Ver [llegaADomicilio]. */
 const SOLO_A_DOMICILIO = (Deno.env.get("ENVIA_SOLO_A_DOMICILIO") ?? "1") !== "0";
@@ -303,6 +307,27 @@ async function lugarDe(
 }
 
 /**
+ * `n` opciones de una lista ya ordenada por precio, repartidas de punta a punta.
+ *
+ * Con 1 sale la más barata; con 2, la más barata y la más cara; con más, se reparten
+ * entre ambas. Coger «las n más baratas» daría tres sabores de lo mismo y dejaría fuera
+ * justo el express, que es el que busca quien tiene prisa.
+ */
+function repartidas(lista: Opcion[], n: number): Opcion[] {
+  if (lista.length <= n) return lista;
+  if (n === 1) return [lista[0]];
+
+  const elegidas: Opcion[] = [];
+  for (let i = 0; i < n; i++) {
+    const posicion = Math.round((i * (lista.length - 1)) / (n - 1));
+    const opcion = lista[posicion];
+    // Con pocas opciones, dos posiciones pueden caer en la misma.
+    if (!elegidas.includes(opcion)) elegidas.push(opcion);
+  }
+  return elegidas;
+}
+
+/**
  * De todas las tarifas, las que vale la pena enseñar.
  *
  * El orden importa: primero se quita lo que no es lo que se pidió —un servicio que
@@ -314,13 +339,16 @@ function elegirOpciones(todas: Opcion[]): Opcion[] {
 
   if (SOLO_A_DOMICILIO) lista = lista.filter((o) => o.aDomicilio);
 
-  if (UNA_POR_PAQUETERIA) {
-    const vistas = new Set<string>();
-    lista = lista.filter((o) => {
-      if (vistas.has(o.paqueteria)) return false;
-      vistas.add(o.paqueteria);
-      return true;
-    });
+  if (POR_PAQUETERIA > 0) {
+    const porNombre = new Map<string, Opcion[]>();
+    for (const o of lista) {
+      const suyas = porNombre.get(o.paqueteria) ?? [];
+      suyas.push(o);
+      porNombre.set(o.paqueteria, suyas);
+    }
+    lista = [...porNombre.values()]
+      .flatMap((suyas) => repartidas(suyas, POR_PAQUETERIA))
+      .sort((a, b) => a.precio - b.precio);
   }
 
   if (FACTOR_MAX > 0 && lista.length > 0) {
