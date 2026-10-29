@@ -50,9 +50,11 @@ kotlin {
                 implementation(libs.ktor.client.core)
                 implementation(libs.ktor.client.js)
 
-                // Carga de imágenes remotas (Coil sobre Ktor).
+                // Carga de imágenes remotas (Coil sobre Ktor). El módulo SVG es
+                // para los logos de las paqueterías, que se sirven en ese formato.
                 implementation(libs.coil.compose)
                 implementation(libs.coil.network.ktor)
+                implementation(libs.coil.svg)
             }
         }
     }

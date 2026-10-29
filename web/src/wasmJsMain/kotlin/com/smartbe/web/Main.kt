@@ -29,6 +29,7 @@ import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
+import coil3.svg.SvgDecoder
 import kotlinx.browser.document
 import kotlinx.coroutines.delay
 import network.AuthRepository
@@ -98,7 +99,12 @@ fun App() {
     // configura un ImageLoader que carga imágenes remotas vía Ktor.
     setSingletonImageLoaderFactory { context ->
         ImageLoader.Builder(context)
-            .components { add(KtorNetworkFetcherFactory()) }
+            .components {
+                add(KtorNetworkFetcherFactory())
+                // Los logos de las paqueterías vienen en SVG, y Coil no los decodifica
+                // sin esto: se cargarían sin error visible y no se pintaría nada.
+                add(SvgDecoder.Factory())
+            }
             .crossfade(true)
             .build()
     }

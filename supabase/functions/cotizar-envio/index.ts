@@ -387,6 +387,27 @@ function logoDe(f: Record<string, unknown>): string {
 }
 
 /**
+ * De dónde salen los logos cuando el catálogo no los da.
+ *
+ * Envia los sirve por nombre de paquetería: `<base>/fedex.svg`, `<base>/dhl.svg`. **El
+ * bucket por defecto es el suyo de staging**, y eso es prestado: puede moverse o
+ * desaparecer sin avisar, y entonces las opciones se quedarían sin logo. Por eso es un
+ * secret y no una constante: copiando los cinco archivos a un bucket propio, se cambia
+ * aquí y no hay que tocar código.
+ */
+const LOGOS_BASE = (Deno.env.get("ENVIA_LOGOS_URL") ??
+  "https://s3.us-east-2.amazonaws.com/envia-staging/uploads/logos/carriers")
+  .replace(/\/+$/, "");
+
+/** La URL del logo de una paquetería. Vacía si no hay de dónde sacarla. */
+function logoDeCarrier(clave: string): string {
+  const limpia = clave.trim().toLowerCase();
+  // Solo letras y números: la clave entra en una URL, y lo que no se valida se cuela.
+  if (!limpia || !/^[a-z0-9]+$/.test(limpia) || !LOGOS_BASE) return "";
+  return `${LOGOS_BASE}/${limpia}.svg`;
+}
+
+/**
  * Con qué paqueterías cotizar.
  *
  * `/ship/rate` **exige** una: pedir sin `carrier` devuelve «Required property missing».
@@ -538,7 +559,9 @@ function aOpcion(t: Record<string, unknown>, carrier: string): Opcion | null {
     // de los dos, la clave con la inicial en mayúscula antes que «fedex» en minúsculas.
     nombre: String(t.carrierDescription ?? marca?.nombre ?? "").trim() ||
       clave.replace(/^./, (c) => c.toUpperCase()),
-    logo: marca?.logo ?? "",
+    // Lo que diga el catálogo manda; si calla —que es lo que pasa hoy, porque la
+    // consulta de paqueterías no contesta—, se arma por nombre.
+    logo: marca?.logo || logoDeCarrier(clave),
     servicio: String(t.service ?? "").trim(),
     // Envia devuelve descripciones con espacios de sobra («DHL Economy »).
     descripcion: String(t.serviceDescription ?? t.service_description ?? "").trim(),

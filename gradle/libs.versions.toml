@@ -19,6 +19,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3" }
 coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil3" }
+coil-svg = { module = "io.coil-kt.coil3:coil-svg", version.ref = "coil3" }
 
 # Supabase (SDK oficial KMP). El BOM alinea las versiones de los módulos.
 supabase-bom = { module = "io.github.jan-tennert.supabase:bom", version.ref = "supabase" }
