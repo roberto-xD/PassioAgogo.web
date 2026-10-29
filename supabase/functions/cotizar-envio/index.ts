@@ -44,7 +44,29 @@ const ENVIA_TOKEN = (Deno.env.get("ENVIA_TOKEN") ?? "")
   .trim();
 const ENVIA_BASE = (Deno.env.get("ENVIA_BASE_URL") ?? "https://api-test.envia.com")
   .replace(/\/+$/, "");
+const ENVIA_QUERIES = (Deno.env.get("ENVIA_QUERIES_URL") ?? "https://queries.envia.com")
+  .replace(/\/+$/, "");
 const DEBUG = Deno.env.get("ENVIA_DEBUG") === "1";
+
+/**
+ * Paqueterías a consultar, separadas por coma. Vacío = preguntárselas a Envia.
+ *
+ * Sirve para dejar fuera las que no interesen —por ejemplo, las que no pasan a recoger—
+ * sin volver a desplegar.
+ */
+const CARRIERS_FIJOS = (Deno.env.get("ENVIA_CARRIERS") ?? "")
+  .split(",")
+  .map((c) => c.trim().toLowerCase())
+  .filter((c) => c.length > 0);
+
+/**
+ * Con las que se cotiza si el catálogo de Envia no contesta.
+ *
+ * Son las grandes de México y **es una lista a ojo**: los nombres exactos los manda
+ * Envia, y lo correcto es preguntárselos. Esto solo evita que un fallo suyo deje la
+ * pantalla sin ninguna opción.
+ */
+const CARRIERS_DE_RESPALDO = ["fedex", "dhl", "estafeta", "redpack", "paquetexpress"];
 const ALLOWED_ORIGINS = (Deno.env.get("CONTACT_ALLOWED_ORIGINS") ?? "*")
   .split(",")
   .map((o) => o.trim())
@@ -231,6 +253,109 @@ async function lugarDe(cp: string): Promise<{ ciudad: string; estado: string } |
   }
 }
 
+/** Paqueterías descubiertas, mientras esta instancia siga viva. */
+let carriersEnMemoria: string[] | null = null;
+
+/**
+ * Con qué paqueterías cotizar.
+ *
+ * `/ship/rate` **exige** una: pedir sin `carrier` devuelve «Required property missing».
+ * Así que la lista hay que tenerla, y se le pregunta a Envia en vez de escribirla a mano,
+ * que es como se queda vieja.
+ */
+async function listarCarriers(): Promise<string[]> {
+    if (CARRIERS_FIJOS.length > 0) return CARRIERS_FIJOS;
+  if (carriersEnMemoria) return carriersEnMemoria;
+
+  try {
+    const r = await fetch(`${ENVIA_QUERIES}/carrier?country_code=MX`, {
+      headers: { "Authorization": `Bearer ${ENVIA_TOKEN}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (r.ok) {
+      const cuerpo = await r.json();
+      const filas = Array.isArray(cuerpo?.data) ? cuerpo.data : [];
+      // El nombre del campo no está documentado, así que se prueban los candidatos
+      // razonables antes de darse por vencido.
+      const nombres = filas
+        .map((f: Record<string, unknown>) =>
+          String(f?.carrier ?? f?.name ?? f?.code ?? "").trim().toLowerCase()
+        )
+        .filter((n: string) => n.length > 0);
+
+      if (nombres.length > 0) {
+        carriersEnMemoria = [...new Set(nombres)] as string[];
+        return carriersEnMemoria;
+      }
+    }
+    console.error("envia /carrier", r.status, (await r.text()).slice(0, 500));
+  } catch (e) {
+    console.error("envia /carrier", String(e));
+  }
+
+  return CARRIERS_DE_RESPALDO;
+}
+
+/**
+ * Cotiza con una paquetería.
+ *
+ * Que una falle es normal y no es un error del carrito: hay rutas que no cubre, y pesos
+ * o medidas que no acepta. Por eso devuelve lo que consiguió y el motivo por separado,
+ * en vez de cortar la cotización entera.
+ */
+async function cotizarCon(
+  carrier: string,
+  base: Record<string, unknown>,
+): Promise<{ carrier: string; opciones: Opcion[]; motivo?: string }> {
+  const peticion = {
+    ...base,
+    shipment: { ...(base.shipment as Record<string, unknown>), carrier },
+  };
+
+  try {
+    const r = await fetch(`${ENVIA_BASE}/ship/rate/`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${ENVIA_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(peticion),
+      signal: AbortSignal.timeout(12000),
+    });
+
+    const texto = await r.text().catch(() => "");
+    let cuerpo: Record<string, unknown> | null = null;
+    try {
+      cuerpo = texto ? JSON.parse(texto) : null;
+    } catch (_e) {
+      cuerpo = null;
+    }
+
+    // Envia contesta 200 con `meta: "error"` cuando rechaza los datos: mirar solo el
+    // código HTTP daba por buena una respuesta que venía vacía de tarifas.
+    const esError = !r.ok || cuerpo?.meta === "error";
+    if (esError) {
+      const detalle = cuerpo?.error as Record<string, unknown> | undefined;
+      return {
+        carrier,
+        opciones: [],
+        motivo: String(detalle?.message ?? detalle?.description ?? r.status),
+      };
+    }
+
+    const tarifas = Array.isArray(cuerpo?.data)
+      ? (cuerpo.data as Record<string, unknown>[])
+      : [];
+    const opciones = tarifas
+      .map((t) => aOpcion(t, carrier))
+      .filter((o): o is Opcion => o !== null);
+
+    return { carrier, opciones };
+  } catch (e) {
+    return { carrier, opciones: [], motivo: String(e) };
+  }
+}
+
 /**
  * Qué mirar según cómo rechazó Envia.
  *
@@ -256,7 +381,7 @@ function pistaDe(estado: number): string | undefined {
 }
 
 /** Normaliza una tarifa de Envia a lo poco que la pantalla enseña. */
-function aOpcion(t: Record<string, unknown>): Opcion | null {
+function aOpcion(t: Record<string, unknown>, carrier: string): Opcion | null {
   const precio = Number(t.totalPrice ?? t.total_price ?? t.price ?? NaN);
   if (!Number.isFinite(precio)) return null;
 
@@ -265,7 +390,8 @@ function aOpcion(t: Record<string, unknown>): Opcion | null {
   );
 
   return {
-    paqueteria: String(t.carrier ?? ""),
+    // Si la tarifa no se nombra a sí misma, se sabe igual: se pidió a esa paquetería.
+    paqueteria: String(t.carrier ?? carrier),
     servicio: String(t.service ?? ""),
     descripcion: String(t.serviceDescription ?? t.service_description ?? ""),
     precio,
@@ -364,7 +490,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // ---- la petición a Envia ----
   const destino = await lugarDe(cpDestino);
 
-  // Sin `carrier`: así devuelve todas las paqueterías de la ruta y se eligen por precio.
+  // `shipment.carrier` lo pone cada llamada: una por paquetería, porque `/ship/rate`
+  // exige nombrarla. Lo demás es igual para todas.
   const peticion = {
     origin: {
       name: origen.nombre ?? "Passion à gogo",
@@ -407,67 +534,35 @@ Deno.serve(async (req: Request): Promise<Response> => {
     shipment: { type: 1 },
   };
 
-  let respuesta: Response;
-  try {
-    respuesta = await fetch(`${ENVIA_BASE}/ship/rate/`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${ENVIA_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(peticion),
-      // Nadie espera de pie a que una paquetería conteste.
-      signal: AbortSignal.timeout(15000),
-    });
-  } catch (_e) {
-    return json({ error: "La paquetería no respondió. Inténtalo de nuevo." }, 504, origin);
-  }
+  // Una llamada por paquetería, todas a la vez: en serie, diez paqueterías serían diez
+  // esperas seguidas y nadie aguanta eso mirando un botón.
+  const carriers = await listarCarriers();
+  const resultados = await Promise.all(carriers.map((c) => cotizarCon(c, peticion)));
 
-  // Se lee como texto y luego se intenta interpretar. Al revés —pidiendo JSON
-  // directamente— un rechazo que conteste en texto plano o con el cuerpo vacío, que es
-  // lo que suele hacer un 401, se pierde entero y el motivo queda en «null».
-  const textoCrudo = await respuesta.text().catch(() => "");
-  let crudo: Record<string, unknown> | null = null;
-  try {
-    crudo = textoCrudo ? JSON.parse(textoCrudo) : null;
-  } catch (_e) {
-    crudo = null;
-  }
+  const opciones = resultados
+    .flatMap((r) => r.opciones)
+    .sort((a, b) => a.precio - b.precio);
 
-  if (!respuesta.ok) {
-    console.error(
-      "envia /ship/rate",
-      respuesta.status,
-      textoCrudo.slice(0, 2000) || "(cuerpo vacío)",
-    );
+  // Que todas fallen sí es un problema; que fallen algunas es lo normal, porque no
+  // todas cubren todas las rutas.
+  if (opciones.length === 0) {
+    const motivos = resultados
+      .filter((r) => r.motivo)
+      .map((r) => `${r.carrier}: ${r.motivo}`);
+    console.error("envia /ship/rate sin opciones", motivos.join(" | ").slice(0, 2000));
+
     return json(
       {
-        error: "No pudimos cotizar el envío ahora mismo.",
+        error: "No encontramos opciones de envío a ese código postal.",
         // Con el depurador encendido el motivo viaja en la respuesta. Sin esto hay que
         // ir a buscarlo a los registros, que es lo último que apetece cuando lo que
         // falla es justo lo que se está afinando.
-        ...(DEBUG
-          ? {
-            estadoEnvia: respuesta.status,
-            detalle: crudo,
-            // Siempre el texto tal cual, aunque no fuera JSON: es lo único que
-            // garantiza que el motivo no se pierda por el camino.
-            cuerpo: textoCrudo.slice(0, 2000),
-            pista: pistaDe(respuesta.status),
-            peticion,
-          }
-          : {}),
+        ...(DEBUG ? { carriers, motivos, peticion } : {}),
       },
       502,
       origin,
     );
   }
-
-  const tarifas = Array.isArray(crudo?.data) ? (crudo.data as Record<string, unknown>[]) : [];
-  const opciones = tarifas
-    .map((t: Record<string, unknown>) => aOpcion(t))
-    .filter((o: Opcion | null): o is Opcion => o !== null)
-    .sort((a: Opcion, b: Opcion) => a.precio - b.precio);
 
   return json(
     {
@@ -475,7 +570,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       paquete: { peso: paquete.peso, largo: paquete.largo, ancho: paquete.ancho, alto: paquete.alto },
       // Avisa de que lo cotizado es la caja tope y el bulto real la excede.
       recortado: paquete.recortado,
-      ...(DEBUG ? { crudo } : {}),
+      ...(DEBUG
+        ? {
+          carriers,
+          // Qué devolvió cada una. Es lo que dice si una paquetería no sirve la ruta o
+          // es que el nombre con el que la pedimos no es el suyo.
+          porCarrier: resultados.map((r) => ({
+            carrier: r.carrier,
+            tarifas: r.opciones.length,
+            motivo: r.motivo,
+          })),
+        }
+        : {}),
     },
     200,
     origin,
