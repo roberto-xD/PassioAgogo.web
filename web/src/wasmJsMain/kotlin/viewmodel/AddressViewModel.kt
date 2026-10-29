@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import network.AddressCrypto
 import network.AddressRepository
 import network.Direccion
+import network.GeocodeRepository
 import network.SobreDireccion
 
 data class AddressUiState(
@@ -30,6 +31,17 @@ data class AddressUiState(
     val error: String? = null,
     /** El sobre tal cual, para copiarlo a la solicitud sin volver a cifrar. */
     val sobre: SobreDireccion? = null,
+    /** Se está preguntando por el código postal recién escrito. */
+    val buscandoCp: Boolean = false,
+    /**
+     * Ciudad y estado los puso el catálogo de Envia, no la persona. Mientras sea cierto,
+     * esos dos campos se enseñan y no se editan: es justo lo que la paquetería espera
+     * leer, y dejar que se reescriba a mano solo abre la puerta a un «CDMX» que rompa la
+     * guía.
+     */
+    val cpResuelto: Boolean = false,
+    /** Las colonias de ese código postal, para ofrecerlas en vez de pedirlas a ciegas. */
+    val colonias: List<String> = emptyList(),
 ) {
     val puedeGuardar: Boolean
         get() = !guardando && !direccion.vacia
@@ -44,6 +56,7 @@ data class AddressUiState(
  */
 class AddressViewModel(
     private val repository: AddressRepository,
+    private val geocodes: GeocodeRepository = GeocodeRepository(),
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
     private val _uiState = MutableStateFlow(AddressUiState())
@@ -82,11 +95,56 @@ class AddressViewModel(
                     bloqueada = abierta == null,
                 )
             }
+
+            // Se vuelve a preguntar por el código postal de la dirección guardada. Sirve
+            // para traer sus colonias, y de paso rellena el código de estado en los
+            // sobres cerrados antes de que esa columna existiera: a la próxima vez que se
+            // guarde, la dirección queda completa sin que nadie haya tenido que tocarla.
+            abierta?.cp?.takeIf { it.length == 5 }?.let { resolverCp(it) }
         }
     }
 
-    fun editar(bloque: (Direccion) -> Direccion) = _uiState.update {
-        it.copy(direccion = bloque(it.direccion), error = null, mensaje = null)
+    fun editar(bloque: (Direccion) -> Direccion) {
+        val antes = _uiState.value.direccion.cp
+        _uiState.update { it.copy(direccion = bloque(it.direccion), error = null, mensaje = null) }
+
+        val ahora = _uiState.value.direccion.cp
+        if (ahora == antes) return
+
+        // Cambió el código postal: lo que se había resuelto con el anterior ya no vale.
+        _uiState.update { it.copy(cpResuelto = false, colonias = emptyList()) }
+        if (ahora.length == 5) resolverCp(ahora)
+    }
+
+    /**
+     * Pregunta por el código postal y rellena ciudad y estado.
+     *
+     * No pisa la colonia: de un código postal cuelgan varias y elegir una por la persona
+     * sería adivinar. Se le ofrecen y elige.
+     *
+     * Si no hay respuesta no pasa nada: los campos siguen siendo suyos para escribirlos.
+     */
+    private fun resolverCp(cp: String) {
+        _uiState.update { it.copy(buscandoCp = true) }
+        scope.launch {
+            val lugar = geocodes.consultar(cp)
+            _uiState.update { estado ->
+                // Mientras se preguntaba, la persona pudo seguir escribiendo.
+                if (estado.direccion.cp != cp) return@update estado.copy(buscandoCp = false)
+                if (lugar == null) return@update estado.copy(buscandoCp = false)
+
+                estado.copy(
+                    buscandoCp = false,
+                    cpResuelto = true,
+                    colonias = lugar.colonias,
+                    direccion = estado.direccion.copy(
+                        ciudad = lugar.ciudad,
+                        estado = lugar.estado,
+                        estadoCodigo = lugar.estadoCodigo,
+                    ),
+                )
+            }
+        }
     }
 
     /**

@@ -24,6 +24,14 @@ data class Direccion(
     val cp: String = "",
     val ciudad: String = "",
     val estado: String = "",
+    /**
+     * El código de dos letras del estado, el que entiende la paquetería: «CX», no «CDMX».
+     *
+     * Lo resuelve [GeocodeRepository] a partir del código postal; nadie lo teclea. Tiene
+     * valor por defecto para que los sobres guardados antes de que existiera se sigan
+     * abriendo: al volver a guardar la dirección, se rellena solo.
+     */
+    val estadoCodigo: String = "",
     val referencias: String = "",
 ) {
     val vacia: Boolean

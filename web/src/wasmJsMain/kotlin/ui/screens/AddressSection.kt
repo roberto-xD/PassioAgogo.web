@@ -1,8 +1,11 @@
 package ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import network.Direccion
+import ui.Chip
 import ui.components.FormField
 import ui.components.Paragraph
 import ui.components.SectionTitle
@@ -67,7 +71,9 @@ fun DireccionSection(
     val d = state.direccion
     FormField(d.calle, { v -> onEditar { it.copy(calle = v) } }, "Calle y número")
     FormField(d.interior, { v -> onEditar { it.copy(interior = v) } }, "Interior (opcional)")
-    FormField(d.colonia, { v -> onEditar { it.copy(colonia = v) } }, "Colonia")
+
+    // El código postal va antes que la colonia porque la decide: de él cuelgan ciudad,
+    // estado y la lista de colonias que se ofrece debajo.
     FormField(
         value = d.cp,
         onValueChange = { v ->
@@ -76,9 +82,30 @@ fun DireccionSection(
         },
         label = "Código postal",
         keyboardType = KeyboardType.Number,
+        supportingText = when {
+            state.buscandoCp -> "Buscando…"
+            state.cpResuelto -> "${d.ciudad}, ${d.estado}"
+            d.cp.length == 5 -> "No reconocimos este código. Escribe ciudad y estado a mano."
+            else -> null
+        },
     )
-    FormField(d.ciudad, { v -> onEditar { it.copy(ciudad = v) } }, "Ciudad")
-    FormField(d.estado, { v -> onEditar { it.copy(estado = v) } }, "Estado")
+
+    // Resueltos por el catálogo de Envia, no se piden: son exactamente lo que la
+    // paquetería espera leer, y un «CDMX» escrito a mano rompe la guía sin avisar.
+    if (!state.cpResuelto) {
+        FormField(d.ciudad, { v -> onEditar { it.copy(ciudad = v) } }, "Ciudad")
+        FormField(d.estado, { v -> onEditar { it.copy(estado = v) } }, "Estado")
+    }
+
+    FormField(d.colonia, { v -> onEditar { it.copy(colonia = v) } }, "Colonia")
+    // Se ofrecen, no se imponen: el campo sigue siendo de texto por si la colonia de
+    // alguien no está en la lista, que pasa con los fraccionamientos nuevos.
+    if (state.colonias.isNotEmpty()) ColoniaSugerencias(
+        colonias = state.colonias,
+        elegida = d.colonia,
+        onElegir = { v -> onEditar { it.copy(colonia = v) } },
+    )
+
     FormField(
         value = d.referencias,
         onValueChange = { v -> onEditar { it.copy(referencias = v) } },
@@ -130,6 +157,32 @@ fun DireccionSection(
             ) {
                 Text("Eliminar", style = MaterialTheme.typography.labelLarge)
             }
+        }
+    }
+}
+
+/** Las colonias del código postal, para elegir con un toque en vez de teclearlas. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ColoniaSugerencias(
+    colonias: List<String>,
+    elegida: String,
+    onElegir: (String) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = PassionTheme.spacing.s2),
+        horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s2),
+        verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s2),
+    ) {
+        colonias.forEach { colonia ->
+            Chip(
+                label = colonia,
+                selected = colonia.equals(elegida, ignoreCase = true),
+                secondLevel = true,
+                onClick = { onElegir(colonia) },
+            )
         }
     }
 }
