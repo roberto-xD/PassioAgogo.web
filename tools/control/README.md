@@ -50,12 +50,29 @@ when (val r = api.generarGuia(solicitudId = solicitud.id, direccion = direccion)
     is ResultadoGuia.Fallo -> avisar(r.mensaje)
 }
 
-// 3. Al final del día, una recolección por paquetería.
-val r = api.solicitarRecoleccion(
-    solicitudIds = pedidosDeEstafeta.map { it.id },
-    fecha = "2026-11-03",
-)
+// 3. Al final del día: ver qué espera y pedir una recolección por paquetería.
+val pendientes = api.pendientesDeRecoleccion()
+for (paqueteria in pendientes.map { it.paqueteria }.distinct()) {
+    api.solicitarRecoleccion(fecha = "2026-11-03", paqueteria = paqueteria)
+}
 ```
+
+## Recoger o llevar a sucursal
+
+La decisión se toma **al generar la guía**, que es cuando se sabe con qué paquetería va
+y si esa recoge. Pero marcarlo no la pide:
+
+```kotlin
+api.generarGuia(solicitudId = id, direccion = direccion, recoleccion = true)
+```
+
+Eso solo lo anota. La recolección se pide después y **en lote**, porque Envia agrupa
+varias guías en una sola si son de la misma paquetería y salen del mismo sitio. Pedir
+una por pedido sería un camión por paquete.
+
+Lo marcado y todavía sin pedir sale en `v_recolecciones_pendientes`, que es lo que lee
+`pendientesDeRecoleccion()`. Lo que se lleva a sucursal se genera con
+`recoleccion = false` y no vuelve a aparecer en esa lista.
 
 ## Lo que conviene saber antes de usarlo
 

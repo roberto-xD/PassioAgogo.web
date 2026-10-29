@@ -107,6 +107,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // ---- lo que se pide ----
   let cuerpo: {
     solicitudes?: unknown;
+    paqueteria?: unknown;
     fecha?: unknown;
     desde?: unknown;
     hasta?: unknown;
@@ -117,11 +118,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ error: "Petición ilegible" }, 400);
   }
 
-  const ids = (Array.isArray(cuerpo.solicitudes) ? cuerpo.solicitudes : [])
+  const idsPedidos = (Array.isArray(cuerpo.solicitudes) ? cuerpo.solicitudes : [])
     .map((v) => String(v ?? "").trim())
     .filter((v) => v.length > 0);
-  if (ids.length === 0 || ids.length > MAX_GUIAS) {
-    return json({ error: "Indica entre 1 y 50 solicitudes." }, 400);
+  const paqueteriaPedida = String(cuerpo.paqueteria ?? "").trim().toLowerCase();
+
+  // O se dicen las solicitudes, o se dice la paquetería y se toman todas las suyas que
+  // estén esperando. Lo segundo es lo que se hace al final del día.
+  if (idsPedidos.length === 0 && !paqueteriaPedida) {
+    return json({
+      error: "Indica las solicitudes, o la paquetería para recoger todas las suyas.",
+    }, 400);
+  }
+  if (idsPedidos.length > MAX_GUIAS) {
+    return json({ error: `No más de ${MAX_GUIAS} solicitudes por recolección.` }, 400);
   }
 
   const fecha = String(cuerpo.fecha ?? "").trim();
@@ -140,28 +150,53 @@ Deno.serve(async (req: Request): Promise<Response> => {
   );
 
   // ---- las guías ----
-  const { data: filas } = await supabase
+  const consulta = supabase
     .from("order_requests")
-    .select("id, folio, guia_numero, guia_paqueteria, recoleccion_id")
-    .in("id", ids);
+    .select("id, folio, guia_numero, guia_paqueteria, recoleccion_id");
+
+  const { data: filas } = idsPedidos.length > 0
+    ? await consulta.in("id", idsPedidos)
+    // Por paquetería: las que tienen guía, están marcadas para recolección y aún no se
+    // han pedido. Es lo mismo que enseña `v_recolecciones_pendientes`.
+    : await consulta
+      .eq("guia_paqueteria", paqueteriaPedida)
+      .eq("necesita_recoleccion", true)
+      .is("recoleccion_id", null)
+      .not("guia_numero", "is", null)
+      .limit(MAX_GUIAS);
+
   const solicitudes = (filas ?? []) as FilaGuia[];
 
-  const sinGuia = solicitudes.filter((s) => !s.guia_numero);
-  if (solicitudes.length !== ids.length || sinGuia.length > 0) {
+  if (solicitudes.length === 0) {
     return json({
-      error: "Hay solicitudes sin guía generada. Genera primero las guías.",
-      folios: sinGuia.map((s) => s.folio),
+      error: idsPedidos.length > 0
+        ? "No encontramos esas solicitudes."
+        : `No hay guías de ${paqueteriaPedida} esperando recolección.`,
     }, 409);
   }
 
-  // Ya recogidas: se avisa en vez de pedir el camión dos veces.
-  const yaPedidas = solicitudes.filter((s) => s.recoleccion_id);
-  if (yaPedidas.length > 0) {
-    return json({
-      error: "Algunas ya están en una recolección pedida.",
-      folios: yaPedidas.map((s) => s.folio),
-    }, 409);
+  // Al pedir por lista, lo que falte importa; al pedir por paquetería, la consulta ya
+  // filtró y no hay nada que reprochar.
+  if (idsPedidos.length > 0) {
+    const sinGuia = solicitudes.filter((s) => !s.guia_numero);
+    if (solicitudes.length !== idsPedidos.length || sinGuia.length > 0) {
+      return json({
+        error: "Hay solicitudes sin guía generada. Genera primero las guías.",
+        folios: sinGuia.map((s) => s.folio),
+      }, 409);
+    }
+
+    // Ya recogidas: se avisa en vez de pedir el camión dos veces.
+    const yaPedidas = solicitudes.filter((s) => s.recoleccion_id);
+    if (yaPedidas.length > 0) {
+      return json({
+        error: "Algunas ya están en una recolección pedida.",
+        folios: yaPedidas.map((s) => s.folio),
+      }, 409);
+    }
   }
+
+  const ids = solicitudes.map((s) => s.id);
 
   // Envia exige una sola paquetería por recolección: mezclarlas devolvería un error
   // suyo mucho menos claro que este.

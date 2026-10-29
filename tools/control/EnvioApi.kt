@@ -3,6 +3,7 @@ package com.passioagogo.control.envio
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.functions.functions
+import io.github.jan.supabase.postgrest.from
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
@@ -53,10 +54,19 @@ class EnvioApi(private val supabase: SupabaseClient) {
         direccion: DireccionEnClaro,
         carrier: String? = null,
         servicio: String? = null,
+        /**
+         * Marca el pedido para que pasen a recogerlo.
+         *
+         * **No pide la recolección**, solo la anota. Envia agrupa varias guías en una
+         * sola si son de la misma paquetería y salen del mismo sitio, y pedir una por
+         * pedido sería un camión por paquete. Lo marcado se recoge después con
+         * [solicitarRecoleccion], y mientras tanto sale en [pendientesDeRecoleccion].
+         */
+        recoleccion: Boolean = false,
     ): ResultadoGuia = llamar("generar-guia") {
         json.encodeToString(
             PeticionGuia.serializer(),
-            PeticionGuia(solicitudId, direccion, carrier, servicio),
+            PeticionGuia(solicitudId, direccion, carrier, servicio, recoleccion),
         )
     }.fold(
         alOk = { cuerpo ->
@@ -72,7 +82,23 @@ class EnvioApi(private val supabase: SupabaseClient) {
     )
 
     /**
-     * Pide que pasen a recoger varias guías de una vez.
+     * Lo que está marcado para recolección y todavía no se ha pedido.
+     *
+     * Lee la vista `v_recolecciones_pendientes`, que ya trae solo lo que tiene guía,
+     * está marcado y sigue esperando. Es la lista del final del día: se agrupa por
+     * paquetería y se pide una recolección por cada grupo.
+     */
+    suspend fun pendientesDeRecoleccion(): List<GuiaPendiente> = runCatching {
+        supabase.from("v_recolecciones_pendientes")
+            .select()
+            .decodeList<GuiaPendiente>()
+    }.getOrDefault(emptyList())
+
+    /**
+     * Pide que pasen a recoger.
+     *
+     * Dos formas: con [solicitudIds] para unas concretas, o con [paqueteria] para todas
+     * las suyas que estén esperando —que es lo normal al final del día—.
      *
      * Todas tienen que ser **de la misma paquetería**: Envia agrupa por paquetería y
      * dirección de origen. Si se mezclan, la función lo dice antes de llamar a Envia.
@@ -81,14 +107,15 @@ class EnvioApi(private val supabase: SupabaseClient) {
      * servidor; se indican aquí solo para acotarla.
      */
     suspend fun solicitarRecoleccion(
-        solicitudIds: List<String>,
         fecha: String,
+        solicitudIds: List<String> = emptyList(),
+        paqueteria: String? = null,
         desde: String? = null,
         hasta: String? = null,
     ): ResultadoRecoleccion = llamar("solicitar-recoleccion") {
         json.encodeToString(
             PeticionRecoleccion.serializer(),
-            PeticionRecoleccion(solicitudIds, fecha, desde, hasta),
+            PeticionRecoleccion(solicitudIds, paqueteria, fecha, desde, hasta),
         )
     }.fold(
         alOk = { cuerpo ->
@@ -181,14 +208,27 @@ private data class PeticionGuia(
     val direccion: DireccionEnClaro,
     val carrier: String? = null,
     val service: String? = null,
+    val recoleccion: Boolean = false,
 )
 
 @Serializable
 private data class PeticionRecoleccion(
     val solicitudes: List<String>,
+    val paqueteria: String? = null,
     val fecha: String,
     val desde: String? = null,
     val hasta: String? = null,
+)
+
+/** Una guía esperando recolección, de `v_recolecciones_pendientes`. */
+@Serializable
+data class GuiaPendiente(
+    val id: String = "",
+    val folio: Long = 0,
+    @SerialName("guia_paqueteria") val paqueteria: String = "",
+    @SerialName("guia_numero") val numero: String = "",
+    @SerialName("guia_generada_en") val generadaEn: String = "",
+    @SerialName("cliente_nombre") val cliente: String = "",
 )
 
 @Serializable

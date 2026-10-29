@@ -217,7 +217,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   // ---- lo que se pide ----
-  let cuerpo: { solicitudId?: unknown; direccion?: unknown; carrier?: unknown; service?: unknown };
+  let cuerpo: {
+    solicitudId?: unknown;
+    direccion?: unknown;
+    carrier?: unknown;
+    service?: unknown;
+    recoleccion?: unknown;
+  };
   try {
     cuerpo = await req.json();
   } catch (_e) {
@@ -443,6 +449,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       guia_costo: guia.costo,
       guia_envia_id: guia.enviaId,
       guia_generada_en: new Date().toISOString(),
+      // Se marca ahora, que es cuando se sabe con qué paquetería va, pero **no se pide
+      // aquí**: Envia agrupa varias guías en una sola recolección si son de la misma
+      // paquetería y salen del mismo sitio, y pedir una por pedido sería un camión por
+      // paquete. La lista de lo pendiente está en `v_recolecciones_pendientes`.
+      necesita_recoleccion: cuerpo.recoleccion === true,
     })
     .eq("id", solicitudId);
 
