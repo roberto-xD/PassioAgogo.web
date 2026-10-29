@@ -31,7 +31,17 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const ENVIA_TOKEN = Deno.env.get("ENVIA_TOKEN") ?? "";
+/**
+ * El token, limpio de lo que suele venirse pegado al copiarlo.
+ *
+ * Un espacio al final, un salto de línea o un «Bearer » delante sobreviven al
+ * copiar-y-pegar sin verse, y Envia los rechaza con un 401 idéntico al de un token
+ * equivocado. Quitarlos aquí ahorra buscar el error donde no está.
+ */
+const ENVIA_TOKEN = (Deno.env.get("ENVIA_TOKEN") ?? "")
+  .trim()
+  .replace(/^Bearer\s+/i, "")
+  .trim();
 const ENVIA_BASE = (Deno.env.get("ENVIA_BASE_URL") ?? "https://api-test.envia.com")
   .replace(/\/+$/, "");
 const DEBUG = Deno.env.get("ENVIA_DEBUG") === "1";
@@ -221,6 +231,30 @@ async function lugarDe(cp: string): Promise<{ ciudad: string; estado: string } |
   }
 }
 
+/**
+ * Qué mirar según cómo rechazó Envia.
+ *
+ * Solo aparece con el depurador encendido. No adivina el fallo: dice dónde buscarlo,
+ * que es lo que se agradece cuando el cuerpo de la respuesta viene vacío.
+ */
+function pistaDe(estado: number): string | undefined {
+  if (estado === 401 || estado === 403) {
+    return "Envia rechazó el token, no la petición. Lo más común es que el token y la " +
+      "URL sean de entornos distintos: los de sandbox no sirven en producción ni al " +
+      `revés. Ahora mismo se está llamando a ${ENVIA_BASE}, así que ENVIA_TOKEN tiene ` +
+      "que ser el de ese entorno. Revisa también que el secret no lleve espacios ni " +
+      "comillas alrededor.";
+  }
+  if (estado === 400 || estado === 422) {
+    return "Envia aceptó el token y rechazó los datos. El motivo suele venir en " +
+      "`detalle`; mira qué campo nombra.";
+  }
+  if (estado >= 500) {
+    return "El fallo es de Envia, no nuestro. Reintentar más tarde.";
+  }
+  return undefined;
+}
+
 /** Normaliza una tarifa de Envia a lo poco que la pantalla enseña. */
 function aOpcion(t: Record<string, unknown>): Opcion | null {
   const precio = Number(t.totalPrice ?? t.total_price ?? t.price ?? NaN);
@@ -389,25 +423,47 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ error: "La paquetería no respondió. Inténtalo de nuevo." }, 504, origin);
   }
 
-  const crudo = await respuesta.json().catch(() => null);
+  // Se lee como texto y luego se intenta interpretar. Al revés —pidiendo JSON
+  // directamente— un rechazo que conteste en texto plano o con el cuerpo vacío, que es
+  // lo que suele hacer un 401, se pierde entero y el motivo queda en «null».
+  const textoCrudo = await respuesta.text().catch(() => "");
+  let crudo: Record<string, unknown> | null = null;
+  try {
+    crudo = textoCrudo ? JSON.parse(textoCrudo) : null;
+  } catch (_e) {
+    crudo = null;
+  }
+
   if (!respuesta.ok) {
-    // El detalle se queda en los registros: a quien compra no le dice nada, y repetirlo
-    // en pantalla solo enseña cómo está armada la petición.
-    console.error("envia /ship/rate", respuesta.status, JSON.stringify(crudo));
+    console.error(
+      "envia /ship/rate",
+      respuesta.status,
+      textoCrudo.slice(0, 2000) || "(cuerpo vacío)",
+    );
     return json(
       {
         error: "No pudimos cotizar el envío ahora mismo.",
         // Con el depurador encendido el motivo viaja en la respuesta. Sin esto hay que
         // ir a buscarlo a los registros, que es lo último que apetece cuando lo que
         // falla es justo lo que se está afinando.
-        ...(DEBUG ? { estadoEnvia: respuesta.status, detalle: crudo, peticion } : {}),
+        ...(DEBUG
+          ? {
+            estadoEnvia: respuesta.status,
+            detalle: crudo,
+            // Siempre el texto tal cual, aunque no fuera JSON: es lo único que
+            // garantiza que el motivo no se pierda por el camino.
+            cuerpo: textoCrudo.slice(0, 2000),
+            pista: pistaDe(respuesta.status),
+            peticion,
+          }
+          : {}),
       },
       502,
       origin,
     );
   }
 
-  const tarifas = Array.isArray(crudo?.data) ? crudo.data : [];
+  const tarifas = Array.isArray(crudo?.data) ? (crudo.data as Record<string, unknown>[]) : [];
   const opciones = tarifas
     .map((t: Record<string, unknown>) => aOpcion(t))
     .filter((o: Opcion | null): o is Opcion => o !== null)
