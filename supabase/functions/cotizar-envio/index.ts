@@ -58,6 +58,36 @@ interface Renglon {
   cantidad: number;
 }
 
+/**
+ * Las filas que se leen, escritas a mano.
+ *
+ * El cliente de Supabase no conoce el esquema, así que sin esto todo lo que vuelve es
+ * «algo»: el compilador no avisaría de un nombre de columna mal escrito y el fallo
+ * aparecería en producción como un campo vacío en la petición a la paquetería.
+ */
+interface FilaOrigen {
+  nombre: string | null;
+  contacto: string | null;
+  telefono: string | null;
+  calle: string | null;
+  numero: string | null;
+  interior: string | null;
+  colonia: string | null;
+  ciudad: string | null;
+  estado_codigo: string | null;
+  cp: string | null;
+  pais: string | null;
+}
+
+interface FilaVariante {
+  id: string;
+  precio_venta: number | null;
+  peso_gr: number;
+  largo_cm: number;
+  ancho_cm: number;
+  alto_cm: number;
+}
+
 interface Opcion {
   paqueteria: string;
   servicio: string;
@@ -164,6 +194,33 @@ export function armarPaquete(
   };
 }
 
+/**
+ * Ciudad y estado del código postal de destino, del catálogo público de Envia.
+ *
+ * Una cotización por código postal debería bastar, pero varias paqueterías validan la
+ * dirección entera antes de dar precio y rechazan la petición si llega a medias. Esto la
+ * completa sin pedirle nada más a la persona: el domicilio sigue sin salir de su sobre,
+ * porque de un código postal no se deduce una puerta.
+ *
+ * Si no contesta se sigue adelante con lo que haya: mejor intentar la cotización que no
+ * intentarla.
+ */
+async function lugarDe(cp: string): Promise<{ ciudad: string; estado: string } | null> {
+  try {
+    const r = await fetch(`https://geocodes.envia.com/zipcode/MX/${cp}`, {
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!r.ok) return null;
+    const filas = await r.json();
+    const fila = Array.isArray(filas) ? filas[0] : null;
+    const codigo = fila?.state?.code?.["2digit"] ?? "";
+    if (!codigo) return null;
+    return { ciudad: fila.locality ?? "", estado: codigo };
+  } catch (_e) {
+    return null;
+  }
+}
+
 /** Normaliza una tarifa de Envia a lo poco que la pantalla enseña. */
 function aOpcion(t: Record<string, unknown>): Opcion | null {
   const precio = Number(t.totalPrice ?? t.total_price ?? t.price ?? NaN);
@@ -230,7 +287,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   );
 
   // ---- el origen: la ubicación marcada como tal ----
-  const { data: origen } = await supabase
+  const { data: filaOrigen } = await supabase
     .from("locations")
     .select(
       "nombre, contacto, telefono, calle, numero, interior, colonia, ciudad, " +
@@ -238,6 +295,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     )
     .eq("es_origen", true)
     .maybeSingle();
+  const origen = filaOrigen as FilaOrigen | null;
 
   if (!origen?.cp || !origen?.estado_codigo || !origen?.telefono) {
     return json(
@@ -249,22 +307,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   // ---- los pesos: de la base, nunca del navegador ----
   const ids = renglones.map((r) => r.variantId);
-  const { data: variantes } = await supabase
+  const { data: filasVariantes } = await supabase
     .from("product_variants")
     .select("id, precio_venta, peso_gr, largo_cm, ancho_cm, alto_cm")
     .in("id", ids);
+  const variantes = (filasVariantes ?? []) as FilaVariante[];
 
-  const porId = new Map((variantes ?? []).map((v) => [v.id as string, v]));
+  const porId = new Map(variantes.map((v) => [v.id, v]));
   if (porId.size !== new Set(ids).size) {
     return json({ error: "Alguno de los artículos ya no está disponible." }, 409, origin);
   }
 
   const filas = renglones.map((r) => porId.get(r.variantId)!);
   const cantidades = renglones.map((r) => r.cantidad);
-  const paquete = armarPaquete(
-    filas as Array<{ peso_gr: number; largo_cm: number; ancho_cm: number; alto_cm: number }>,
-    cantidades,
-  );
+  const paquete = armarPaquete(filas, cantidades);
 
   const valor = renglones.reduce((suma, r) => {
     const precio = Number(porId.get(r.variantId)?.precio_venta ?? 0);
@@ -272,6 +328,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }, 0);
 
   // ---- la petición a Envia ----
+  const destino = await lugarDe(cpDestino);
+
   // Sin `carrier`: así devuelve todas las paqueterías de la ruta y se eligen por precio.
   const peticion = {
     origin: {
@@ -287,13 +345,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       postalCode: origen.cp,
     },
     destination: {
-      // De la persona solo se manda lo que hace falta para saber cuánto cuesta llegar
-      // a su código postal. Nombre, calle y teléfono no se necesitan para cotizar.
+      // De la persona no viaja nada suyo: ni su nombre, ni su calle, ni su teléfono.
+      // Para cotizar basta con saber a qué código postal hay que llegar, y ciudad y
+      // estado salen de ese mismo código, no de su dirección.
       name: "Destinatario",
       phone: origen.telefono,
-      street: "",
-      city: "",
-      state: "",
+      street: "Domicilio conocido",
+      city: destino?.ciudad ?? "",
+      state: destino?.estado ?? "",
       country: "MX",
       postalCode: cpDestino,
     },
@@ -335,7 +394,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // El detalle se queda en los registros: a quien compra no le dice nada, y repetirlo
     // en pantalla solo enseña cómo está armada la petición.
     console.error("envia /ship/rate", respuesta.status, JSON.stringify(crudo));
-    return json({ error: "No pudimos cotizar el envío ahora mismo." }, 502, origin);
+    return json(
+      {
+        error: "No pudimos cotizar el envío ahora mismo.",
+        // Con el depurador encendido el motivo viaja en la respuesta. Sin esto hay que
+        // ir a buscarlo a los registros, que es lo último que apetece cuando lo que
+        // falla es justo lo que se está afinando.
+        ...(DEBUG ? { estadoEnvia: respuesta.status, detalle: crudo, peticion } : {}),
+      },
+      502,
+      origin,
+    );
   }
 
   const tarifas = Array.isArray(crudo?.data) ? crudo.data : [];
