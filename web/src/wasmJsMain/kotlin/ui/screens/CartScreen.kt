@@ -480,7 +480,12 @@ private fun OpcionesDeEnvio(
     )
 
     if (verAviso) {
-        BottomSheet(title = "Sobre los tiempos de entrega", onDismiss = { verAviso = false }) {
+        BottomSheet(
+            title = "Sobre los tiempos de entrega",
+            onDismiss = { verAviso = false },
+            // Un párrafo no llena una hoja al 85%: así mide lo que mide el texto.
+            altoFijo = false,
+        ) {
             Paragraph(AVISO_TIEMPOS)
         }
     }

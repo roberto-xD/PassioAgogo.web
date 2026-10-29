@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -62,6 +64,15 @@ private const val ALTO_MAXIMO = 0.85f
 fun BottomSheet(
     title: String,
     onDismiss: () -> Unit,
+    /**
+     * La hoja ocupa siempre el alto máximo.
+     *
+     * Es lo que quieren las bases de la ruleta, que son once cláusulas y llenan la
+     * pantalla. Para un texto corto deja un palmo de blanco debajo y se lee como una
+     * hoja a medio cargar: esos pasan `false` y la hoja mide lo que su contenido, sin
+     * pasar nunca del máximo.
+     */
+    altoFijo: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(
@@ -82,7 +93,7 @@ fun BottomSheet(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 // Pulsar fuera cierra. Sin indicación: no es un botón, no debe parpadear.
@@ -93,13 +104,21 @@ fun BottomSheet(
                 ),
             contentAlignment = Alignment.BottomCenter,
         ) {
+            // Sin alto fijo la hoja crece con su texto, pero nunca más allá del tope:
+            // una hoja más alta que la pantalla no se podría cerrar tocando fuera.
+            val alto = if (altoFijo) {
+                Modifier.fillMaxHeight(ALTO_MAXIMO)
+            } else {
+                Modifier.heightIn(max = maxHeight * ALTO_MAXIMO)
+            }
+
             Surface(
                 shape = shape,
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
                     .widthIn(max = SHEET_MAX_WIDTH)
                     .fillMaxWidth()
-                    .fillMaxHeight(ALTO_MAXIMO)
+                    .then(alto)
                     .graphicsLayer { translationY = fuera * size.height }
                     // Traga la pulsación: dentro de la hoja tocar no cierra nada.
                     .clickable(
@@ -108,7 +127,7 @@ fun BottomSheet(
                         onClick = {},
                     ),
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

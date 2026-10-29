@@ -221,8 +221,8 @@ fun DireccionTexto(d: Direccion) {
         .joinToString(", ")
     val lugar = listOf(
         d.colonia,
-        listOf(d.cp, d.ciudad).filter { it.isNotBlank() }.joinToString(" "),
-        d.estado,
+        listOf(d.cp, lugarLegible(d.ciudad, d.estado)).filter { it.isNotBlank() }
+            .joinToString(" "),
     ).filter { it.isNotBlank() }.joinToString(", ")
 
     listOf(calle, lugar).filter { it.isNotBlank() }.forEach { linea ->
