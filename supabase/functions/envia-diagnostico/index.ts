@@ -102,14 +102,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ error: "Solo administración." }, 403);
   }
 
-  const pais = new URL(req.url).searchParams.get("pais")?.toUpperCase() || "MX";
+  const params = new URL(req.url).searchParams;
+  const pais = params.get("pais")?.toUpperCase() || "MX";
+  // Id de paquetería para preguntar qué deja hacer. Estafeta MX es la 11, y es la que
+  // nos rechazó la guía, así que es el caso de prueba natural.
+  const carrierId = params.get("carrier") ?? "11";
 
-  // Las dos preguntas que importan: con quién se puede trabajar, y qué deja hacer cada
-  // uno. La segunda es la que habría avisado de lo de Estafeta sin gastar una guía.
-  const [paqueterias, servicios] = await Promise.all([
-    consultar("/carrier"),
-    consultar(`/available-service/${pais}`),
-  ]);
+  // `/available-service/{pais}` contestó 404: la ruta documentada no existe en este
+  // host. En vez de adivinar una por una, se prueban las candidatas de golpe y se
+  // enseña cuál responde. Son consultas de solo lectura: probar no rompe nada.
+  const rutas = [
+    "/carrier",
+    `/available-service/${pais}`,
+    `/service?country_code=${pais}`,
+    "/service",
+    `/carrier-actions/${carrierId}`,
+    `/carrier/${carrierId}/actions`,
+    `/carrier-service?carrier_id=${carrierId}`,
+  ];
+
+  const respuestas = await Promise.all(rutas.map((r) => consultar(r)));
+  const paqueterias = respuestas[0];
 
   return json({
     entorno: {
@@ -118,8 +131,42 @@ Deno.serve(async (req: Request): Promise<Response> => {
       envios: ENVIA_BASE,
       consultas: ENVIA_QUERIES,
       esSandbox: ENVIA_BASE.includes("api-test"),
+      pais,
     },
-    paqueterias,
-    servicios,
+    // Resumen primero: con doscientas paqueterías, el detalle no cabe en una pantalla.
+    resumen: resumir(paqueterias.cuerpo, pais),
+    // Qué ruta contesta y cuál no. Las que den 200 son las que sirven.
+    rutas: respuestas.map((r) => ({
+      ruta: r.url.replace(ENVIA_QUERIES, ""),
+      estado: r.estado,
+      ok: r.ok,
+      // De las que funcionen, lo justo para ver la forma; el catálogo entero no.
+      muestra: r.ok ? recortar(r.cuerpo) : r.cuerpo,
+    })),
   }, 200);
 });
+
+/** Las paqueterías del país, que son las únicas con las que se va a cotizar. */
+function resumir(cuerpo: unknown, pais: string) {
+  const filas = (cuerpo as { data?: unknown })?.data;
+  if (!Array.isArray(filas)) return { total: 0, delPais: [] as string[] };
+
+  const delPais = filas
+    .filter((f) => String(f?.country_code ?? "").toUpperCase() === pais)
+    .map((f) => String(f?.name ?? "").trim())
+    .filter((n) => n && !n.startsWith("_test"));
+
+  return {
+    total: filas.length,
+    delPais: [...new Set(delPais)].sort(),
+  };
+}
+
+/** Lo justo para reconocer la forma de una respuesta sin volcar un catálogo entero. */
+function recortar(cuerpo: unknown): unknown {
+  const filas = (cuerpo as { data?: unknown })?.data;
+  if (Array.isArray(filas)) {
+    return { total: filas.length, primeras: filas.slice(0, 3) };
+  }
+  return cuerpo;
+}

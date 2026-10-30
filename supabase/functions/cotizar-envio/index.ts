@@ -80,6 +80,22 @@ const CARRIERS_FIJOS = (Deno.env.get("ENVIA_CARRIERS") ?? "")
  */
 const CARRIERS_DE_RESPALDO = ["fedex", "dhl", "estafeta", "redpack", "paquetexpress"];
 
+/** País de la tienda. El catálogo es mundial y solo interesa una parte. */
+const PAIS = (Deno.env.get("ENVIA_PAIS") ?? "MX").toUpperCase();
+
+/**
+ * Tope de paqueterías a consultar por cotización.
+ *
+ * El catálogo trae más de doscientas, y unas cuarenta solo de México. Cotizar es **una
+ * llamada por paquetería**: sin tope, cada vez que alguien pulsa «Ver opciones de envío»
+ * se abren cuarenta peticiones a Envia, la mayoría a empresas sin contrato. Tarda, y es
+ * ruido que no se pidió.
+ *
+ * Lo sensato en producción es fijar `ENVIA_CARRIERS` con las que de verdad se usan; este
+ * tope es la red para cuando no está puesto.
+ */
+const MAX_CARRIERS = Number(Deno.env.get("ENVIA_MAX_CARRIERS") ?? "8");
+
 /** Tope de opciones en la lista final. */
 const MAX_OPCIONES = Number(Deno.env.get("ENVIA_MAX_OPCIONES") ?? "8");
 
@@ -446,20 +462,27 @@ async function listarCarriers(): Promise<string[]> {
       // El nombre del campo no está documentado, así que se prueban los candidatos
       // razonables antes de darse por vencido.
       const nombres = filas
+        // El catálogo es mundial: una paquetería chilena no lleva un paquete de la
+        // Ciudad de México a Morelia, y preguntárselo es una llamada tirada.
+        .filter((f: Record<string, unknown>) =>
+          String(f?.country_code ?? "").toUpperCase() === PAIS
+        )
         .map((f: Record<string, unknown>) => {
           const clave = String(f?.carrier ?? f?.name ?? f?.code ?? "").trim().toLowerCase();
-          if (clave) {
+          // Envia deja en su catálogo de pruebas unas entradas `_test_tp_carrier`.
+          if (clave && !clave.startsWith("_test")) {
             marcas.set(clave, {
               nombre: String(f?.carrierDescription ?? f?.description ?? f?.name ?? "").trim(),
               logo: logoDe(f),
             });
+            return clave;
           }
-          return clave;
+          return "";
         })
         .filter((n: string) => n.length > 0);
 
       if (nombres.length > 0) {
-        carriersEnMemoria = [...new Set(nombres)] as string[];
+        carriersEnMemoria = [...new Set(nombres)].slice(0, MAX_CARRIERS) as string[];
         return carriersEnMemoria;
       }
     }
@@ -574,9 +597,11 @@ function aOpcion(t: Record<string, unknown>, carrier: string): Opcion | null {
     // de los dos, la clave con la inicial en mayúscula antes que «fedex» en minúsculas.
     nombre: String(t.carrierDescription ?? marca?.nombre ?? "").trim() ||
       clave.replace(/^./, (c) => c.toUpperCase()),
-    // Lo que diga el catálogo manda; si calla —que es lo que pasa hoy, porque la
-    // consulta de paqueterías no contesta—, se arma por nombre.
-    logo: marca?.logo || logoDeCarrier(clave),
+    // **El bucket propio gana al catálogo.** El catálogo sí trae logo, pero son los
+    // SVG de Envia, que colorean con clases CSS y salen en negro. Si hay `ENVIA_LOGOS_URL`
+    // configurado es justo para sustituirlos; dejar que el catálogo pisara esa URL
+    // devolvería los cuadros negros sin que nadie entendiera por qué.
+    logo: logoDeCarrier(clave) || marca?.logo || "",
     servicio: String(t.service ?? "").trim(),
     // Envia devuelve descripciones con espacios de sobra («DHL Economy »).
     descripcion: String(t.serviceDescription ?? t.service_description ?? "").trim(),
