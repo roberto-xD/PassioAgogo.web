@@ -195,6 +195,34 @@ jtexpress door_to_door</textarea>
   </fieldset>
 
   <fieldset>
+    <legend>5 · Recolección</legend>
+    <p class="sub" style="margin:0 0 8px">
+      Para las solicitudes que ya tengan guía. Envia agrupa por paquetería y dirección
+      de origen, así que si indicas varias tienen que ser todas de la misma.
+    </p>
+    <div class="fila">
+      <div>
+        <label for="recFecha">Fecha</label>
+        <input id="recFecha" type="date">
+      </div>
+      <div>
+        <label for="recDesde">Desde</label>
+        <input id="recDesde" type="time" value="10:00">
+      </div>
+      <div>
+        <label for="recHasta">Hasta</label>
+        <input id="recHasta" type="time" value="18:00">
+      </div>
+    </div>
+    <label for="recPaqueteria">
+      Paquetería — vacío usa la solicitud de arriba; con nombre, todas las suyas que esperen
+    </label>
+    <input id="recPaqueteria" placeholder="dhl">
+    <button class="suave" id="recoger" disabled>Pedir recolección</button>
+    <p class="estado" id="estadoRec"></p>
+  </fieldset>
+
+  <fieldset>
     <legend>Diagnóstico</legend>
     <p class="sub" style="margin:0 0 8px">
       Qué paqueterías y servicios hay en el entorno que se está usando. Solo lee: no
@@ -240,6 +268,7 @@ $('entrar').onclick = async () => {
     $('generar').disabled = false;
     $('diagnostico').disabled = false;
     $('barrer').disabled = false;
+    $('recoger').disabled = false;
     decir('estadoAcceso', `Sesión abierta como ${d.user?.email ?? 'admin'}.`, 'bien');
   } catch (e) {
     decir('estadoAcceso', 'No se pudo conectar: ' + e.message, 'mal');
@@ -347,6 +376,46 @@ $('barrer').onclick = async () => {
   }
 
   decir('estadoGuia', 'Ninguna generó guía. Mira la lista de motivos.', 'mal');
+};
+
+$('recoger').onclick = async () => {
+  const fecha = $('recFecha').value;
+  if (!fecha) return decir('estadoRec', 'Falta la fecha.', 'mal');
+
+  const paqueteria = $('recPaqueteria').value.trim();
+  const cuerpo = { fecha, desde: $('recDesde').value, hasta: $('recHasta').value };
+  // O por paquetería —todas las que esperen— o la solicitud concreta de arriba.
+  if (paqueteria) cuerpo.paqueteria = paqueteria;
+  else if ($('solicitud').value.trim()) cuerpo.solicitudes = [$('solicitud').value.trim()];
+  else return decir('estadoRec', 'Indica una paquetería o un id de solicitud.', 'mal');
+
+  decir('estadoRec', 'Pidiendo la recolección…');
+  try {
+    const r = await fetch(`${base()}/functions/v1/solicitar-recoleccion`, {
+      method: 'POST',
+      headers: {
+        'apikey': $('anon').value.trim(),
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(cuerpo),
+    });
+    const texto = await r.text();
+    let d = null;
+    try { d = JSON.parse(texto); } catch (_e) { /* se enseña crudo */ }
+    $('salida').textContent = d ? JSON.stringify(d, null, 2) : texto;
+
+    if (r.ok && d?.recoleccion?.confirmacion) {
+      decir('estadoRec',
+        `Agendada: ${d.recoleccion.confirmacion} · ${d.recoleccion.guias} guía(s)`, 'bien');
+      if (d.aviso) decir('estadoRec', d.aviso, 'mal');
+    } else {
+      decir('estadoRec',
+        [d?.motivo, d?.error].filter(Boolean)[0] || `HTTP ${r.status}`, 'mal');
+    }
+  } catch (e) {
+    decir('estadoRec', 'No se pudo conectar: ' + e.message, 'mal');
+  }
 };
 
 $('diagnostico').onclick = async () => {
