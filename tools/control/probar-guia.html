@@ -325,6 +325,10 @@ function cuerpoGuia(carrier, service) {
   };
   if (carrier) c.carrier = carrier;
   if (service) c.service = service;
+  // El barrido prueba paqueterías que no son la que eligió el cliente, y la función
+  // lo rechaza si no se dice a propósito. Aquí es deliberado: se está buscando cuál
+  // genera. En producción ese cambio hay que decidirlo pedido a pedido.
+  if (carrier) c.permitirCambio = true;
   return c;
 }
 

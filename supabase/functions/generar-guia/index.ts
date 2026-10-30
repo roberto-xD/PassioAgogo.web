@@ -260,6 +260,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     carrier?: unknown;
     service?: unknown;
     recoleccion?: unknown;
+    permitirCambio?: unknown;
   };
   try {
     cuerpo = await req.json();
@@ -358,11 +359,35 @@ Deno.serve(async (req: Request): Promise<Response> => {
     0,
   );
 
-  // Con qué enviar: lo que pidan ahora, o lo que el cliente eligió al cotizar.
-  const carrier = String(cuerpo.carrier ?? solicitud.envio_paqueteria ?? "").trim().toLowerCase();
-  const service = String(cuerpo.service ?? solicitud.envio_servicio ?? "").trim().toLowerCase();
+  // Con qué enviar. Por defecto, lo que el cliente eligió.
+  const elegidaCliente = String(solicitud.envio_paqueteria ?? "").trim().toLowerCase();
+  const servicioCliente = String(solicitud.envio_servicio ?? "").trim().toLowerCase();
+  const carrier = String(cuerpo.carrier ?? elegidaCliente).trim().toLowerCase();
+  const service = String(cuerpo.service ?? servicioCliente).trim().toLowerCase();
   if (!carrier || !service) {
     return json({ error: "Falta elegir paquetería y servicio." }, 400);
+  }
+
+  /**
+   * Enviar por otra paquetería tiene que ser una decisión, no un descuido.
+   *
+   * Quien elige Estafeta muchas veces no está eligiendo un precio: está eligiendo en
+   * quién confía, porque sabe cómo trabaja o le ha fallado otra. Mandarlo por una
+   * distinta pasa por encima de una decisión que se le pidió tomar, y se entera cuando
+   * ya lo tiene en la puerta.
+   *
+   * A veces hará falta —la elegida no cubre la ruta ese día, o rechaza la guía—, así que
+   * no se prohíbe: se exige decirlo. `permitirCambio` convierte un cambio silencioso en
+   * uno deliberado, y la desviación queda registrada al comparar `envio_*` con `guia_*`.
+   */
+  const cambia = elegidaCliente && carrier !== elegidaCliente;
+  if (cambia && cuerpo.permitirCambio !== true) {
+    return json({
+      error: `El cliente eligió ${elegidaCliente}, no ${carrier}.`,
+      pista: "Si hay que enviarlo con otra, vuelve a pedirlo con `permitirCambio: true` " +
+        "y avísale: eligió esa paquetería por algo.",
+      eligioCliente: { paqueteria: elegidaCliente, servicio: servicioCliente },
+    }, 409);
   }
 
   // Ciudad y estado: los del sobre si los trae; si no, los del código postal. Los

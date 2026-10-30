@@ -63,10 +63,19 @@ class EnvioApi(private val supabase: SupabaseClient) {
          * [solicitarRecoleccion], y mientras tanto sale en [pendientesDeRecoleccion].
          */
         recoleccion: Boolean = false,
+        /**
+         * Permite enviar por una paquetería distinta de la que eligió el cliente.
+         *
+         * Sin esto, pasar un [carrier] que no sea el suyo se rechaza. Quien elige
+         * Estafeta muchas veces no está eligiendo un precio: está eligiendo en quién
+         * confía. Cambiarlo a veces hace falta —no cubre la ruta, rechaza la guía—,
+         * pero tiene que ser una decisión, no un descuido, y conviene avisarle.
+         */
+        permitirCambio: Boolean = false,
     ): ResultadoGuia = llamar("generar-guia") {
         json.encodeToString(
             PeticionGuia.serializer(),
-            PeticionGuia(solicitudId, direccion, carrier, servicio, recoleccion),
+            PeticionGuia(solicitudId, direccion, carrier, servicio, recoleccion, permitirCambio),
         )
     }.fold(
         alOk = { cuerpo ->
@@ -209,6 +218,7 @@ private data class PeticionGuia(
     val carrier: String? = null,
     val service: String? = null,
     val recoleccion: Boolean = false,
+    val permitirCambio: Boolean = false,
 )
 
 @Serializable
