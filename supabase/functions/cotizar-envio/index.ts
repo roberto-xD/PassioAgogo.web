@@ -44,7 +44,19 @@ const ENVIA_TOKEN = (Deno.env.get("ENVIA_TOKEN") ?? "")
   .trim();
 const ENVIA_BASE = (Deno.env.get("ENVIA_BASE_URL") ?? "https://api-test.envia.com")
   .replace(/\/+$/, "");
-const ENVIA_QUERIES = (Deno.env.get("ENVIA_QUERIES_URL") ?? "https://queries.envia.com")
+/**
+ * La API de consultas, en el mismo entorno que la de envíos.
+ *
+ * Tiene host propio por entorno y los tokens no son intercambiables. Estuvo apuntando
+ * siempre a producción mientras el token era de sandbox: contestaba 401, la lista de
+ * paqueterías caía al respaldo escrito a mano, y como ese respaldo acertaba, nadie lo
+ * notó durante varias rondas. Por eso se deduce del host de envíos en vez de escribirse
+ * aparte: así no pueden desalinearse.
+ */
+const ENVIA_QUERIES = (Deno.env.get("ENVIA_QUERIES_URL") ??
+  (ENVIA_BASE.includes("api-test")
+    ? "https://queries.test.envia.com"
+    : "https://queries.envia.com"))
   .replace(/\/+$/, "");
 const DEBUG = Deno.env.get("ENVIA_DEBUG") === "1";
 

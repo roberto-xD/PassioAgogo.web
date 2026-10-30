@@ -169,6 +169,15 @@
     <pre id="salida">—</pre>
     <p class="estado" id="enlaces"></p>
   </fieldset>
+
+  <fieldset>
+    <legend>Diagnóstico</legend>
+    <p class="sub" style="margin:0 0 8px">
+      Qué paqueterías y servicios hay en el entorno que se está usando. Solo lee: no
+      genera guías ni cobra nada.
+    </p>
+    <button class="suave" id="diagnostico" disabled>Consultar a Envia</button>
+  </fieldset>
 </main>
 
 <script>
@@ -205,6 +214,7 @@ $('entrar').onclick = async () => {
     $('clave').value = '';
     $('cargar').disabled = false;
     $('generar').disabled = false;
+    $('diagnostico').disabled = false;
     decir('estadoAcceso', `Sesión abierta como ${d.user?.email ?? 'admin'}.`, 'bien');
   } catch (e) {
     decir('estadoAcceso', 'No se pudo conectar: ' + e.message, 'mal');
@@ -240,6 +250,27 @@ $('cargar').onclick = async () => {
     decir('estadoAcceso', `${filas.length} pedido(s) sin guía.`, filas.length ? 'bien' : 'mal');
   } catch (e) {
     decir('estadoAcceso', 'Error: ' + e.message, 'mal');
+  }
+};
+
+$('diagnostico').onclick = async () => {
+  decir('estadoGuia', 'Preguntando a Envia…');
+  try {
+    const r = await fetch(`${base()}/functions/v1/envia-diagnostico?pais=MX`, {
+      method: 'POST',
+      headers: {
+        'apikey': $('anon').value.trim(),
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+    const texto = await r.text();
+    try { $('salida').textContent = JSON.stringify(JSON.parse(texto), null, 2); }
+    catch (_e) { $('salida').textContent = texto; }
+    decir('estadoGuia', r.ok ? 'Respuesta abajo.' : `HTTP ${r.status}`, r.ok ? 'bien' : 'mal');
+  } catch (e) {
+    decir('estadoGuia', 'No se pudo conectar: ' + e.message, 'mal');
   }
 };
 
