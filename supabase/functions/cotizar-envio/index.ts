@@ -83,6 +83,9 @@ const CARRIERS_DE_RESPALDO = ["fedex", "dhl", "estafeta", "redpack", "paquetexpr
 /** País de la tienda. El catálogo es mundial y solo interesa una parte. */
 const PAIS = (Deno.env.get("ENVIA_PAIS") ?? "MX").toUpperCase();
 
+/** Paquetería, frente a carga por tarima. Es el `type` que va en la petición. */
+const TIPO_PAQUETE = 1;
+
 /**
  * Tope de paqueterías a consultar por cotización.
  *
@@ -450,7 +453,11 @@ async function listarCarriers(): Promise<string[]> {
   if (carriersEnMemoria) return carriersEnMemoria;
 
   try {
-    const r = await fetch(`${ENVIA_QUERIES}/carrier?country_code=MX`, {
+    // Se pregunta por **servicios**, no por paqueterías. El catálogo de paqueterías no
+    // distingue quién lleva cajas de quién mueve tarimas: ahí salen igual Estafeta y
+    // una transportista de carga, y cotizar una caja de 200 g con esta última es una
+    // llamada tirada. La lista de servicios sí lo dice.
+    const r = await fetch(`${ENVIA_QUERIES}/service?country_code=${PAIS}`, {
       headers: { "Authorization": `Bearer ${ENVIA_TOKEN}` },
       signal: AbortSignal.timeout(8000),
     });
@@ -459,22 +466,20 @@ async function listarCarriers(): Promise<string[]> {
       const filas = Array.isArray(cuerpo?.data) ? cuerpo.data : [];
       catalogoCrudo = filas[0] ?? null;
 
-      // El nombre del campo no está documentado, así que se prueban los candidatos
-      // razonables antes de darse por vencido.
       const nombres = filas
-        // El catálogo es mundial: una paquetería chilena no lleva un paquete de la
-        // Ciudad de México a Morelia, y preguntárselo es una llamada tirada.
         .filter((f: Record<string, unknown>) =>
-          String(f?.country_code ?? "").toUpperCase() === PAIS
+          String(f?.country_code ?? "").toUpperCase() === PAIS &&
+          // `service_shipment_type_id` 1 es paquetería; 2 es carga por tarima. Es el
+          // mismo `type` que mandamos en la petición, así que pedir el otro sobraba.
+          Number(f?.service_shipment_type_id) === TIPO_PAQUETE &&
+          Number(f?.active) === 1 &&
+          Number(f?.international) === 0
         )
         .map((f: Record<string, unknown>) => {
-          const clave = String(f?.carrier ?? f?.name ?? f?.code ?? "").trim().toLowerCase();
+          const clave = String(f?.carrier_name ?? "").trim().toLowerCase();
           // Envia deja en su catálogo de pruebas unas entradas `_test_tp_carrier`.
           if (clave && !clave.startsWith("_test")) {
-            marcas.set(clave, {
-              nombre: String(f?.carrierDescription ?? f?.description ?? f?.name ?? "").trim(),
-              logo: logoDe(f),
-            });
+            marcas.set(clave, { nombre: "", logo: logoDe(f) });
             return clave;
           }
           return "";
@@ -486,7 +491,7 @@ async function listarCarriers(): Promise<string[]> {
         return carriersEnMemoria;
       }
     }
-    console.error("envia /carrier", r.status, (await r.text()).slice(0, 500));
+    console.error("envia /service", r.status, (await r.text()).slice(0, 500));
   } catch (e) {
     console.error("envia /carrier", String(e));
   }

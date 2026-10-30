@@ -104,25 +104,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const params = new URL(req.url).searchParams;
   const pais = params.get("pais")?.toUpperCase() || "MX";
-  // Id de paquetería para preguntar qué deja hacer. Estafeta MX es la 11, y es la que
-  // nos rechazó la guía, así que es el caso de prueba natural.
-  const carrierId = params.get("carrier") ?? "11";
-
-  // `/available-service/{pais}` contestó 404: la ruta documentada no existe en este
-  // host. En vez de adivinar una por una, se prueban las candidatas de golpe y se
-  // enseña cuál responde. Son consultas de solo lectura: probar no rompe nada.
+  // `/service?country_code=XX` es la buena: `/available-service/{pais}` da 404 y las
+  // rutas de «carrier actions» tampoco existen en este host.
   const rutas = [
     "/carrier",
-    `/available-service/${pais}`,
     `/service?country_code=${pais}`,
-    "/service",
-    `/carrier-actions/${carrierId}`,
-    `/carrier/${carrierId}/actions`,
-    `/carrier-service?carrier_id=${carrierId}`,
   ];
 
   const respuestas = await Promise.all(rutas.map((r) => consultar(r)));
   const paqueterias = respuestas[0];
+  const servicios = respuestas[1];
 
   return json({
     entorno: {
@@ -135,16 +126,53 @@ Deno.serve(async (req: Request): Promise<Response> => {
     },
     // Resumen primero: con doscientas paqueterías, el detalle no cabe en una pantalla.
     resumen: resumir(paqueterias.cuerpo, pais),
-    // Qué ruta contesta y cuál no. Las que den 200 son las que sirven.
+    // Los servicios de paquetería del país: con quién se puede cotizar una caja, que
+    // no es lo mismo que la lista de paqueterías —ahí salen también las de carga—.
+    paqueteria: servicios.ok
+      ? deTipoPaquete(servicios.cuerpo, pais)
+      : { error: servicios.estado },
+    // Los de una paquetería concreta, con todos sus campos. Sirve para comparar una
+    // que genera guías con una que solo cotiza, y ver en qué se diferencian.
+    detalle: filtrarPorCarrier(servicios.cuerpo, pais, params.get("nombre") ?? ""),
     rutas: respuestas.map((r) => ({
       ruta: r.url.replace(ENVIA_QUERIES, ""),
       estado: r.estado,
       ok: r.ok,
-      // De las que funcionen, lo justo para ver la forma; el catálogo entero no.
-      muestra: r.ok ? recortar(r.cuerpo) : r.cuerpo,
     })),
   }, 200);
 });
+
+/** Servicios de paquetería activos y nacionales, agrupados por paquetería. */
+function deTipoPaquete(cuerpo: unknown, pais: string) {
+  const filas = (cuerpo as { data?: unknown })?.data;
+  if (!Array.isArray(filas)) return {};
+
+  const porCarrier: Record<string, string[]> = {};
+  for (const f of filas) {
+    if (String(f?.country_code ?? "").toUpperCase() !== pais) continue;
+    if (Number(f?.service_shipment_type_id) !== 1) continue;
+    if (Number(f?.active) !== 1 || Number(f?.international) !== 0) continue;
+
+    const carrier = String(f?.carrier_name ?? "").trim();
+    if (!carrier || carrier.startsWith("_test")) continue;
+    (porCarrier[carrier] ??= []).push(
+      `${f?.name} · ${f?.description ?? ""} · ${f?.delivery_estimate ?? ""}`,
+    );
+  }
+  return porCarrier;
+}
+
+/** Todo lo que el catálogo dice de una paquetería, para mirarlo de cerca. */
+function filtrarPorCarrier(cuerpo: unknown, pais: string, nombre: string) {
+  if (!nombre) return "pasa ?nombre=estafeta para ver sus servicios completos";
+  const filas = (cuerpo as { data?: unknown })?.data;
+  if (!Array.isArray(filas)) return null;
+
+  return filas.filter((f) =>
+    String(f?.country_code ?? "").toUpperCase() === pais &&
+    String(f?.carrier_name ?? "").toLowerCase() === nombre.toLowerCase()
+  );
+}
 
 /** Las paqueterías del país, que son las únicas con las que se va a cotizar. */
 function resumir(cuerpo: unknown, pais: string) {
@@ -162,11 +190,3 @@ function resumir(cuerpo: unknown, pais: string) {
   };
 }
 
-/** Lo justo para reconocer la forma de una respuesta sin volcar un catálogo entero. */
-function recortar(cuerpo: unknown): unknown {
-  const filas = (cuerpo as { data?: unknown })?.data;
-  if (Array.isArray(filas)) {
-    return { total: filas.length, primeras: filas.slice(0, 3) };
-  }
-  return cuerpo;
-}
