@@ -165,6 +165,30 @@
   </fieldset>
 
   <fieldset>
+    <legend>Buscar un servicio que sí genere</legend>
+    <p class="sub" style="margin:0 0 8px">
+      «Solo cotiza» no aparece en el catálogo de Envia: solo se sabe intentando. Esto
+      prueba una por una y <strong>se detiene en la primera que funcione</strong>.
+    </p>
+    <p class="aviso" style="margin:0 0 10px">
+      <strong>Solo en sandbox.</strong> En producción, la primera que funcione genera
+      una guía real y la cobra.
+    </p>
+    <label for="combos">Paquetería y servicio, una por línea</label>
+    <textarea id="combos" rows="7">fedex ground
+fedex express
+dhl ground
+dhl express
+paquetexpress ground
+paquetexpress ground_od
+estafeta ground
+sendex ground
+jtexpress door_to_door</textarea>
+    <button class="suave" id="barrer" disabled>Probar una por una</button>
+    <pre id="barrido" style="margin-top:12px">—</pre>
+  </fieldset>
+
+  <fieldset>
     <legend>Respuesta</legend>
     <pre id="salida">—</pre>
     <p class="estado" id="enlaces"></p>
@@ -215,6 +239,7 @@ $('entrar').onclick = async () => {
     $('cargar').disabled = false;
     $('generar').disabled = false;
     $('diagnostico').disabled = false;
+    $('barrer').disabled = false;
     decir('estadoAcceso', `Sesión abierta como ${d.user?.email ?? 'admin'}.`, 'bien');
   } catch (e) {
     decir('estadoAcceso', 'No se pudo conectar: ' + e.message, 'mal');
@@ -253,10 +278,86 @@ $('cargar').onclick = async () => {
   }
 };
 
+/** Arma el cuerpo de `generar-guia` con lo que hay en el formulario. */
+function cuerpoGuia(carrier, service) {
+  const c = {
+    solicitudId: $('solicitud').value.trim(),
+    direccion: {
+      calle: $('calle').value.trim(),
+      interior: $('interior').value.trim(),
+      colonia: $('colonia').value.trim(),
+      cp: $('cp').value.trim(),
+      ciudad: $('ciudad').value.trim(),
+      estado: $('estado').value.trim(),
+      estadoCodigo: $('estadoCodigo').value.trim().toUpperCase(),
+      referencias: $('referencias').value.trim(),
+    },
+    recoleccion: $('recoleccion').value === 'true',
+  };
+  if (carrier) c.carrier = carrier;
+  if (service) c.service = service;
+  return c;
+}
+
+async function pedirGuia(cuerpo) {
+  const r = await fetch(`${base()}/functions/v1/generar-guia`, {
+    method: 'POST',
+    headers: {
+      'apikey': $('anon').value.trim(),
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(cuerpo),
+  });
+  const texto = await r.text();
+  let d = null;
+  try { d = JSON.parse(texto); } catch (_e) { /* se enseña crudo */ }
+  return { ok: r.ok, estado: r.status, datos: d, texto };
+}
+
+$('barrer').onclick = async () => {
+  if (!$('solicitud').value.trim()) {
+    return decir('estadoGuia', 'Falta el id de la solicitud.', 'mal');
+  }
+  const combos = $('combos').value.split('\n')
+    .map((l) => l.trim().split(/\s+/))
+    .filter((p) => p.length === 2);
+
+  const lineas = [];
+  $('barrido').textContent = 'Probando…';
+
+  for (const [carrier, service] of combos) {
+    const etiqueta = `${carrier} ${service}`.padEnd(32);
+    try {
+      const r = await pedirGuia(cuerpoGuia(carrier, service));
+      const g = r.datos?.guia;
+      if (r.ok && g?.numero) {
+        lineas.push(`${etiqueta} ✓  GUÍA ${g.numero}`);
+        $('barrido').textContent = lineas.join('\n');
+        $('salida').textContent = JSON.stringify(r.datos, null, 2);
+        decir('estadoGuia', `Funcionó con ${carrier} ${service}: ${g.numero}`, 'bien');
+        // Se para en la primera que funciona: lo que se buscaba era una, no todas.
+        return;
+      }
+      lineas.push(`${etiqueta} ·  ${r.datos?.motivo ?? r.datos?.error ?? r.estado}`);
+    } catch (e) {
+      lineas.push(`${etiqueta} ·  ${e.message}`);
+    }
+    $('barrido').textContent = lineas.join('\n');
+  }
+
+  decir('estadoGuia', 'Ninguna generó guía. Mira la lista de motivos.', 'mal');
+};
+
 $('diagnostico').onclick = async () => {
   decir('estadoGuia', 'Preguntando a Envia…');
   try {
-    const r = await fetch(`${base()}/functions/v1/envia-diagnostico?pais=MX`, {
+    // Los parámetros de la propia página se pasan a la función: así `?nombre=estafeta`
+    // en la barra del navegador llega a donde tiene que llegar. Antes iba `pais=MX`
+    // fijo y lo demás se perdía por el camino, sin que nada lo dijera.
+    const propios = new URLSearchParams(location.search);
+    if (!propios.get('pais')) propios.set('pais', 'MX');
+    const r = await fetch(`${base()}/functions/v1/envia-diagnostico?${propios}`, {
       method: 'POST',
       headers: {
         'apikey': $('anon').value.trim(),
@@ -282,37 +383,12 @@ $('generar').onclick = async () => {
   $('salida').textContent = '—';
   $('enlaces').textContent = '';
 
-  const cuerpo = {
-    solicitudId: $('solicitud').value.trim(),
-    direccion: {
-      calle: $('calle').value.trim(),
-      interior: $('interior').value.trim(),
-      colonia: $('colonia').value.trim(),
-      cp: $('cp').value.trim(),
-      ciudad: $('ciudad').value.trim(),
-      estado: $('estado').value.trim(),
-      estadoCodigo: $('estadoCodigo').value.trim().toUpperCase(),
-      referencias: $('referencias').value.trim(),
-    },
-    recoleccion: $('recoleccion').value === 'true',
-  };
-  if ($('carrier').value.trim()) cuerpo.carrier = $('carrier').value.trim();
-  if ($('service').value.trim()) cuerpo.service = $('service').value.trim();
-
   try {
-    const r = await fetch(`${base()}/functions/v1/generar-guia`, {
-      method: 'POST',
-      headers: {
-        'apikey': $('anon').value.trim(),
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(cuerpo),
-    });
-    const texto = await r.text();
-    let d = null;
-    try { d = JSON.parse(texto); } catch (_e) { /* se enseña crudo */ }
-    $('salida').textContent = d ? JSON.stringify(d, null, 2) : texto;
+    const r = await pedirGuia(cuerpoGuia(
+      $('carrier').value.trim(), $('service').value.trim(),
+    ));
+    const d = r.datos;
+    $('salida').textContent = d ? JSON.stringify(d, null, 2) : r.texto;
 
     if (r.ok && d?.guia?.numero) {
       decir('estadoGuia',
@@ -329,7 +405,7 @@ $('generar').onclick = async () => {
       // La pista va delante del motivo: dice qué hacer, y el motivo es para buscarlo
       // en la documentación de la paquetería si hace falta.
       decir('estadoGuia',
-        [d?.pista, d?.motivo, d?.error].filter(Boolean)[0] || `HTTP ${r.status}`, 'mal');
+        [d?.pista, d?.motivo, d?.error].filter(Boolean)[0] || `HTTP ${r.estado}`, 'mal');
     }
   } catch (e) {
     decir('estadoGuia', 'No se pudo conectar: ' + e.message, 'mal');
