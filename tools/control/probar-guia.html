@@ -295,7 +295,10 @@ $('generar').onclick = async () => {
       $('enlaces').innerHTML = partes.join(' · ');
       if (d.aviso) decir('estadoGuia', d.aviso, 'mal');
     } else {
-      decir('estadoGuia', [d?.error, d?.motivo].filter(Boolean).join(' ') || `HTTP ${r.status}`, 'mal');
+      // La pista va delante del motivo: dice qué hacer, y el motivo es para buscarlo
+      // en la documentación de la paquetería si hace falta.
+      decir('estadoGuia',
+        [d?.pista, d?.motivo, d?.error].filter(Boolean)[0] || `HTTP ${r.status}`, 'mal');
     }
   } catch (e) {
     decir('estadoGuia', 'No se pudo conectar: ' + e.message, 'mal');

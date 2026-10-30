@@ -180,6 +180,33 @@ function partirCalle(calle: string): { street: string; number: string } {
   return { street: limpia, number: "S/N" };
 }
 
+/**
+ * Qué hacer con lo que contestó Envia, en cristiano.
+ *
+ * Sus mensajes vienen en inglés y en clave —`SERVICE_QUOTE_ONLY`—, y describen el
+ * problema sin decir la salida. Quien está delante de la pantalla con un paquete que
+ * despachar necesita lo segundo.
+ */
+function pistaDeEnvia(mensaje: string, descripcion: string): string | undefined {
+  const m = `${mensaje} ${descripcion}`.toUpperCase();
+
+  if (m.includes("QUOTE_ONLY") || m.includes("RESTRICTED TO QUOTING")) {
+    return "Ese servicio deja cotizar pero no generar guías. No es algo que se active " +
+      "desde tu cuenta: lo restringe la paquetería. Prueba con otra paquetería o con " +
+      "otro de sus servicios. En sandbox es habitual que varios estén así.";
+  }
+  if (m.includes("COVERAGE") || m.includes("NOT AVAILABLE") || m.includes("NO SERVICE")) {
+    return "Esa paquetería no cubre esa ruta. Elige otra de las que se cotizaron.";
+  }
+  if (m.includes("BALANCE") || m.includes("FUNDS") || m.includes("CREDIT")) {
+    return "No hay saldo en la cuenta de Envia para pagar la guía.";
+  }
+  if (m.includes("POSTAL") || m.includes("ZIP")) {
+    return "La paquetería no acepta el código postal. Confirma la dirección del cliente.";
+  }
+  return undefined;
+}
+
 /** Ciudad y estado de un código postal, por si el sobre guardado no los trae. */
 async function lugarDe(cp: string) {
   try {
@@ -441,9 +468,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const detalle = crudo?.error as Record<string, unknown> | undefined;
   if (!respuesta.ok || crudo?.meta === "error") {
     console.error("envia /ship/generate", respuesta.status, texto.slice(0, 2000));
+    const mensaje = String(detalle?.message ?? "");
+    const descripcion = String(detalle?.description ?? "");
     return json({
       error: "No se pudo generar la guía.",
-      motivo: String(detalle?.message ?? detalle?.description ?? respuesta.status),
+      // Lo que dijo la paquetería, y qué hacer con ello. El primero sirve para
+      // buscarlo en su documentación; el segundo, para despachar el paquete hoy.
+      motivo: descripcion || mensaje || String(respuesta.status),
+      codigo: mensaje || undefined,
+      pista: pistaDeEnvia(mensaje, descripcion),
       ...(DEBUG ? { cuerpo: texto.slice(0, 2000), peticion } : {}),
     }, 502);
   }
