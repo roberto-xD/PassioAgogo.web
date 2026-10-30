@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Probar generación de guías</title>
+<!--
+  Banco de pruebas para `generar-guia` y `solicitar-recoleccion`.
+
+  Existe porque el probador del panel de Supabase manda la llave anónima, y estas dos
+  funciones exigen sesión de administración: devolverían 401 sin llegar a Envia. Aquí se
+  abre sesión de verdad y se llama con ese token.
+
+  **Se abre como archivo local, no se publica.** Pide la contraseña de administración, y
+  esa contraseña no tiene por qué pasar por ningún sitio que no sea tu navegador y tu
+  propio Supabase. Nada se guarda: al cerrar la pestaña no queda rastro.
+
+  La dirección se teclea a mano a propósito. Descifrarla necesita la clave privada, que
+  vive en la app de control y no debe salir de ahí; para probar que la guía se genera
+  bien da igual de dónde venga la dirección.
+-->
+<style>
+  :root {
+    --fondo: #faf7fb; --tinta: #1d1b20; --tenue: #605a66; --borde: #d8d0dd;
+    --primario: #7b1fa2; --error: #b3261e; --ok: #1b5e20; --tarjeta: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fondo: #141218; --tinta: #e7e0eb; --tenue: #cac4d0; --borde: #49454f;
+      --primario: #d0bcff; --error: #f2b8b5; --ok: #a5d6a7; --tarjeta: #211f26;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px; background: var(--fondo); color: var(--tinta);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  p.sub { color: var(--tenue); margin: 0 0 20px; font-size: .9rem; }
+  fieldset {
+    border: 1px solid var(--borde); border-radius: 12px; padding: 14px;
+    margin: 0 0 16px; background: var(--tarjeta);
+  }
+  legend { font-weight: 600; padding: 0 6px; font-size: .9rem; }
+  label { display: block; margin: 10px 0 4px; font-size: .82rem; color: var(--tenue); }
+  input, select, textarea {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--borde); border-radius: 8px;
+    background: var(--fondo); color: var(--tinta); font: inherit;
+  }
+  .fila { display: flex; gap: 10px; flex-wrap: wrap; }
+  .fila > div { flex: 1 1 150px; }
+  button {
+    margin-top: 14px; padding: 11px 18px; border: 0; border-radius: 999px;
+    background: var(--primario); color: var(--fondo); font: inherit; font-weight: 600;
+    cursor: pointer;
+  }
+  button.suave { background: transparent; color: var(--primario); border: 1px solid var(--borde); }
+  button:disabled { opacity: .5; cursor: default; }
+  pre {
+    white-space: pre-wrap; word-break: break-word; background: var(--tarjeta);
+    border: 1px solid var(--borde); border-radius: 10px; padding: 12px;
+    font-size: .78rem; max-height: 50vh; overflow: auto;
+  }
+  .estado { margin: 10px 0 0; font-size: .85rem; }
+  .mal { color: var(--error); } .bien { color: var(--ok); }
+  ul.lista { list-style: none; padding: 0; margin: 10px 0 0; }
+  ul.lista li {
+    border: 1px solid var(--borde); border-radius: 10px; padding: 10px;
+    margin-bottom: 8px; cursor: pointer; font-size: .85rem;
+  }
+  ul.lista li:hover { border-color: var(--primario); }
+  .aviso {
+    border-left: 3px solid var(--primario); padding: 8px 12px; margin: 0 0 16px;
+    color: var(--tenue); font-size: .85rem;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Probar generación de guías</h1>
+  <p class="sub">Passion à gogo · contra el entorno que tengas configurado en las funciones</p>
+
+  <p class="aviso">
+    Esto corre entero en tu navegador y habla solo con tu Supabase. No guarda nada:
+    al cerrar la pestaña no queda ni la contraseña ni el token.
+    <strong>Mientras pruebes, que <code>ENVIA_BASE_URL</code> apunte a sandbox</strong> —
+    en producción cada guía cuesta dinero de verdad.
+  </p>
+
+  <fieldset>
+    <legend>1 · Acceso</legend>
+    <label for="url">URL del proyecto</label>
+    <input id="url" placeholder="https://xxxx.supabase.co" autocomplete="off">
+    <label for="anon">Llave anónima</label>
+    <input id="anon" placeholder="eyJ..." autocomplete="off">
+    <div class="fila">
+      <div>
+        <label for="correo">Correo de administración</label>
+        <input id="correo" type="email" autocomplete="username">
+      </div>
+      <div>
+        <label for="clave">Contraseña</label>
+        <input id="clave" type="password" autocomplete="current-password">
+      </div>
+    </div>
+    <button id="entrar">Entrar</button>
+    <p class="estado" id="estadoAcceso"></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>2 · Solicitud</legend>
+    <button class="suave" id="cargar" disabled>Cargar pedidos sin guía</button>
+    <ul class="lista" id="pedidos"></ul>
+    <label for="solicitud">Id de la solicitud</label>
+    <input id="solicitud" placeholder="uuid de order_requests" autocomplete="off">
+  </fieldset>
+
+  <fieldset>
+    <legend>3 · Dirección del cliente</legend>
+    <p class="sub" style="margin:0 0 8px">
+      A mano: descifrarla necesita la clave privada, que vive en la app de control.
+      Para probar que la guía sale bien, da igual de dónde venga.
+    </p>
+    <label for="calle">Calle y número</label>
+    <input id="calle" placeholder="Velo de novia 16">
+    <div class="fila">
+      <div><label for="interior">Interior</label><input id="interior"></div>
+      <div><label for="colonia">Colonia</label><input id="colonia"></div>
+    </div>
+    <div class="fila">
+      <div><label for="cp">Código postal</label><input id="cp" inputmode="numeric" maxlength="5"></div>
+      <div><label for="ciudad">Ciudad</label><input id="ciudad"></div>
+    </div>
+    <div class="fila">
+      <div><label for="estado">Estado (nombre)</label><input id="estado"></div>
+      <div>
+        <label for="estadoCodigo">Código de estado</label>
+        <input id="estadoCodigo" maxlength="2" placeholder="se resuelve del CP si lo dejas vacío">
+      </div>
+    </div>
+    <label for="referencias">Referencias</label>
+    <input id="referencias">
+  </fieldset>
+
+  <fieldset>
+    <legend>4 · Envío</legend>
+    <div class="fila">
+      <div>
+        <label for="carrier">Paquetería</label>
+        <input id="carrier" placeholder="vacío = la que eligió el cliente">
+      </div>
+      <div>
+        <label for="service">Servicio</label>
+        <input id="service" placeholder="vacío = el que eligió el cliente">
+      </div>
+    </div>
+    <label for="recoleccion">¿Pasan a recoger?</label>
+    <select id="recoleccion">
+      <option value="false">No — lo llevo a sucursal</option>
+      <option value="true">Sí — marcar para recolección</option>
+    </select>
+    <button id="generar" disabled>Generar guía</button>
+    <p class="estado" id="estadoGuia"></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Respuesta</legend>
+    <pre id="salida">—</pre>
+    <p class="estado" id="enlaces"></p>
+  </fieldset>
+</main>
+
+<script>
+// El token vive en memoria y nada más: ni localStorage ni sessionStorage. Esta página
+// se abre para una prueba y se cierra.
+let token = null;
+
+const $ = (id) => document.getElementById(id);
+const base = () => $('url').value.trim().replace(/\/+$/, '');
+
+function decir(donde, texto, clase) {
+  const el = $(donde);
+  el.textContent = texto;
+  el.className = 'estado' + (clase ? ' ' + clase : '');
+}
+
+$('entrar').onclick = async () => {
+  if (!base() || !$('anon').value.trim()) {
+    return decir('estadoAcceso', 'Faltan la URL y la llave anónima.', 'mal');
+  }
+  decir('estadoAcceso', 'Entrando…');
+  try {
+    const r = await fetch(`${base()}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': $('anon').value.trim(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: $('correo').value.trim(), password: $('clave').value }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.access_token) {
+      return decir('estadoAcceso', d.error_description || d.msg || 'No se pudo entrar.', 'mal');
+    }
+    token = d.access_token;
+    // La contraseña ya no hace falta: se borra del formulario en cuanto hay token.
+    $('clave').value = '';
+    $('cargar').disabled = false;
+    $('generar').disabled = false;
+    decir('estadoAcceso', `Sesión abierta como ${d.user?.email ?? 'admin'}.`, 'bien');
+  } catch (e) {
+    decir('estadoAcceso', 'No se pudo conectar: ' + e.message, 'mal');
+  }
+};
+
+$('cargar').onclick = async () => {
+  decir('estadoAcceso', 'Buscando pedidos…');
+  const campos = 'id,folio,cliente_nombre,envio_paqueteria,envio_servicio,metodo_entrega';
+  const url = `${base()}/rest/v1/order_requests` +
+    `?select=${campos}&guia_numero=is.null&metodo_entrega=eq.domicilio` +
+    `&order=created_at.desc&limit=15`;
+  try {
+    const r = await fetch(url, {
+      headers: { 'apikey': $('anon').value.trim(), 'Authorization': `Bearer ${token}` },
+    });
+    const filas = await r.json();
+    if (!Array.isArray(filas)) {
+      return decir('estadoAcceso', JSON.stringify(filas), 'mal');
+    }
+    const ul = $('pedidos');
+    ul.innerHTML = '';
+    filas.forEach((f) => {
+      const li = document.createElement('li');
+      li.textContent = `#${f.folio} · ${f.cliente_nombre ?? '—'} · ` +
+        `${f.envio_paqueteria ?? 'sin paquetería'} ${f.envio_servicio ?? ''}`;
+      li.onclick = () => {
+        $('solicitud').value = f.id;
+        decir('estadoAcceso', `Elegido el folio #${f.folio}.`, 'bien');
+      };
+      ul.appendChild(li);
+    });
+    decir('estadoAcceso', `${filas.length} pedido(s) sin guía.`, filas.length ? 'bien' : 'mal');
+  } catch (e) {
+    decir('estadoAcceso', 'Error: ' + e.message, 'mal');
+  }
+};
+
+$('generar').onclick = async () => {
+  if (!$('solicitud').value.trim()) {
+    return decir('estadoGuia', 'Falta el id de la solicitud.', 'mal');
+  }
+  decir('estadoGuia', 'Pidiendo la guía…');
+  $('salida').textContent = '—';
+  $('enlaces').textContent = '';
+
+  const cuerpo = {
+    solicitudId: $('solicitud').value.trim(),
+    direccion: {
+      calle: $('calle').value.trim(),
+      interior: $('interior').value.trim(),
+      colonia: $('colonia').value.trim(),
+      cp: $('cp').value.trim(),
+      ciudad: $('ciudad').value.trim(),
+      estado: $('estado').value.trim(),
+      estadoCodigo: $('estadoCodigo').value.trim().toUpperCase(),
+      referencias: $('referencias').value.trim(),
+    },
+    recoleccion: $('recoleccion').value === 'true',
+  };
+  if ($('carrier').value.trim()) cuerpo.carrier = $('carrier').value.trim();
+  if ($('service').value.trim()) cuerpo.service = $('service').value.trim();
+
+  try {
+    const r = await fetch(`${base()}/functions/v1/generar-guia`, {
+      method: 'POST',
+      headers: {
+        'apikey': $('anon').value.trim(),
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(cuerpo),
+    });
+    const texto = await r.text();
+    let d = null;
+    try { d = JSON.parse(texto); } catch (_e) { /* se enseña crudo */ }
+    $('salida').textContent = d ? JSON.stringify(d, null, 2) : texto;
+
+    if (r.ok && d?.guia?.numero) {
+      decir('estadoGuia',
+        d.guia.yaTenia
+          ? `Esta solicitud ya tenía guía: ${d.guia.numero} (no se cobró otra).`
+          : `Guía generada: ${d.guia.numero}`,
+        'bien');
+      const partes = [];
+      if (d.guia.url) partes.push(`<a href="${d.guia.url}" target="_blank" rel="noopener">Etiqueta PDF</a>`);
+      if (d.guia.rastreo) partes.push(`<a href="${d.guia.rastreo}" target="_blank" rel="noopener">Rastreo</a>`);
+      $('enlaces').innerHTML = partes.join(' · ');
+      if (d.aviso) decir('estadoGuia', d.aviso, 'mal');
+    } else {
+      decir('estadoGuia', [d?.error, d?.motivo].filter(Boolean).join(' ') || `HTTP ${r.status}`, 'mal');
+    }
+  } catch (e) {
+    decir('estadoGuia', 'No se pudo conectar: ' + e.message, 'mal');
+  }
+};
+</script>
+</body>
+</html>

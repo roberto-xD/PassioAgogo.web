@@ -8,6 +8,23 @@ revise junto, porque entre las dos se reparte algo que ninguna puede hacer sola.
 |---|---|
 | [`EnvioApi.kt`](EnvioApi.kt) | Generar guías y pedir recolecciones |
 | [`../crypto/AdminKeyTool.kt`](../crypto/AdminKeyTool.kt) | Generar el par de claves y abrir direcciones |
+| [`probar-guia.html`](probar-guia.html) | Probar las funciones antes de conectarlas |
+
+## Probar antes de conectar
+
+`probar-guia.html` se abre **como archivo local** en cualquier navegador. Existe porque
+el probador del panel de Supabase manda la llave anónima, y estas funciones exigen
+sesión de administración: devolverían `401` sin llegar siquiera a Envia.
+
+La página abre sesión de verdad con un correo y contraseña de administración, lista los
+pedidos sin guía, y deja teclear una dirección y pedir la guía. Enseña la respuesta
+entera y, si sale bien, los enlaces a la etiqueta y al rastreo.
+
+No guarda nada: ni la contraseña —que se borra del formulario en cuanto hay token— ni el
+token, que vive en memoria. Habla solo con tu Supabase; no hay scripts de terceros.
+
+La dirección se teclea a mano a propósito: descifrarla necesita la clave privada, y esa
+no sale de la app de control ni para una prueba.
 
 ## Cómo se reparte el trabajo
 
