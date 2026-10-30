@@ -42,6 +42,16 @@ const DEBUG = Deno.env.get("ENVIA_DEBUG") === "1";
 /** Lo que la tienda declara en la guía. Nunca el nombre del producto. */
 const CONTENIDO = "Articulos de higiene personal";
 
+/**
+ * Formato de la etiqueta.
+ *
+ * `/ship/generate` exige `settings` con estos dos, y `/ship/rate` no: cotizar no imprime
+ * nada. PDF en 4x6 es la etiqueta térmica de toda la vida, y también sale bien impresa
+ * en una hoja normal.
+ */
+const ETIQUETA_FORMATO = Deno.env.get("ENVIA_ETIQUETA_FORMATO") ?? "PDF";
+const ETIQUETA_TAMANO = Deno.env.get("ENVIA_ETIQUETA_TAMANO") ?? "STOCK_4X6";
+
 /** La caja más grande que maneja la tienda, y su tope de peso. */
 const CAJA_MAX = { largo: 100, ancho: 50, alto: 50 };
 const PESO_MAX_KG = 40;
@@ -331,7 +341,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Ciudad y estado: los del sobre si los trae; si no, los del código postal. Los
   // sobres guardados antes de que existiera esa consulta no llevan el código de estado,
   // y la paquetería lo quiere de dos letras.
-  const delCp = (!destino.estadoCodigo || !destino.ciudad) ? await lugarDe(cpDestino) : null;
+  //
+  // Se compara contra cadena vacía y no con `??`: un sobre viejo trae `estadoCodigo: ""`,
+  // no ausente, y `??` solo cae del lado del respaldo con null. Con `??` el estado
+  // viajaba vacío a la paquetería y la guía salía sin estado.
+  const codigoDelSobre = String(destino.estadoCodigo ?? "").trim();
+  const ciudadDelSobre = String(destino.ciudad ?? "").trim();
+  const delCp = (!codigoDelSobre || !ciudadDelSobre) ? await lugarDe(cpDestino) : null;
+
+  const ciudadDestino = ciudadDelSobre || delCp?.ciudad || "";
+  const estadoDestino = codigoDelSobre || delCp?.estado || "";
+  if (!estadoDestino) {
+    return json({
+      error: "No pudimos resolver el estado del código postal del cliente.",
+    }, 409);
+  }
   const { street, number } = partirCalle(String(destino.calle));
 
   const referencia = [
@@ -358,8 +382,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       street,
       number,
       district: String(destino.colonia ?? "").trim(),
-      city: String(destino.ciudad ?? delCp?.ciudad ?? "").trim(),
-      state: String(destino.estadoCodigo ?? delCp?.estado ?? "").trim(),
+      city: ciudadDestino,
+      state: estadoDestino,
       country: "MX",
       postalCode: cpDestino,
       reference: referencia,
@@ -375,6 +399,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       dimensions: { length: paquete.largo, width: paquete.ancho, height: paquete.alto },
     }],
     shipment: { type: 1, carrier, service },
+    // Obligatorio al generar, y no existe al cotizar: cotizar no imprime nada.
+    settings: {
+      currency: "MXN",
+      printFormat: ETIQUETA_FORMATO,
+      printSize: ETIQUETA_TAMANO,
+    },
   };
 
   // ---- la guía ----
