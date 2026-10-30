@@ -12,6 +12,7 @@ import network.AddressCrypto
 import network.AddressRepository
 import network.Direccion
 import network.GeocodeRepository
+import network.ResultadoCp
 import network.SobreDireccion
 
 data class AddressUiState(
@@ -42,6 +43,14 @@ data class AddressUiState(
     val cpResuelto: Boolean = false,
     /** Las colonias de ese código postal, para ofrecerlas en vez de pedirlas a ciegas. */
     val colonias: List<String> = emptyList(),
+    /**
+     * No se pudo preguntar por el código postal: sin red, función caída, o un origen
+     * que no está en la lista de permitidos.
+     *
+     * Distinto de que el código no exista. Decirle «no reconocimos este código» a quien
+     * escribió uno correcto lo manda a revisar un dato que estaba bien.
+     */
+    val cpSinServicio: Boolean = false,
 ) {
     val puedeGuardar: Boolean
         get() = !guardando && !direccion.vacia
@@ -112,7 +121,9 @@ class AddressViewModel(
         if (ahora == antes) return
 
         // Cambió el código postal: lo que se había resuelto con el anterior ya no vale.
-        _uiState.update { it.copy(cpResuelto = false, colonias = emptyList()) }
+        _uiState.update {
+            it.copy(cpResuelto = false, colonias = emptyList(), cpSinServicio = false)
+        }
         if (ahora.length == 5) resolverCp(ahora)
     }
 
@@ -127,22 +138,30 @@ class AddressViewModel(
     private fun resolverCp(cp: String) {
         _uiState.update { it.copy(buscandoCp = true) }
         scope.launch {
-            val lugar = geocodes.consultar(cp)
+            val resultado = geocodes.consultar(cp)
             _uiState.update { estado ->
                 // Mientras se preguntaba, la persona pudo seguir escribiendo.
                 if (estado.direccion.cp != cp) return@update estado.copy(buscandoCp = false)
-                if (lugar == null) return@update estado.copy(buscandoCp = false)
 
-                estado.copy(
-                    buscandoCp = false,
-                    cpResuelto = true,
-                    colonias = lugar.colonias,
-                    direccion = estado.direccion.copy(
-                        ciudad = lugar.ciudad,
-                        estado = lugar.estado,
-                        estadoCodigo = lugar.estadoCodigo,
-                    ),
-                )
+                when (resultado) {
+                    is ResultadoCp.Encontrado -> estado.copy(
+                        buscandoCp = false,
+                        cpResuelto = true,
+                        cpSinServicio = false,
+                        colonias = resultado.lugar.colonias,
+                        direccion = estado.direccion.copy(
+                            ciudad = resultado.lugar.ciudad,
+                            estado = resultado.lugar.estado,
+                            estadoCodigo = resultado.lugar.estadoCodigo,
+                        ),
+                    )
+                    ResultadoCp.NoExiste ->
+                        estado.copy(buscandoCp = false, cpSinServicio = false)
+                    // No se pudo preguntar. Se distingue porque el aviso que toca es
+                    // otro: el código puede estar perfectamente bien.
+                    ResultadoCp.NoDisponible ->
+                        estado.copy(buscandoCp = false, cpSinServicio = true)
+                }
             }
         }
     }

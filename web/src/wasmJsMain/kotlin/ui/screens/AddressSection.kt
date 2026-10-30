@@ -85,6 +85,10 @@ fun DireccionSection(
         supportingText = when {
             state.buscandoCp -> "Buscando…"
             state.cpResuelto -> lugarLegible(d.ciudad, d.estado)
+            // No pudimos preguntar. El código puede estar bien, así que no se le dice
+            // que está mal: se le dice que lo escriba él y se sigue adelante.
+            state.cpSinServicio ->
+                "No pudimos verificarlo ahora. Escribe ciudad y estado a mano."
             d.cp.length == 5 -> "No reconocimos este código. Escribe ciudad y estado a mano."
             else -> null
         },

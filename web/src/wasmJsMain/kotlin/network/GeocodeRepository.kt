@@ -25,6 +25,22 @@ private data class LugarDto(
     val colonias: List<String> = emptyList(),
 )
 
+/**
+ * Cómo fue la consulta.
+ *
+ * Importa separar «ese código no existe» de «no pudimos preguntar». Lo primero es culpa
+ * de quien teclea y se arregla corrigiendo un dígito; lo segundo no es culpa suya y no
+ * se arregla reescribiendo nada. Decirle lo primero cuando pasa lo segundo lo manda a
+ * revisar un dato que estaba bien.
+ */
+sealed interface ResultadoCp {
+    data class Encontrado(val lugar: LugarDelCp) : ResultadoCp
+    /** Contestó, y ese código postal no existe. */
+    data object NoExiste : ResultadoCp
+    /** No se pudo preguntar: sin red, función caída, origen no permitido. */
+    data object NoDisponible : ResultadoCp
+}
+
 /** Lo que un código postal dice de sí mismo. */
 data class LugarDelCp(
     val cp: String,
@@ -55,41 +71,54 @@ class GeocodeRepository(
     private val client: HttpClient = HttpClient(Js),
 ) {
     /** Lo ya consultado en esta pestaña. Teclear y borrar un dígito no vuelve a preguntar. */
-    private val cache = mutableMapOf<String, LugarDelCp?>()
+    private val cache = mutableMapOf<String, ResultadoCp>()
 
-    suspend fun consultar(cp: String): LugarDelCp? {
+    suspend fun consultar(cp: String): ResultadoCp {
         val limpio = cp.filter { it.isDigit() }
-        if (limpio.length != 5) return null
-        if (cache.containsKey(limpio)) return cache[limpio]
-        if (!SupabaseConfig.isConfigured) return null
+        if (limpio.length != 5) return ResultadoCp.NoDisponible
+        cache[limpio]?.let { return it }
+        if (!SupabaseConfig.isConfigured) return ResultadoCp.NoDisponible
 
-        val lugar = runCatching {
+        val resultado = try {
             val respuesta = client.get(
                 "${SupabaseConfig.URL}/functions/v1/geocode?cp=$limpio"
             ) {
                 header(HttpHeaders.Authorization, "Bearer ${SupabaseConfig.ANON_KEY}")
                 header("apikey", SupabaseConfig.ANON_KEY)
             }
-            if (!respuesta.status.isSuccess()) return@runCatching null
 
-            // Un código que no existe contesta 200 con `{"encontrado": false}`: sin
-            // código de estado, que es lo único que no se puede suplir a mano.
-            val fila = json.decodeFromString<LugarDto>(respuesta.bodyAsText())
-            val codigo = fila.estadoCodigo.orEmpty()
-            if (codigo.isBlank()) return@runCatching null
+            if (!respuesta.status.isSuccess()) {
+                // La función contestó mal: no es que el código no exista.
+                ResultadoCp.NoDisponible
+            } else {
+                // Un código que no existe contesta 200 con `{"encontrado": false}`: sin
+                // código de estado, que es lo único que no se puede suplir a mano.
+                val fila = json.decodeFromString<LugarDto>(respuesta.bodyAsText())
+                val codigo = fila.estadoCodigo.orEmpty()
+                if (codigo.isBlank()) {
+                    ResultadoCp.NoExiste
+                } else {
+                    ResultadoCp.Encontrado(
+                        LugarDelCp(
+                            cp = fila.cp ?: limpio,
+                            ciudad = fila.ciudad.orEmpty(),
+                            estado = fila.estado.orEmpty(),
+                            estadoCodigo = codigo,
+                            colonias = fila.colonias.filter { it.isNotBlank() },
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            // Sin red, función caída, u origen no permitido por CORS —que desde el
+            // navegador llega aquí como una excepción y no como un código de estado—.
+            ResultadoCp.NoDisponible
+        }
 
-            LugarDelCp(
-                cp = fila.cp ?: limpio,
-                ciudad = fila.ciudad.orEmpty(),
-                estado = fila.estado.orEmpty(),
-                estadoCodigo = codigo,
-                colonias = fila.colonias.filter { it.isNotBlank() },
-            )
-        }.getOrNull()
-
-        // Se recuerda también el fallo: un código que no existe no existirá al siguiente
-        // dígito tampoco, y repreguntar por cada tecla sería castigar a quien se equivoca.
-        cache[limpio] = lugar
-        return lugar
+        // Un código inexistente seguirá sin existir, así que se recuerda. Un fallo de
+        // conexión no: puede ser pasajero, y recordarlo dejaría el formulario sin
+        // consulta el resto de la sesión.
+        if (resultado !is ResultadoCp.NoDisponible) cache[limpio] = resultado
+        return resultado
     }
 }
