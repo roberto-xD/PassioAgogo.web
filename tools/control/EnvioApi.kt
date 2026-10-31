@@ -91,6 +91,36 @@ class EnvioApi(private val supabase: SupabaseClient) {
     )
 
     /**
+     * Cancela una guía y pide que devuelvan lo cobrado.
+     *
+     * Las guías se pagan al generarse, así que equivocarse cuesta dinero: una
+     * paquetería que cotiza puede rechazar la guía, el cliente puede cancelar, o se
+     * imprime con la empresa equivocada.
+     *
+     * **Cancelar y recuperar el dinero no son lo mismo.** Una guía ya escaneada no se
+     * cancela, y cada paquetería tiene su plazo. Por eso [Cancelacion.devuelto] dice si
+     * hubo devolución en vez de darla por hecha.
+     *
+     * Al cancelar, la solicitud vuelve a quedarse sin guía y puede generarse otra. Lo
+     * que el cliente eligió al cotizar no se toca: sigue siendo cierto.
+     */
+    suspend fun cancelarGuia(solicitudId: String): ResultadoCancelacion =
+        llamar("cancelar-guia") {
+            json.encodeToString(
+                PeticionCancelacion.serializer(),
+                PeticionCancelacion(solicitudId),
+            )
+        }.fold(
+            alOk = { cuerpo ->
+                val r = json.decodeFromString<RespuestaCancelacion>(cuerpo)
+                val c = r.cancelacion
+                if (c == null) ResultadoCancelacion.Fallo(r.error ?: "No se canceló.")
+                else ResultadoCancelacion.Ok(c, r.aviso)
+            },
+            alFallo = { ResultadoCancelacion.Fallo(it) },
+        )
+
+    /**
      * Lo que está marcado para recolección y todavía no se ha pedido.
      *
      * Lee la vista `v_recolecciones_pendientes`, que ya trae solo lo que tiene guía,
@@ -220,6 +250,31 @@ private data class PeticionGuia(
     val recoleccion: Boolean = false,
     val permitirCambio: Boolean = false,
 )
+
+@Serializable
+private data class PeticionCancelacion(val solicitudId: String)
+
+@Serializable
+data class Cancelacion(
+    val numero: String = "",
+    val paqueteria: String = "",
+    val costo: Double? = null,
+    /** La paquetería devolvió el importe. Cancelar no siempre implica recuperarlo. */
+    val devuelto: Boolean = false,
+    val fechaDevolucion: String = "",
+)
+
+@Serializable
+private data class RespuestaCancelacion(
+    val cancelacion: Cancelacion? = null,
+    val aviso: String? = null,
+    val error: String? = null,
+)
+
+sealed interface ResultadoCancelacion {
+    data class Ok(val cancelacion: Cancelacion, val aviso: String? = null) : ResultadoCancelacion
+    data class Fallo(val mensaje: String) : ResultadoCancelacion
+}
 
 @Serializable
 private data class PeticionRecoleccion(
