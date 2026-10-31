@@ -108,6 +108,11 @@ data class SolicitudDto(
     @SerialName("total_estimado") val totalEstimado: Double = 0.0,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("motivo_rechazo") val motivoRechazo: String? = null,
+    // La guía, cuando ya existe (36_order_requests_guia). El cliente ve su número y su
+    // rastreo; el PDF de la etiqueta no, que es para imprimir en la tienda.
+    @SerialName("guia_numero") val guiaNumero: String? = null,
+    @SerialName("guia_rastreo_url") val guiaRastreoUrl: String? = null,
+    @SerialName("guia_paqueteria") val guiaPaqueteria: String? = null,
     @SerialName("order_request_items") val items: List<ItemSolicitudDto> = emptyList(),
 )
 
@@ -126,7 +131,13 @@ data class Solicitud(
     val fecha: String,
     val unidades: Int,
     val motivoRechazo: String,
+    /** Número de rastreo. Vacío mientras el pedido no se haya convertido en paquete. */
+    val guiaNumero: String = "",
+    val guiaRastreoUrl: String = "",
+    val guiaPaqueteria: String = "",
 ) {
+    val tieneGuia: Boolean get() = guiaNumero.isNotBlank()
+
     /** Cómo se le cuenta el estado a quien la envió, no cómo se llama en la base. */
     val estadoLegible: String get() = when (estado) {
         "enviada" -> "En revisión"

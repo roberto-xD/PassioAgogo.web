@@ -141,32 +141,41 @@ class OrdersRepository(
         if (!SupabaseConfig.isConfigured) return emptyList()
         supabase.auth.currentUserOrNull() ?: return null
 
-        return runCatching {
-            supabase.from(SupabaseConfig.ORDER_REQUESTS_TABLE)
-                .select(
-                    columns = Columns.raw(
-                        "id, folio, estado, total_estimado, created_at, motivo_rechazo, " +
-                            "order_request_items(cantidad, precio_estimado)"
-                    )
-                ) {
-                    // El RLS ya limita a las propias; el orden es cosa de la consulta.
-                    order("created_at", Order.DESCENDING)
-                }
-                .decodeList<SolicitudDto>()
-                .mapNotNull { dto ->
-                    val id = dto.id ?: return@mapNotNull null
-                    Solicitud(
-                        id = id,
-                        folio = dto.folio ?: 0L,
-                        estado = dto.estado.orEmpty(),
-                        total = dto.totalEstimado,
-                        fecha = soloFecha(dto.createdAt.orEmpty()),
-                        unidades = dto.items.sumOf { it.cantidad },
-                        motivoRechazo = dto.motivoRechazo.orEmpty(),
-                    )
-                }
-        }.getOrNull()
+        // Las columnas de la guía son nuevas (36_order_requests_guia). Si el script no
+        // se ha corrido, PostgREST rechaza la consulta entera con un 400 y el historial
+        // se quedaría en blanco: se reintenta sin ellas, que es como funcionaba antes.
+        return leerSolicitudes(conGuia = true) ?: leerSolicitudes(conGuia = false)
     }
+
+    private suspend fun leerSolicitudes(conGuia: Boolean): List<Solicitud>? = runCatching {
+        val columnas = buildString {
+            append("id, folio, estado, total_estimado, created_at, motivo_rechazo, ")
+            if (conGuia) append("guia_numero, guia_rastreo_url, guia_paqueteria, ")
+            append("order_request_items(cantidad, precio_estimado)")
+        }
+
+        supabase.from(SupabaseConfig.ORDER_REQUESTS_TABLE)
+            .select(columns = Columns.raw(columnas)) {
+                // El RLS ya limita a las propias; el orden es cosa de la consulta.
+                order("created_at", Order.DESCENDING)
+            }
+            .decodeList<SolicitudDto>()
+            .mapNotNull { dto ->
+                val id = dto.id ?: return@mapNotNull null
+                Solicitud(
+                    id = id,
+                    folio = dto.folio ?: 0L,
+                    estado = dto.estado.orEmpty(),
+                    total = dto.totalEstimado,
+                    fecha = soloFecha(dto.createdAt.orEmpty()),
+                    unidades = dto.items.sumOf { it.cantidad },
+                    motivoRechazo = dto.motivoRechazo.orEmpty(),
+                    guiaNumero = dto.guiaNumero.orEmpty(),
+                    guiaRastreoUrl = dto.guiaRastreoUrl.orEmpty(),
+                    guiaPaqueteria = dto.guiaPaqueteria.orEmpty(),
+                )
+            }
+    }.getOrNull()
 }
 
 /** "2026-10-20T18:04:11.123Z" → "2026-10-20". Para el historial basta el día. */

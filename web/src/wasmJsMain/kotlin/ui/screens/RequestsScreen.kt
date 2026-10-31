@@ -1,6 +1,7 @@
 package ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,6 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import models.Solicitud
 import models.formatPrice
 import ui.components.Paragraph
+import ui.components.copyToClipboard
+import ui.components.openInNewTab
 import ui.theme.PassionTheme
 import viewmodel.CartUiState
 
@@ -120,6 +127,8 @@ private fun Tarjeta(solicitud: Solicitud) {
             modifier = Modifier.padding(top = PassionTheme.spacing.s2),
         )
 
+        Guia(solicitud)
+
         // El motivo solo existe cuando no se pudo atender, y es justo lo que la persona
         // necesita saber para decidir si vuelve a intentarlo.
         if (solicitud.motivoRechazo.isNotBlank()) {
@@ -130,6 +139,72 @@ private fun Tarjeta(solicitud: Solicitud) {
                 modifier = Modifier.padding(top = PassionTheme.spacing.s2),
             )
         }
+    }
+}
+
+/**
+ * El número de guía, cuando el pedido ya es un paquete.
+ *
+ * Es el dato que la gente viene a buscar aquí, así que se enseña entero y se copia de un
+ * toque: un número de rastreo se usa para pegarlo en otro sitio, y leerlo a mano de una
+ * pantalla para teclearlo en otra es donde se cuelan los dígitos cambiados.
+ *
+ * Sin guía no se inventa nada ni se deja el hueco en blanco: «Pendiente de envío» dice
+ * dónde está el pedido, que es la pregunta de fondo.
+ */
+@Composable
+private fun Guia(solicitud: Solicitud) {
+    if (!solicitud.tieneGuia) {
+        Text(
+            text = "Pendiente de envío",
+            color = PassionTheme.semantics.onBackgroundMuted,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+        )
+        return
+    }
+
+    var copiado by remember(solicitud.id) { mutableStateOf(false) }
+
+    Text(
+        text = solicitud.guiaPaqueteria.ifBlank { "Guía" }.replaceFirstChar { it.uppercase() },
+        color = PassionTheme.semantics.onBackgroundSubtle,
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier.padding(top = PassionTheme.spacing.s3),
+    )
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = solicitud.guiaNumero,
+            color = PassionTheme.semantics.onBackgroundStrong,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .clip(MaterialTheme.shapes.extraSmall)
+                .clickable { copiado = copyToClipboard(solicitud.guiaNumero) }
+                .padding(vertical = PassionTheme.spacing.s1),
+        )
+        Text(
+            // El aviso sustituye a la invitación, no se añade: dos textos a la vez
+            // obligan a leer cuál es cuál.
+            text = if (copiado) "copiado" else "toca para copiar",
+            color = PassionTheme.semantics.onBackgroundSubtle,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(start = PassionTheme.spacing.s2),
+        )
+    }
+
+    if (solicitud.guiaRastreoUrl.isNotBlank()) {
+        Text(
+            text = "Rastrear envío",
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier
+                .padding(top = PassionTheme.spacing.s1)
+                .clip(MaterialTheme.shapes.extraSmall)
+                .clickable { openInNewTab(solicitud.guiaRastreoUrl) }
+                .padding(vertical = PassionTheme.spacing.s1),
+        )
     }
 }
 
