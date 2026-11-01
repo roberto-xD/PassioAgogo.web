@@ -56,6 +56,29 @@ const ETIQUETA_TAMANO = Deno.env.get("ENVIA_ETIQUETA_TAMANO") ?? "STOCK_4X6";
 const CAJA_MAX = { largo: 100, ancho: 50, alto: 50 };
 const PESO_MAX_KG = 40;
 
+/**
+ * A partir de cuánto se asegura el paquete, en pesos. 0 lo apaga.
+ *
+ * Un pedido que se pierde se repone de tu bolsillo, y por encima de cierto importe eso
+ * deja de ser un contratiempo. La prima es un porcentaje del valor declarado que pone la
+ * paquetería, así que no se fija aquí: se pide el servicio y viene en la tarifa.
+ *
+ * **El mismo umbral tiene que valer al cotizar y al generar.** Un servicio cotizado que
+ * no se pide al generar no se contrata, y uno pedido al generar sin haberse cotizado lo
+ * paga la tienda: en los dos casos lo que se le enseñó al cliente deja de ser lo que
+ * cuesta.
+ */
+const SEGURO_DESDE = Number(Deno.env.get("ENVIA_SEGURO_DESDE") ?? "1500");
+
+/** Los servicios extra del paquete. Lista vacía si no toca ninguno. */
+function serviciosExtra(valorDeclarado: number): Array<Record<string, unknown>> {
+  if (SEGURO_DESDE <= 0 || valorDeclarado < SEGURO_DESDE) return [];
+  return [{
+    service: "envia_insurance",
+    data: { amount: String(Math.round(valorDeclarado * 100) / 100) },
+  }];
+}
+
 const CP_VALIDO = /^[0-9]{5}$/;
 
 interface FilaOrigen {
@@ -221,6 +244,32 @@ async function lugarDe(cp: string) {
     return { ciudad: String(fila.locality ?? ""), estado: String(codigo) };
   } catch (_e) {
     return null;
+  }
+}
+
+/**
+ * Deja constancia de quién hizo qué.
+ *
+ * Nunca lanza: esto acompaña a una acción que ya ocurrió y costó dinero. Si el registro
+ * falla, se queja en los logs y se sigue — perder la guía por no poder anotarla sería
+ * cambiar un problema pequeño por uno caro.
+ */
+async function anotar(evento: Record<string, unknown>): Promise<void> {
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+    // El cliente no conoce el esquema, así que su tipo para `insert` es inservible
+    // aquí. Se le dice que confíe: la forma de la fila la fija 38_guia_eventos.sql.
+    const { error } = await supabase
+      .from("guia_eventos")
+      .insert(evento as never);
+    if (error) {
+      console.error("no se pudo anotar el evento", JSON.stringify(evento), error.message);
+    }
+  } catch (e) {
+    console.error("no se pudo anotar el evento", String(e));
   }
 }
 
@@ -449,6 +498,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       weightUnit: "KG",
       weight: paquete.peso,
       dimensions: { length: paquete.largo, width: paquete.ancho, height: paquete.alto },
+      // El mismo servicio que se cotizó: uno cotizado que no se pide aquí no se
+      // contrata, y el cliente habría pagado por un seguro que no existe.
+      additionalServices: serviciosExtra(Math.round(valor * 100) / 100),
     }],
     shipment: { type: 1, carrier, service },
     // Obligatorio al generar, y no existe al cotizar: cotizar no imprime nada.
@@ -544,6 +596,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
       necesita_recoleccion: cuerpo.recoleccion === true,
     })
     .eq("id", solicitudId);
+
+  // El historial se escribe aparte de la solicitud y **después**: si fallara, lo que
+  // no puede perderse es la guía, no el registro. Por eso no corta la respuesta.
+  await anotar({
+    request_id: solicitudId,
+    accion: "generada",
+    usuario_id: sesion.user.id,
+    usuario: sesion.user.email ?? "",
+    guia_numero: guia.numero,
+    guia_paqueteria: guia.paqueteria,
+    guia_costo: guia.costo,
+    nota: cambia
+      ? `El cliente eligió ${elegidaCliente}; se envió con ${carrier}.`
+      : null,
+  });
 
   if (errorGuardar) {
     console.error("no se pudo guardar la guia", solicitudId, errorGuardar.message);

@@ -141,6 +141,29 @@ const PESO_MAX_KG = 40;
 const MAX_RENGLONES = 50;
 const MAX_CANTIDAD = 99;
 
+/**
+ * A partir de cuánto se asegura el paquete, en pesos. 0 lo apaga.
+ *
+ * Un pedido que se pierde se repone de tu bolsillo, y por encima de cierto importe eso
+ * deja de ser un contratiempo. La prima es un porcentaje del valor declarado que pone la
+ * paquetería, así que no se fija aquí: se pide el servicio y viene en la tarifa.
+ *
+ * **El mismo umbral tiene que valer al cotizar y al generar.** Un servicio cotizado que
+ * no se pide al generar no se contrata, y uno pedido al generar sin haberse cotizado lo
+ * paga la tienda: en los dos casos lo que se le enseñó al cliente deja de ser lo que
+ * cuesta.
+ */
+const SEGURO_DESDE = Number(Deno.env.get("ENVIA_SEGURO_DESDE") ?? "1500");
+
+/** Los servicios extra del paquete. Lista vacía si no toca ninguno. */
+function serviciosExtra(valorDeclarado: number): Array<Record<string, unknown>> {
+  if (SEGURO_DESDE <= 0 || valorDeclarado < SEGURO_DESDE) return [];
+  return [{
+    service: "envia_insurance",
+    data: { amount: String(Math.round(valorDeclarado * 100) / 100) },
+  }];
+}
+
 const CP_VALIDO = /^[0-9]{5}$/;
 
 interface Renglon {
@@ -787,6 +810,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         width: paquete.ancho,
         height: paquete.alto,
       },
+      // El seguro se cotiza aquí para que su prima venga incluida en el precio que ve
+      // el cliente. Pedirlo solo al generar lo pagaría la tienda.
+      additionalServices: serviciosExtra(Math.round(valor * 100) / 100),
     }],
     shipment: { type: 1 },
   };

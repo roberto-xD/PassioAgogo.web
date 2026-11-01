@@ -73,6 +73,26 @@ function pistaDeEnvia(mensaje: string, descripcion: string): string | undefined 
   return undefined;
 }
 
+/** Deja constancia de quién canceló. Nunca lanza: ver `generar-guia`. */
+async function anotar(evento: Record<string, unknown>): Promise<void> {
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+    // El cliente no conoce el esquema, así que su tipo para `insert` es inservible
+    // aquí. Se le dice que confíe: la forma de la fila la fija 38_guia_eventos.sql.
+    const { error } = await supabase
+      .from("guia_eventos")
+      .insert(evento as never);
+    if (error) {
+      console.error("no se pudo anotar el evento", JSON.stringify(evento), error.message);
+    }
+  } catch (e) {
+    console.error("no se pudo anotar el evento", String(e));
+  }
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders() });
@@ -208,6 +228,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
       necesita_recoleccion: null,
     })
     .eq("id", solicitudId);
+
+  // Con copia de lo cancelado: las columnas de la solicitud acaban de quedarse
+  // vacías, así que sin esto el registro diría que alguien canceló algo sin decir qué.
+  await anotar({
+    request_id: solicitudId,
+    accion: "cancelada",
+    usuario_id: sesion.user.id,
+    usuario: sesion.user.email ?? "",
+    guia_numero: solicitud.guia_numero,
+    guia_paqueteria: solicitud.guia_paqueteria,
+    guia_costo: solicitud.guia_costo,
+    devuelto,
+  });
 
   const resultado = {
     numero: solicitud.guia_numero,
