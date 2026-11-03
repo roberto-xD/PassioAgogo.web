@@ -126,6 +126,18 @@ private fun Tarjeta(solicitud: Solicitud) {
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = PassionTheme.spacing.s2),
         )
+        // El total ya lleva el envío dentro, así que se dice cuánto es: una cifra que
+        // no cuadra con la suma de los artículos invita a pensar que está mal.
+        if (solicitud.tieneEnvio) {
+            Text(
+                text = "Incluye envío" +
+                    solicitud.envioDescripcion.takeIf { it.isNotBlank() }
+                        ?.let { " · $it" }.orEmpty() +
+                    " · ${formatPrice(solicitud.envioCosto)}",
+                color = PassionTheme.semantics.onBackgroundSubtle,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
 
         Guia(solicitud)
 

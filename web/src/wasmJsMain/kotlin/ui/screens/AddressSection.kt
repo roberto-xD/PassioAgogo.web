@@ -1,28 +1,33 @@
 package ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import network.Direccion
-import ui.Chip
 import ui.components.FormField
 import ui.components.Paragraph
 import ui.components.SectionTitle
@@ -94,20 +99,35 @@ fun DireccionSection(
         },
     )
 
-    // Resueltos por el catálogo de Envia, no se piden: son exactamente lo que la
-    // paquetería espera leer, y un «CDMX» escrito a mano rompe la guía sin avisar.
-    if (!state.cpResuelto) {
-        FormField(d.ciudad, { v -> onEditar { it.copy(ciudad = v) } }, "Ciudad")
-        FormField(d.estado, { v -> onEditar { it.copy(estado = v) } }, "Estado")
+    // La colonia va pegada al código postal porque sale de él. Con lista, se elige de
+    // un desplegable: así no hay forma de escribir una que no exista en ese código.
+    if (state.colonias.isNotEmpty()) {
+        ColoniaDesplegable(
+            colonias = state.colonias,
+            elegida = d.colonia,
+            onElegir = { v -> onEditar { it.copy(colonia = v) } },
+        )
+    } else {
+        // Sin lista —código no reconocido, o la consulta no contestó— se escribe. Un
+        // desplegable vacío no dejaría completar la dirección.
+        FormField(d.colonia, { v -> onEditar { it.copy(colonia = v) } }, "Colonia")
     }
 
-    FormField(d.colonia, { v -> onEditar { it.copy(colonia = v) } }, "Colonia")
-    // Se ofrecen, no se imponen: el campo sigue siendo de texto por si la colonia de
-    // alguien no está en la lista, que pasa con los fraccionamientos nuevos.
-    if (state.colonias.isNotEmpty()) ColoniaSugerencias(
-        colonias = state.colonias,
-        elegida = d.colonia,
-        onElegir = { v -> onEditar { it.copy(colonia = v) } },
+    // Ciudad y estado se enseñan siempre, pero apagados cuando los resolvió el
+    // catálogo: son exactamente lo que la paquetería espera leer, y un «CDMX» escrito
+    // a mano rompe la guía sin avisar. Verlos apagados dice que ya están puestos;
+    // esconderlos haría dudar de si se mandan.
+    FormField(
+        value = d.ciudad,
+        onValueChange = { v -> onEditar { it.copy(ciudad = v) } },
+        label = "Ciudad",
+        enabled = !state.cpResuelto,
+    )
+    FormField(
+        value = d.estado,
+        onValueChange = { v -> onEditar { it.copy(estado = v) } },
+        label = "Estado",
+        enabled = !state.cpResuelto,
     )
 
     FormField(
@@ -184,28 +204,48 @@ private val DESACENTUADO = mapOf(
     'á' to 'a', 'é' to 'e', 'í' to 'i', 'ó' to 'o', 'ú' to 'u', 'ü' to 'u',
 )
 
-/** Las colonias del código postal, para elegir con un toque en vez de teclearlas. */
-@OptIn(ExperimentalLayoutApi::class)
+/**
+ * Las colonias del código postal, en un desplegable.
+ *
+ * Elegir en vez de escribir: de un código postal cuelgan unas pocas colonias concretas,
+ * y teclearla a mano solo abre la puerta a escribirla distinto de como la conoce la
+ * paquetería. El campo se ve como los demás pero no se escribe en él; se toca y se
+ * elige.
+ */
 @Composable
-private fun ColoniaSugerencias(
+private fun ColoniaDesplegable(
     colonias: List<String>,
     elegida: String,
     onElegir: (String) -> Unit,
 ) {
-    FlowRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = PassionTheme.spacing.s2),
-        horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s2),
-        verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s2),
-    ) {
-        colonias.forEach { colonia ->
-            Chip(
-                label = colonia,
-                selected = colonia.equals(elegida, ignoreCase = true),
-                secondLevel = true,
-                onClick = { onElegir(colonia) },
-            )
+    var abierto by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        // El campo apagado no recibe pulsaciones, así que las recoge la caja de
+        // alrededor. Es lo que permite que se lea como un campo y actúe como un botón.
+        FormField(
+            value = elegida,
+            onValueChange = {},
+            label = if (elegida.isBlank()) "Colonia — toca para elegir" else "Colonia",
+            enabled = false,
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(MaterialTheme.shapes.small)
+                .clickable { abierto = true },
+        )
+
+        DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
+            colonias.forEach { colonia ->
+                DropdownMenuItem(
+                    text = { Text(colonia) },
+                    onClick = {
+                        onElegir(colonia)
+                        abierto = false
+                    },
+                )
+            }
         }
     }
 }

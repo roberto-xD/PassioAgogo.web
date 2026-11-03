@@ -29,10 +29,19 @@ fun FormField(
     supportingText: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     isPassword: Boolean = false,
+    /**
+     * Apagado se sigue leyendo, pero no se escribe.
+     *
+     * Para datos que los pone el sistema y no la persona —la ciudad que resuelve el
+     * código postal—. Se deja a la vista en vez de esconderlo: que un campo del
+     * formulario desaparezca hace dudar de si se mandó.
+     */
+    enabled: Boolean = true,
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
+        enabled = enabled,
         label = { Text(label) },
         singleLine = singleLine,
         supportingText = supportingText?.let { { Text(it) } },

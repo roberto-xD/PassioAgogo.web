@@ -151,6 +151,7 @@ class OrdersRepository(
         val columnas = buildString {
             append("id, folio, estado, total_estimado, created_at, motivo_rechazo, ")
             if (conGuia) append("guia_numero, guia_rastreo_url, guia_paqueteria, ")
+            if (conGuia) append("envio_costo, envio_descripcion, ")
             append("order_request_items(cantidad, precio_estimado)")
         }
 
@@ -166,13 +167,15 @@ class OrdersRepository(
                     id = id,
                     folio = dto.folio ?: 0L,
                     estado = dto.estado.orEmpty(),
-                    total = dto.totalEstimado,
+                    totalArticulos = dto.totalEstimado,
                     fecha = soloFecha(dto.createdAt.orEmpty()),
                     unidades = dto.items.sumOf { it.cantidad },
                     motivoRechazo = dto.motivoRechazo.orEmpty(),
                     guiaNumero = dto.guiaNumero.orEmpty(),
                     guiaRastreoUrl = dto.guiaRastreoUrl.orEmpty(),
                     guiaPaqueteria = dto.guiaPaqueteria.orEmpty(),
+                    envioCosto = dto.envioCosto ?: 0.0,
+                    envioDescripcion = dto.envioDescripcion.orEmpty(),
                 )
             }
     }.getOrNull()

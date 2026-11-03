@@ -113,6 +113,10 @@ data class SolicitudDto(
     @SerialName("guia_numero") val guiaNumero: String? = null,
     @SerialName("guia_rastreo_url") val guiaRastreoUrl: String? = null,
     @SerialName("guia_paqueteria") val guiaPaqueteria: String? = null,
+    // El envío que eligió el cliente (35_order_requests_envio). Su costo no está en
+    // `total_estimado`: ese lo calcula un trigger a partir de los artículos.
+    @SerialName("envio_costo") val envioCosto: Double? = null,
+    @SerialName("envio_descripcion") val envioDescripcion: String? = null,
     @SerialName("order_request_items") val items: List<ItemSolicitudDto> = emptyList(),
 )
 
@@ -127,16 +131,28 @@ data class Solicitud(
     val id: String,
     val folio: Long,
     val estado: String,
-    val total: Double,
+    /** Solo los artículos: es lo que calcula el trigger de la base. */
+    val totalArticulos: Double,
     val fecha: String,
     val unidades: Int,
     val motivoRechazo: String,
+    val envioCosto: Double = 0.0,
+    val envioDescripcion: String = "",
     /** Número de rastreo. Vacío mientras el pedido no se haya convertido en paquete. */
     val guiaNumero: String = "",
     val guiaRastreoUrl: String = "",
     val guiaPaqueteria: String = "",
 ) {
     val tieneGuia: Boolean get() = guiaNumero.isNotBlank()
+    val tieneEnvio: Boolean get() = envioCosto > 0.0
+
+    /**
+     * Lo que de verdad va a pagar, artículos más envío.
+     *
+     * El trigger de la base solo suma artículos, así que enseñar `total_estimado` a
+     * secas daba una cifra que no era la que el cliente vio al enviar la solicitud.
+     */
+    val total: Double get() = totalArticulos + envioCosto
 
     /** Cómo se le cuenta el estado a quien la envió, no cómo se llama en la base. */
     val estadoLegible: String get() = when (estado) {

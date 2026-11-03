@@ -121,8 +121,22 @@ class AddressViewModel(
         if (ahora == antes) return
 
         // Cambió el código postal: lo que se había resuelto con el anterior ya no vale.
+        //
+        // Y se borran colonia, ciudad y estado, no solo la lista. Son datos **de ese
+        // código**: dejarlos puestos mientras se teclea otro deja una dirección que
+        // mezcla dos sitios, y eso no se ve en pantalla hasta que la guía sale mal.
         _uiState.update {
-            it.copy(cpResuelto = false, colonias = emptyList(), cpSinServicio = false)
+            it.copy(
+                cpResuelto = false,
+                cpSinServicio = false,
+                colonias = emptyList(),
+                direccion = it.direccion.copy(
+                    colonia = "",
+                    ciudad = "",
+                    estado = "",
+                    estadoCodigo = "",
+                ),
+            )
         }
         if (ahora.length == 5) resolverCp(ahora)
     }
