@@ -117,6 +117,13 @@ data class SolicitudDto(
     // `total_estimado`: ese lo calcula un trigger a partir de los artículos.
     @SerialName("envio_costo") val envioCosto: Double? = null,
     @SerialName("envio_descripcion") val envioDescripcion: String? = null,
+    // El pago (39_pagos.sql). El cliente las lee y no las escribe: las pone el webhook
+    // de Mercado Pago con service_role, después de comprobar la firma y de volver a
+    // preguntarle a Mercado Pago cuánto se pagó.
+    @SerialName("pago_estado") val pagoEstado: String? = null,
+    @SerialName("pago_total") val pagoTotal: Double? = null,
+    @SerialName("pago_metodo") val pagoMetodo: String? = null,
+    @SerialName("pago_referencia") val pagoReferencia: String? = null,
     @SerialName("order_request_items") val items: List<ItemSolicitudDto> = emptyList(),
 )
 
@@ -142,9 +149,31 @@ data class Solicitud(
     val guiaNumero: String = "",
     val guiaRastreoUrl: String = "",
     val guiaPaqueteria: String = "",
+    /** Vacío mientras no se haya abierto ningún cobro. Ver [EstadoPago]. */
+    val pagoEstado: String = "",
+    /** Lo que Mercado Pago dice que se cobró. Puede no coincidir con [total]. */
+    val pagoTotal: Double = 0.0,
+    val pagoMetodo: String = "",
+    val pagoReferencia: String = "",
 ) {
     val tieneGuia: Boolean get() = guiaNumero.isNotBlank()
     val tieneEnvio: Boolean get() = envioCosto > 0.0
+
+    val pago: EstadoPago get() = EstadoPago.desde(pagoEstado)
+
+    /**
+     * ¿Tiene sentido ofrecerle pagar?
+     *
+     * No cuando ya está pagada, ni cuando la tienda no pudo atenderla: cobrar algo que
+     * se rechazó obliga a devolverlo. Un cobro pendiente **sí** se puede reintentar —es
+     * justo el caso de quien cerró la pestaña a medias—, y un rechazo también, que para
+     * eso se reintenta una tarjeta.
+     */
+    val puedePagar: Boolean
+        get() = pago != EstadoPago.Aprobado &&
+            pago != EstadoPago.Reembolsado &&
+            estado != "rechazada" &&
+            total > 0.0
 
     /**
      * Lo que de verdad va a pagar, artículos más envío.
@@ -160,5 +189,26 @@ data class Solicitud(
         "atendida" -> "Atendida"
         "rechazada" -> "No pudimos atenderla"
         else -> estado
+    }
+}
+
+/**
+ * En qué va el cobro.
+ *
+ * Las mismas cinco palabras que guarda la base (39_pagos.sql), más [Ninguno] para
+ * cuando todavía no se ha abierto ningún cobro. Mercado Pago distingue muchos más
+ * estados; esos se guardan sin traducir en `pagos.estado_crudo`, que es donde sirven.
+ */
+enum class EstadoPago(val clave: String, val etiqueta: String) {
+    Ninguno("", "Sin pagar"),
+    Pendiente("pendiente", "Pago en proceso"),
+    Aprobado("aprobado", "Pagado"),
+    Rechazado("rechazado", "Pago rechazado"),
+    Reembolsado("reembolsado", "Reembolsado"),
+    Cancelado("cancelado", "Pago cancelado");
+
+    companion object {
+        fun desde(clave: String?): EstadoPago =
+            entries.firstOrNull { it.clave == clave?.trim() } ?: Ninguno
     }
 }

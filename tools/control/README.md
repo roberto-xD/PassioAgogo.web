@@ -7,6 +7,7 @@ revise junto, porque entre las dos se reparte algo que ninguna puede hacer sola.
 | Archivo | Para qué |
 |---|---|
 | [`EnvioApi.kt`](EnvioApi.kt) | Generar guías y pedir recolecciones |
+| [`PagoApi.kt`](PagoApi.kt) | Sacar el enlace de cobro y ver el historial de pagos |
 | [`../crypto/AdminKeyTool.kt`](../crypto/AdminKeyTool.kt) | Generar el par de claves y abrir direcciones |
 | [`probar-guia.html`](probar-guia.html) | Probar las funciones antes de conectarlas |
 
@@ -73,6 +74,35 @@ for (paqueteria in pendientes.map { it.paqueteria }.distinct()) {
     api.solicitarRecoleccion(fecha = "2026-11-03", paqueteria = paqueteria)
 }
 ```
+
+## Cobrar por WhatsApp
+
+El cliente puede pagar él mismo desde la web, en el acuse o en su historial. Para quien
+cierra el trato por mensaje, `PagoApi` da el enlace que se pega en la conversación:
+
+```kotlin
+val pagos = PagoApi(supabase)
+
+when (val r = pagos.enlaceDeCobro(solicitud.id)) {
+    is ResultadoCobro.Listo -> compartir("Puedes pagar aquí: ${r.checkoutUrl}")
+    is ResultadoCobro.Fallo -> avisar(r.mensaje)
+}
+
+// Cuando un cobro no cuadra: las palabras de Mercado Pago sin traducir.
+pagos.historial(solicitud.id).forEach { Log.d("pago", "${it.accion} · ${it.estadoCrudo}") }
+```
+
+Pedir el enlace dos veces no abre dos cobros: la función usa una llave de idempotencia
+hecha con la solicitud y el importe.
+
+**No hay forma de marcar una solicitud como pagada desde aquí, y es a propósito.** Las
+columnas `pago_*` solo las escribe el webhook, con `service_role`, tras comprobar la
+firma del aviso y volver a preguntarle a Mercado Pago cuánto se pagó. Un pago que llegó
+por fuera —efectivo en mano, transferencia directa— no es un cobro de Mercado Pago, y
+registrarlo como tal haría que los números dejaran de cuadrar con su panel.
+
+Tampoco se manda el monto: lo calcula la función leyendo los precios de la base. Para
+cobrar otra cosa hay que cambiar la solicitud.
 
 ## Recoger o llevar a sucursal
 

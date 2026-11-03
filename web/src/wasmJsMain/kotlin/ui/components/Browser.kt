@@ -46,6 +46,38 @@ private fun clipboardWrite(text: String): Boolean = js(
     })(text)"""
 )
 
+/**
+ * Lleva **esta** pestaña a otra dirección.
+ *
+ * Para el pago, y no [openInNewTab], por dos razones. La primera es que no funcionaría:
+ * la URL de Mercado Pago llega después de preguntarle a la Edge Function, y una pestaña
+ * que se abre cuando ya pasó un rato desde el clic la bloquea el navegador por no venir
+ * de un gesto. La segunda es que un cobro quiere una sola pestaña: Mercado Pago devuelve
+ * a la persona aquí al terminar, y con dos pestañas abiertas acaba mirando la vieja, que
+ * sigue diciendo que no ha pagado.
+ */
+fun goToExternal(url: String): Unit = js("window.location.assign(url)")
+
+/**
+ * Los parámetros de consulta de la URL actual, sin el `?`.
+ *
+ * Mercado Pago le pega los suyos al devolver el navegador. La app enruta por hash, así
+ * que esto es lo único que hay que mirar para saber que venimos de un pago.
+ */
+fun currentQuery(): String = window.location.search.removePrefix("?")
+
+/**
+ * Borra los parámetros de consulta sin recargar ni añadir otra entrada al historial.
+ *
+ * Se limpian en cuanto se leen: dejarlos puestos hace que el botón de recargar vuelva a
+ * parecer un regreso del pago, y que la URL que la persona comparta lleve dentro el id
+ * de un pago suyo.
+ */
+fun clearQuery() {
+    val limpia = window.location.pathname + window.location.hash
+    window.history.replaceState(null, "", limpia)
+}
+
 /** `true` si el destino sale del sitio; el resto son rutas internas (`/catalogo`). */
 fun isExternalUrl(url: String): Boolean =
     url.startsWith("http://") || url.startsWith("https://")

@@ -460,6 +460,76 @@ deben estar configurados en producción.**
 El IP no se guarda: se almacena su **hash con sal** (`ip_hash`) solo para poder limitar
 los envíos por origen.
 
+## Cobros (Mercado Pago)
+
+Se usa **Checkout Pro** por la [Orders API](https://www.mercadopago.com.mx/developers/es/reference/online-payments/checkout-pro-orders/overview)
+(`POST /v1/orders`), no por la de Preferences: Mercado Pago mantiene Preferences pero ya
+no la recomienda para integraciones nuevas, y las funciones nuevas salen solo en Orders.
+
+> **Por qué Checkout Pro y no el formulario propio.** La web es Compose Multiplatform
+> sobre un canvas de Skia: no hay DOM donde montar los *Bricks* de Mercado Pago. Se
+> podría superponer HTML por encima del canvas, fuera del árbol de Compose, pero además
+> de frágil nos metería en alcance PCI. Con Checkout Pro los datos de tarjeta nunca
+> pasan por aquí.
+
+Se puede pagar en **dos momentos**: al enviar la solicitud, desde el acuse, o después,
+desde la card del historial en «Mi cuenta». Los dos caminos llaman a la misma función.
+
+**El monto se calcula en el servidor.** `crear-pago` solo recibe el id de la solicitud y
+suma los precios leyéndolos de `product_variants`. No usa `order_request_items.precio_estimado`
+porque esa columna **la escribe el navegador** al crear la solicitud —así se diseñó: una
+solicitud guarda los precios que la persona vio—, y cobrar por ese número sería dejar que
+el cliente ponga el precio. Si lo que suma el catálogo no cuadra con `total_estimado`, la
+función **se niega a cobrar** y pide hablar con la tienda, en vez de resolverlo por su
+cuenta: cobrar más de lo aceptado no se hace, y cobrar menos es una pérdida que la tienda
+no decidió.
+
+Lo que ve Mercado Pago es **genérico**: un renglón «Articulos de higiene personal» y, si
+lo hay, otro de envío. El nombre del producto no va, porque aparecería en el correo de
+Mercado Pago y en el estado de cuenta de la tarjeta — que es justo lo que no controla
+quien compra. Por lo mismo, `MP_STATEMENT` es discreto. La dirección tampoco va: sigue
+cifrada extremo a extremo y no hace falta para cobrar.
+
+Puesta en marcha:
+
+1. Ejecuta [`db/39_pagos.sql`](db/39_pagos.sql) en el SQL Editor.
+2. En [Mercado Pago → Tus integraciones](https://www.mercadopago.com.mx/developers/panel)
+   crea una aplicación. De ahí salen **dos credenciales distintas** que se confunden con
+   facilidad:
+   - el **access token** (`MP_ACCESS_TOKEN`), para crear órdenes y consultar pagos;
+   - la **clave secreta del webhook** (`MP_WEBHOOK_SECRET`), en *Webhooks → Configurar
+     notificación*, que solo sirve para comprobar la firma de los avisos.
+
+   Empieza con las credenciales de **prueba**. Las de producción cobran de verdad.
+3. Despliega las dos funciones. El webhook va **sin verificación de JWT**:
+   ```bash
+   supabase functions deploy crear-pago
+   supabase functions deploy pago-webhook --no-verify-jwt
+   ```
+   ([`supabase/config.toml`](supabase/config.toml) ya lo declara; en el dashboard,
+   desactiva *Verify JWT* en los ajustes de `pago-webhook`.)
+
+   > Con la verificación activada **todos los avisos rebotan con 401** y los pagos se
+   > quedan en «Pago en proceso» para siempre. Es el fallo más difícil de notar de todo
+   > esto, porque el cobro sí se hace: lo que se pierde es el aviso. Si ves pagos
+   > cobrados en el panel de Mercado Pago y «en proceso» en la web, mira esto primero.
+4. Secrets de las funciones: `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `SITIO_URL` (la raíz
+   del sitio, para el regreso) y opcionalmente `MP_STATEMENT` (máx. 13 caracteres),
+   `MP_MAX_MESES` (meses sin intereses, 1 = ninguno) y `MP_DEBUG`.
+5. En *Webhooks* de la aplicación, apunta la URL de notificaciones a
+   `https://<proyecto>.supabase.co/functions/v1/pago-webhook` y suscríbete a los eventos
+   de órdenes y pagos.
+
+**Solo el webhook puede marcar una solicitud como pagada.** Las columnas `pago_*` de
+`order_requests` se le conceden al cliente en `select` y **no** en `insert` ni `update`:
+las escribe `pago-webhook` con `service_role`, después de comprobar la firma y de volver
+a preguntarle a Mercado Pago cuánto se pagó. El regreso del navegador no prueba nada —es
+una URL que cualquiera puede escribir— y por eso lo único que hace la app al volver es
+releer el estado de la base.
+
+`MP_DEBUG` escribe en los logs el cuerpo de los avisos y de las respuestas de Mercado
+Pago. **Apágalo antes de producción**: ahí dentro van datos del pago.
+
 ## ⚠️ Seguridad
 
 - **Inyección SQL: cubierta por arquitectura, no por filtrado.** Los datos viajan como

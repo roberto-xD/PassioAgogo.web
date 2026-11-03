@@ -26,3 +26,20 @@ verify_jwt = false
 # la base —que nunca salen al navegador— y limita los giros por origen.
 [functions.spin]
 verify_jwt = false
+
+# `pago-webhook` lo llama MERCADO PAGO, no un navegador. Mercado Pago no tiene
+# sesión en Supabase, así que con verify_jwt = true el gateway rechaza todos los
+# avisos con 401 y los pagos se quedan en «pendiente» para siempre, sin que nada
+# en la web dé señal del problema: el cobro se hizo, el aviso se perdió.
+#
+# No queda desprotegida, y aquí los candados importan más que en las otras dos:
+#
+#   1. La firma. `x-signature` trae un HMAC-SHA256 que solo puede calcular quien
+#      tiene MP_WEBHOOK_SECRET. Sin firma válida no se mira el cuerpo.
+#   2. El cuerpo del aviso NO se cree: dice qué pago mirar y nada más. El estado
+#      y el monto se le preguntan a Mercado Pago con nuestro token.
+#
+# El segundo es el que de verdad sostiene esto. Sin él bastaría con acertar una
+# firma para regalarse pedidos.
+[functions.pago-webhook]
+verify_jwt = false

@@ -17,6 +17,8 @@ import network.CartStorage
 import network.CotizacionResult
 import network.EnvioResult
 import network.OrdersRepository
+import network.PagoResult
+import network.PaymentsRepository
 import network.ShippingRepository
 import network.SobreDireccion
 import ui.pgmodels.PGDataCard
@@ -72,6 +74,32 @@ data class CartUiState(
     val errorMessage: String? = null,
     /** Folio de la solicitud recién enviada; con él se enseña el acuse. */
     val folioEnviado: Long? = null,
+    /**
+     * Id de la solicitud recién enviada, para poder cobrarla sin salir del acuse.
+     *
+     * Va aparte del folio porque son dos cosas con dos usos: el folio es lo que se le
+     * enseña a la persona y lo que dice por WhatsApp; el id es lo que identifica la
+     * solicitud para `crear-pago`.
+     */
+    val idEnviada: String? = null,
+    /**
+     * Lo que sumaba lo enviado, artículos más envío.
+     *
+     * Se guarda porque al enviar se vacía el carrito, y el acuse necesita poder decir
+     * cuánto se va a pagar. Sacarlo de `cart` daría cero.
+     */
+    val totalEnviado: Double = 0.0,
+    /** Qué solicitud se está cobrando. Para apagar solo su botón, no todos. */
+    val pagando: String? = null,
+    val errorPago: String? = null,
+    /**
+     * La URL de Mercado Pago, en cuanto la hay. La pantalla lleva allí el navegador y
+     * la borra.
+     *
+     * Pasa por el estado en vez de navegarse desde aquí porque irse de la página es
+     * cosa de la pantalla; este ViewModel no sabe de navegadores.
+     */
+    val urlPago: String? = null,
     /** Se intentó enviar sin sesión: hay que pedir acceso sin perder el carrito. */
     val pideSesion: Boolean = false,
     val solicitudes: List<Solicitud>? = null,
@@ -84,6 +112,20 @@ data class CartUiState(
     val agregados: Int = 0,
 ) {
     val unidades: Int get() = cart.unidades
+
+    /**
+     * Lo que va a pagar: artículos más el envío elegido.
+     *
+     * Vive aquí y no en la pantalla porque ahora lo necesitan dos sitios —los totales
+     * del carrito y el acuse—, y dos sumas iguales escritas aparte acaban siendo dos
+     * sumas distintas.
+     *
+     * Para recoger en persona no hay envío que sumar aunque quede una cotización vieja
+     * de cuando la elección era otra.
+     */
+    val totalConEnvio: Double
+        get() = cart.total +
+            (if (entrega == MetodoEntrega.Domicilio) envioElegido?.precio ?: 0.0 else 0.0)
 
     /** El teléfono es obligatorio: es por donde sigue el trato. */
     val telefonoCompleto: Boolean
@@ -119,6 +161,7 @@ data class CartUiState(
 class CartViewModel(
     private val repository: OrdersRepository,
     private val shipping: ShippingRepository = ShippingRepository(),
+    private val payments: PaymentsRepository = PaymentsRepository(),
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
     private val _uiState = MutableStateFlow(CartUiState(cart = CartStorage.load()))
@@ -276,7 +319,55 @@ class CartViewModel(
 
     /** Se vuelve del acuse al carrito, o se descarta el aviso de sesión. */
     fun reset() = _uiState.update {
-        it.copy(folioEnviado = null, pideSesion = false, errorMessage = null)
+        it.copy(
+            folioEnviado = null,
+            idEnviada = null,
+            pideSesion = false,
+            errorMessage = null,
+            errorPago = null,
+        )
+    }
+
+    /**
+     * Abre el cobro de una solicitud en Mercado Pago.
+     *
+     * No lleva monto: lo calcula la Edge Function leyendo los precios de la base. Desde
+     * aquí solo se dice cuál solicitud.
+     */
+    fun pagar(solicitudId: String) {
+        if (solicitudId.isBlank() || _uiState.value.pagando != null) return
+        _uiState.update { it.copy(pagando = solicitudId, errorPago = null) }
+
+        scope.launch {
+            when (val resultado = payments.abrirCobro(solicitudId)) {
+                is PagoResult.Listo -> _uiState.update {
+                    // `pagando` se queda puesto: entre esto y que el navegador se vaya
+                    // pasa un instante, y apagarlo antes haría parpadear el botón.
+                    it.copy(urlPago = resultado.checkoutUrl)
+                }
+                is PagoResult.Fallo -> _uiState.update {
+                    it.copy(pagando = null, errorPago = resultado.mensaje)
+                }
+                PagoResult.SinSesion -> _uiState.update {
+                    it.copy(pagando = null, pideSesion = true)
+                }
+            }
+        }
+    }
+
+    /** La pantalla ya llevó el navegador a Mercado Pago. */
+    fun pagoAbierto() = _uiState.update { it.copy(urlPago = null, pagando = null) }
+
+    /**
+     * Se vuelve de Mercado Pago.
+     *
+     * Lo único que se hace es volver a leer el historial: el estado de verdad lo escribe
+     * el webhook, no el regreso del navegador. Puede que el aviso todavía no haya llegado
+     * —tarda segundos— y entonces se siga viendo «en proceso», que es la verdad.
+     */
+    fun volviDelPago() {
+        _uiState.update { it.copy(solicitudes = null, errorPago = null) }
+        loadSolicitudes()
     }
 
     /** El sobre de la dirección, puesto desde fuera; se copia tal cual a la solicitud. */
@@ -315,6 +406,8 @@ class CartViewModel(
             )
             when (resultado) {
                 is EnvioResult.Enviada -> {
+                    // Antes de vaciar: el acuse ofrece pagar y necesita el importe.
+                    val total = estado.totalConEnvio
                     // El carrito se vacía solo cuando la base confirmó: si fallara, lo
                     // que la persona había armado seguiría ahí.
                     CartStorage.clear()
@@ -327,6 +420,8 @@ class CartViewModel(
                             // sesión, y la siguiente tiene que confirmarse igual.
                             confirmado = false,
                             folioEnviado = resultado.folio,
+                            idEnviada = resultado.id,
+                            totalEnviado = total,
                             solicitudes = null,
                         )
                     }

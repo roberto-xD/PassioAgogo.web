@@ -16,7 +16,11 @@ import models.SolicitudDto
 
 /** Se envió, o hay un motivo que contarle a la persona. */
 sealed interface EnvioResult {
-    data class Enviada(val folio: Long) : EnvioResult
+    /**
+     * El [id] va además del folio porque es lo que necesita el cobro: `crear-pago`
+     * identifica la solicitud por su id, no por el número que se le enseña a la persona.
+     */
+    data class Enviada(val folio: Long, val id: String) : EnvioResult
     data class Fallo(val mensaje: String) : EnvioResult
     /** No hay sesión: el carrito se conserva y se pide acceder. */
     data object SinSesion : EnvioResult
@@ -119,7 +123,7 @@ class OrdersRepository(
                 }
             )
 
-            EnvioResult.Enviada(creada.folio ?: 0L)
+            EnvioResult.Enviada(folio = creada.folio ?: 0L, id = id)
         } catch (e: Exception) {
             solicitudId?.let { huerfana ->
                 runCatching {
@@ -141,17 +145,25 @@ class OrdersRepository(
         if (!SupabaseConfig.isConfigured) return emptyList()
         supabase.auth.currentUserOrNull() ?: return null
 
-        // Las columnas de la guía son nuevas (36_order_requests_guia). Si el script no
-        // se ha corrido, PostgREST rechaza la consulta entera con un 400 y el historial
-        // se quedaría en blanco: se reintenta sin ellas, que es como funcionaba antes.
-        return leerSolicitudes(conGuia = true) ?: leerSolicitudes(conGuia = false)
+        // Las columnas de la guía (36_order_requests_guia) y las del pago (39_pagos) son
+        // nuevas. Si el script no se ha corrido, PostgREST rechaza la consulta entera
+        // con un 400 y el historial se quedaría en blanco: se va quitando de atrás hacia
+        // adelante hasta dar con lo que la base sí tiene. Peor es una pantalla vacía que
+        // una sin el número de guía.
+        return leerSolicitudes(conGuia = true, conPago = true)
+            ?: leerSolicitudes(conGuia = true, conPago = false)
+            ?: leerSolicitudes(conGuia = false, conPago = false)
     }
 
-    private suspend fun leerSolicitudes(conGuia: Boolean): List<Solicitud>? = runCatching {
+    private suspend fun leerSolicitudes(
+        conGuia: Boolean,
+        conPago: Boolean,
+    ): List<Solicitud>? = runCatching {
         val columnas = buildString {
             append("id, folio, estado, total_estimado, created_at, motivo_rechazo, ")
             if (conGuia) append("guia_numero, guia_rastreo_url, guia_paqueteria, ")
             if (conGuia) append("envio_costo, envio_descripcion, ")
+            if (conPago) append("pago_estado, pago_total, pago_metodo, pago_referencia, ")
             append("order_request_items(cantidad, precio_estimado)")
         }
 
@@ -176,6 +188,10 @@ class OrdersRepository(
                     guiaPaqueteria = dto.guiaPaqueteria.orEmpty(),
                     envioCosto = dto.envioCosto ?: 0.0,
                     envioDescripcion = dto.envioDescripcion.orEmpty(),
+                    pagoEstado = dto.pagoEstado.orEmpty(),
+                    pagoTotal = dto.pagoTotal ?: 0.0,
+                    pagoMetodo = dto.pagoMetodo.orEmpty(),
+                    pagoReferencia = dto.pagoReferencia.orEmpty(),
                 )
             }
     }.getOrNull()
@@ -189,7 +205,9 @@ private fun faltaLaColumna(raw: String): Boolean {
     val m = raw.lowercase()
     val nombra = "metodo_entrega" in m || "envio_paqueteria" in m ||
         "envio_servicio" in m || "envio_descripcion" in m ||
-        "envio_costo" in m || "envio_entrega" in m
+        "envio_costo" in m || "envio_entrega" in m ||
+        "pago_estado" in m || "pago_total" in m ||
+        "pago_metodo" in m || "pago_referencia" in m
     return nombra &&
         ("does not exist" in m || "no existe" in m || "pgrst204" in m || "schema cache" in m)
 }

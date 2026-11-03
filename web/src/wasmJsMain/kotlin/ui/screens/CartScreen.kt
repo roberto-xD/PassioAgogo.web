@@ -100,6 +100,7 @@ fun CartScreen(
     onCotizarEnvio: (String) -> Unit = {},
     onElegirEnvio: (OpcionEnvio) -> Unit = {},
     onSubmit: () -> Unit,
+    onPagar: (String) -> Unit = {},
     onReset: () -> Unit,
     onGoToLogin: () -> Unit,
     onGoToCatalog: () -> Unit,
@@ -114,6 +115,10 @@ fun CartScreen(
         state.folioEnviado?.let { folio ->
             Acuse(
                 folio = folio,
+                total = state.totalEnviado,
+                pagando = state.idEnviada != null && state.pagando == state.idEnviada,
+                errorPago = state.errorPago,
+                onPagar = { state.idEnviada?.let(onPagar) },
                 onGoToRequests = onGoToRequests,
                 onGoToCatalog = { onReset(); onGoToCatalog() },
             )
@@ -404,7 +409,7 @@ private fun Totales(state: CartUiState) {
         Spacer(Modifier.height(PassionTheme.spacing.s2))
     }
 
-    RenglonTotal("Total estimado", formatPrice(state.cart.total + envio), fuerte = true)
+    RenglonTotal("Total estimado", formatPrice(state.totalConEnvio), fuerte = true)
 }
 
 @Composable
@@ -717,8 +722,24 @@ private fun Paso(signo: String, onClick: () -> Unit) {
     }
 }
 
+/**
+ * El acuse, y la oportunidad de pagar en el momento.
+ *
+ * Pagar aquí es **opcional a propósito**. La solicitud sigue siendo una solicitud: la
+ * tienda todavía no ha confirmado existencias, así que se dice con esas palabras y se
+ * dice que si algo falta se devuelve el dinero. Lo que no se hace es empujar: quien
+ * prefiera esperar al WhatsApp tiene el mismo cobro esperándole en su historial.
+ */
 @Composable
-private fun Acuse(folio: Long, onGoToRequests: () -> Unit, onGoToCatalog: () -> Unit) {
+private fun Acuse(
+    folio: Long,
+    total: Double,
+    pagando: Boolean,
+    errorPago: String?,
+    onPagar: () -> Unit,
+    onGoToRequests: () -> Unit,
+    onGoToCatalog: () -> Unit,
+) {
     val forma = MaterialTheme.shapes.medium
     Column(
         modifier = Modifier
@@ -749,9 +770,43 @@ private fun Acuse(folio: Long, onGoToRequests: () -> Unit, onGoToCatalog: () -> 
             modifier = Modifier.padding(top = PassionTheme.spacing.s3),
         )
 
+        // Pagar ya, para quien quiera cerrar el trámite sin esperar el mensaje.
+        if (total > 0.0) {
+            Text(
+                text = "Si prefieres, puedes pagarla ahora y adelantar el proceso. Si " +
+                    "algo no estuviera disponible, te devolvemos el importe.",
+                color = PassionTheme.semantics.onBackgroundMuted,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = PassionTheme.spacing.s3),
+            )
+            Button(
+                onClick = onPagar,
+                enabled = !pagando,
+                shape = MaterialTheme.shapes.extraLarge,
+                modifier = Modifier.padding(top = PassionTheme.spacing.s3),
+            ) {
+                Text(
+                    text = if (pagando) "Abriendo…" else "Pagar ${formatPrice(total)}",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+            errorPago?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+                )
+            }
+        }
+
         Button(
             onClick = onGoToRequests,
             shape = MaterialTheme.shapes.extraLarge,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
             modifier = Modifier.padding(top = PassionTheme.spacing.s5),
         ) {
             Text("Ver mis solicitudes", style = MaterialTheme.typography.labelLarge)

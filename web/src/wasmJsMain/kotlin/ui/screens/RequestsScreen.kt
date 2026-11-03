@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import models.EstadoPago
 import models.Solicitud
 import models.formatPrice
 import ui.components.Paragraph
@@ -45,6 +46,7 @@ fun AccountHistoryContent(
     state: CartUiState,
     onGoToCatalog: () -> Unit,
     onGoToCart: () -> Unit = {},
+    onPagar: (String) -> Unit = {},
 ) {
     Spacer(Modifier.height(PassionTheme.spacing.s2))
     val solicitudes = state.solicitudes
@@ -82,12 +84,34 @@ fun AccountHistoryContent(
             }
         }
 
-        else -> solicitudes.forEach { Tarjeta(it) }
+        else -> {
+            // El fallo del cobro se enseña arriba y una sola vez: es de la pantalla, no
+            // de una tarjeta, y repetirlo en cada una haría pensar que falló en todas.
+            state.errorPago?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = PassionTheme.spacing.s2),
+                )
+            }
+            solicitudes.forEach {
+                Tarjeta(
+                    solicitud = it,
+                    pagando = state.pagando == it.id,
+                    onPagar = { onPagar(it.id) },
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun Tarjeta(solicitud: Solicitud) {
+private fun Tarjeta(
+    solicitud: Solicitud,
+    pagando: Boolean = false,
+    onPagar: () -> Unit = {},
+) {
     val forma = MaterialTheme.shapes.medium
 
     Column(
@@ -139,6 +163,8 @@ private fun Tarjeta(solicitud: Solicitud) {
             )
         }
 
+        Pago(solicitud, pagando, onPagar)
+
         Guia(solicitud)
 
         // El motivo solo existe cuando no se pudo atender, y es justo lo que la persona
@@ -152,6 +178,104 @@ private fun Tarjeta(solicitud: Solicitud) {
             )
         }
     }
+}
+
+/**
+ * En qué va el pago, y el botón para hacerlo.
+ *
+ * Se enseña siempre que haya algo que decir, incluso «sin pagar»: el hueco en blanco
+ * deja a la persona sin saber si la tienda espera su dinero o su paciencia.
+ *
+ * El importe que se enseña cuando ya está pagado es **el que cobró Mercado Pago**, no el
+ * total calculado. Si no coinciden, eso es justo lo que hay que poder ver.
+ */
+@Composable
+private fun Pago(solicitud: Solicitud, pagando: Boolean, onPagar: () -> Unit) {
+    val pago = solicitud.pago
+
+    Text(
+        text = when (pago) {
+            EstadoPago.Aprobado ->
+                "Pagado · ${formatPrice(solicitud.pagoTotal.takeIf { it > 0.0 } ?: solicitud.total)}" +
+                    solicitud.pagoMetodo.takeIf { it.isNotBlank() }
+                        ?.let { " · ${metodoLegible(it)}" }.orEmpty()
+            // «En proceso» y no «pendiente»: en Mercado Pago esto es también el estado
+            // de un pago en efectivo con ficha sin pagar, y el de una tarjeta en
+            // revisión. Lo que las une es que todavía no se sabe.
+            EstadoPago.Pendiente -> "Pago en proceso"
+            EstadoPago.Rechazado -> "El pago no se completó"
+            EstadoPago.Reembolsado -> "Pago reembolsado"
+            EstadoPago.Cancelado -> "Pago cancelado"
+            EstadoPago.Ninguno -> "Sin pagar"
+        },
+        color = if (pago == EstadoPago.Aprobado) {
+            PassionTheme.semantics.onBackgroundStrong
+        } else {
+            PassionTheme.semantics.onBackgroundMuted
+        },
+        style = MaterialTheme.typography.bodySmall,
+        fontWeight = if (pago == EstadoPago.Aprobado) FontWeight.SemiBold else null,
+        modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+    )
+
+    // La referencia es su comprobante: es el número que sirve para reclamar en Mercado
+    // Pago si algo no cuadra, y ahí no vale el folio nuestro.
+    if (pago == EstadoPago.Aprobado && solicitud.pagoReferencia.isNotBlank()) {
+        var copiado by remember(solicitud.id) { mutableStateOf(false) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Ref. ${solicitud.pagoReferencia}",
+                color = PassionTheme.semantics.onBackgroundSubtle,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .clickable { copiado = copyToClipboard(solicitud.pagoReferencia) }
+                    .padding(vertical = PassionTheme.spacing.s1),
+            )
+            Text(
+                text = if (copiado) "copiado" else "toca para copiar",
+                color = PassionTheme.semantics.onBackgroundSubtle,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(start = PassionTheme.spacing.s2),
+            )
+        }
+    }
+
+    if (!solicitud.puedePagar) return
+
+    Spacer(Modifier.height(PassionTheme.spacing.s2))
+    Button(
+        onClick = onPagar,
+        enabled = !pagando,
+        shape = MaterialTheme.shapes.extraLarge,
+    ) {
+        Text(
+            text = when {
+                pagando -> "Abriendo…"
+                // Reintentar no es lo mismo que pagar: quien ya vio un rechazo necesita
+                // saber que esto es otro intento, no un segundo cargo.
+                pago == EstadoPago.Rechazado || pago == EstadoPago.Cancelado ->
+                    "Intentar el pago otra vez"
+                pago == EstadoPago.Pendiente -> "Continuar el pago"
+                else -> "Pagar ${formatPrice(solicitud.total)}"
+            },
+            style = MaterialTheme.typography.labelLarge,
+        )
+    }
+}
+
+/**
+ * El medio de pago con palabras, no con la clave de Mercado Pago.
+ *
+ * Solo los que es probable ver; cualquier otro se enseña tal cual antes que esconderlo,
+ * que para quien revisa su historial es más útil un `pec` raro que nada.
+ */
+private fun metodoLegible(clave: String): String = when (clave.lowercase()) {
+    "credit_card", "debit_card", "prepaid_card" -> "Tarjeta"
+    "account_money" -> "Saldo en Mercado Pago"
+    "ticket", "oxxo", "paycash" -> "Efectivo"
+    "bank_transfer", "spei" -> "Transferencia"
+    else -> clave
 }
 
 /**

@@ -44,6 +44,9 @@ import network.WheelRepository
 import ui.CatalogScreen
 import ui.components.FloatingEventsWidget
 import ui.components.Footer
+import ui.components.clearQuery
+import ui.components.currentQuery
+import ui.components.goToExternal
 import ui.components.LocalHtmlOverlayClip
 import ui.components.LocalSnackbarHostState
 import ui.components.NavBar
@@ -205,6 +208,38 @@ fun App() {
     LaunchedEffect(cartState.folioEnviado) {
         if (cartState.folioEnviado != null) {
             authViewModel.recordarTelefono(cartState.telefono)
+        }
+    }
+
+    // Hay URL de Mercado Pago: se lleva esta pestaña allí.
+    //
+    // La navegación se hace aquí y no en el ViewModel porque irse de la página es cosa
+    // de la pantalla. Y en la misma pestaña: la URL llega después de preguntar a la Edge
+    // Function, y una pestaña nueva a esas alturas la bloquea el navegador.
+    LaunchedEffect(cartState.urlPago) {
+        cartState.urlPago?.let { url ->
+            cartViewModel.pagoAbierto()
+            goToExternal(url)
+        }
+    }
+
+    // Se vuelve de Mercado Pago: trae sus parámetros pegados a la URL.
+    //
+    // **No se le cree a la URL.** Es texto que cualquiera puede escribir a mano, y lo
+    // que diga no cambia nada: lo único que se hace es ir al historial y volver a leer
+    // el estado de la base, que lo escribe el webhook tras comprobar la firma. Si el
+    // aviso aún no ha llegado se verá «en proceso», que es la verdad en ese instante.
+    LaunchedEffect(Unit) {
+        val consulta = currentQuery()
+        val vieneDeUnPago = listOf("payment_id", "collection_id", "preference_id", "external_reference")
+            .any { it in consulta }
+        if (vieneDeUnPago) {
+            // Se limpian en cuanto se leen: dejarlos puestos haría que recargar
+            // pareciera otro regreso, y que la URL compartida llevara dentro el id de
+            // un pago de alguien.
+            clearQuery()
+            cartViewModel.volviDelPago()
+            navigate(Screen.Account)
         }
     }
 
@@ -372,6 +407,7 @@ fun App() {
                             onLoad = cartViewModel::loadSolicitudes,
                             onGoToCatalog = { navigate(Screen.Catalog) },
                             onGoToCart = { navigate(Screen.Cart) },
+                            onPagar = cartViewModel::pagar,
                             direccion = addressState,
                             onEditarDireccion = addressViewModel::editar,
                             onGuardarDireccion = addressViewModel::guardar,
@@ -390,6 +426,7 @@ fun App() {
                             onCotizarEnvio = cartViewModel::cotizarEnvio,
                             onElegirEnvio = cartViewModel::elegirEnvio,
                             onSubmit = cartViewModel::submit,
+                            onPagar = cartViewModel::pagar,
                             onReset = cartViewModel::reset,
                             onGoToLogin = {
                                 volverAlCarrito = true

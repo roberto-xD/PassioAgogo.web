@@ -47,6 +47,8 @@ fun AccountScreen(
     onLoad: () -> Unit,
     onGoToCatalog: () -> Unit,
     onGoToCart: () -> Unit = {},
+    /** Abre el cobro de una solicitud del historial. Recibe su id. */
+    onPagar: (String) -> Unit = {},
 ) {
     val currentContent = remember { mutableStateOf("Main") }
 
@@ -88,6 +90,7 @@ fun AccountScreen(
                 state = cartState,
                 onGoToCart = onGoToCart,
                 onGoToCatalog = onGoToCatalog,
+                onPagar = onPagar,
             )
         }
     }
