@@ -93,6 +93,34 @@ async function anotar(evento: Record<string, unknown>): Promise<void> {
   }
 }
 
+/**
+ * Deja la solicitud como estaba antes de generar la guía.
+ *
+ * `envio_*` no se toca: lo que el cliente eligió al cotizar sigue siendo cierto, y es
+ * con lo que habrá que volver a generar.
+ */
+async function limpiarSolicitud(solicitudId: string): Promise<string | null> {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
+  const { error } = await supabase
+    .from("order_requests")
+    .update({
+      guia_numero: null,
+      guia_url: null,
+      guia_rastreo_url: null,
+      guia_paqueteria: null,
+      guia_servicio: null,
+      guia_costo: null,
+      guia_envia_id: null,
+      guia_generada_en: null,
+      necesita_recoleccion: null,
+    } as never)
+    .eq("id", solicitudId);
+  return error?.message ?? null;
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders() });
@@ -118,7 +146,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   // ---- qué se cancela ----
-  let cuerpo: { solicitudId?: unknown };
+  let cuerpo: { solicitudId?: unknown; soloLocal?: unknown; nota?: unknown };
   try {
     cuerpo = await req.json();
   } catch (_e) {
@@ -155,12 +183,54 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }, 409);
   }
 
+  /**
+   * La guía ya se canceló en otro sitio: aquí solo se limpia.
+   *
+   * Pasa cuando se cancela desde el panel de la paquetería, que es lo que se hace
+   * cuando esta función falla o cuando hay prisa. Sin esta salida, la solicitud se
+   * queda apuntando a una guía que ya no existe: no se puede generar otra —hay una
+   * guía—, y la que figura no sirve.
+   *
+   * No llama a Envia, así que no promete ninguna devolución: queda anotado como lo que
+   * es, una limpieza, y el dinero se comprueba en su panel.
+   */
+  if (cuerpo.soloLocal === true) {
+    await limpiarSolicitud(solicitudId);
+    await anotar({
+      request_id: solicitudId,
+      accion: "cancelada",
+      usuario_id: sesion.user.id,
+      usuario: sesion.user.email ?? "",
+      guia_numero: solicitud.guia_numero,
+      guia_paqueteria: solicitud.guia_paqueteria,
+      guia_costo: solicitud.guia_costo,
+      devuelto: null,
+      nota: String(cuerpo.nota ?? "").trim() ||
+        "Cancelada fuera de la aplicación; aquí solo se limpió el registro.",
+    });
+    return json({
+      cancelacion: {
+        numero: solicitud.guia_numero,
+        paqueteria: solicitud.guia_paqueteria,
+        costo: solicitud.guia_costo,
+        devuelto: false,
+        fechaDevolucion: "",
+      },
+      aviso: "Solo se limpió el registro: no se pidió nada a la paquetería. " +
+        "Comprueba en su panel que la guía esté cancelada y si devolvieron el importe.",
+    }, 200);
+  }
+
   // ---- la cancelación ----
   // Se cancela por número de rastreo, no por el identificador de Envia.
+  //
+  // **Sin `folio`**, aunque sea un campo que acepta. Ahí iba nuestro número de
+  // solicitud —un «5»—, que para Envia no significa nada: si lo usa para localizar el
+  // envío junto con el número de rastreo, no encuentra ninguno y contesta «Shipment
+  // not found», que es lo que parecía un problema de la guía y era de la petición.
   const peticion = {
     carrier: solicitud.guia_paqueteria,
     trackingNumber: solicitud.guia_numero,
-    folio: String(solicitud.folio ?? ""),
   };
 
   let respuesta: Response;
@@ -214,20 +284,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Las columnas de la guía vuelven a vacío: el pedido queda como estaba antes de
   // generarla, y puede volver a generarse. Lo que **no** se borra es `envio_*`, que es
   // lo que el cliente eligió y sigue siendo cierto.
-  const { error: errorGuardar } = await supabase
-    .from("order_requests")
-    .update({
-      guia_numero: null,
-      guia_url: null,
-      guia_rastreo_url: null,
-      guia_paqueteria: null,
-      guia_servicio: null,
-      guia_costo: null,
-      guia_envia_id: null,
-      guia_generada_en: null,
-      necesita_recoleccion: null,
-    })
-    .eq("id", solicitudId);
+  const errorGuardar = await limpiarSolicitud(solicitudId);
 
   // Con copia de lo cancelado: las columnas de la solicitud acaban de quedarse
   // vacías, así que sin esto el registro diría que alguien canceló algo sin decir qué.
@@ -251,7 +308,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   };
 
   if (errorGuardar) {
-    console.error("no se pudo limpiar la guia", solicitudId, errorGuardar.message);
+    console.error("no se pudo limpiar la guia", solicitudId, errorGuardar);
     return json({
       cancelacion: resultado,
       aviso: "La guía se canceló con la paquetería pero la solicitud sigue " +

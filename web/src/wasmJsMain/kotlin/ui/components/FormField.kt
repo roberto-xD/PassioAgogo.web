@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -49,6 +50,16 @@ fun FormField(
             if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         shape = MaterialTheme.shapes.small,
+        // Material apaga los campos al 38 % de opacidad, que es para lo que no se puede
+        // usar todavía. Aquí es al revés: el dato está puesto y es correcto, solo que
+        // no lo escribe la persona. Se lee como cualquier otro y lo único que baja de
+        // tono es el borde, que es lo que dice que no se toca.
+        colors = OutlinedTextFieldDefaults.colors(
+            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+            disabledLabelColor = PassionTheme.semantics.onBackgroundMuted,
+            disabledSupportingTextColor = PassionTheme.semantics.onBackgroundMuted,
+            disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
+        ),
         modifier = modifier
             .fillMaxWidth()
             .padding(top = PassionTheme.spacing.s2),

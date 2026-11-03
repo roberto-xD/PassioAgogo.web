@@ -104,11 +104,23 @@ class EnvioApi(private val supabase: SupabaseClient) {
      * Al cancelar, la solicitud vuelve a quedarse sin guía y puede generarse otra. Lo
      * que el cliente eligió al cotizar no se toca: sigue siendo cierto.
      */
-    suspend fun cancelarGuia(solicitudId: String): ResultadoCancelacion =
+    suspend fun cancelarGuia(
+        solicitudId: String,
+        /**
+         * La guía ya se canceló en el panel de la paquetería: aquí solo se limpia.
+         *
+         * Sin esto, la solicitud se queda apuntando a una guía que ya no existe: no
+         * deja generar otra —porque hay una— y la que figura no sirve. No se pide nada
+         * a la paquetería, así que no se promete devolución: eso se comprueba en su
+         * panel.
+         */
+        soloLocal: Boolean = false,
+        nota: String? = null,
+    ): ResultadoCancelacion =
         llamar("cancelar-guia") {
             json.encodeToString(
                 PeticionCancelacion.serializer(),
-                PeticionCancelacion(solicitudId),
+                PeticionCancelacion(solicitudId, soloLocal, nota),
             )
         }.fold(
             alOk = { cuerpo ->
@@ -252,7 +264,11 @@ private data class PeticionGuia(
 )
 
 @Serializable
-private data class PeticionCancelacion(val solicitudId: String)
+private data class PeticionCancelacion(
+    val solicitudId: String,
+    val soloLocal: Boolean = false,
+    val nota: String? = null,
+)
 
 @Serializable
 data class Cancelacion(
