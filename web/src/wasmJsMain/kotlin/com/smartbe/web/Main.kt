@@ -57,6 +57,7 @@ import ui.theme.PassionAGogoTheme
 import ui.theme.PassionTheme
 import ui.screens.AboutScreen
 import ui.screens.AccountScreen
+import ui.screens.SECCION_HISTORIAL
 import ui.screens.CareScreen
 import ui.screens.ContactScreen
 import ui.screens.EventDetailScreen
@@ -239,7 +240,9 @@ fun App() {
             // un pago de alguien.
             clearQuery()
             cartViewModel.volviDelPago()
-            navigate(Screen.Account)
+            // Al historial, no a «Mi cuenta» a secas: lo que esa persona quiere ver
+            // ahora mismo es si su pago entró.
+            routeState.value = Route(Screen.Account, id = SECCION_HISTORIAL)
         }
     }
 
@@ -408,6 +411,7 @@ fun App() {
                             onGoToCatalog = { navigate(Screen.Catalog) },
                             onGoToCart = { navigate(Screen.Cart) },
                             onPagar = cartViewModel::pagar,
+                            seccionInicial = routeState.value.id,
                             direccion = addressState,
                             onEditarDireccion = addressViewModel::editar,
                             onGuardarDireccion = addressViewModel::guardar,
@@ -433,7 +437,9 @@ fun App() {
                                 navigate(Screen.Login)
                             },
                             onGoToCatalog = { navigate(Screen.Catalog) },
-                            onGoToRequests = { navigate(Screen.Account) },
+                            onGoToRequests = {
+                                routeState.value = Route(Screen.Account, id = SECCION_HISTORIAL)
+                            },
                             direccion = addressState,
                             onEditarDireccion = addressViewModel::editar,
                             onGuardarDireccion = addressViewModel::guardar,

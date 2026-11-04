@@ -31,6 +31,14 @@ import viewmodel.AddressUiState
 import viewmodel.AuthUiState
 import viewmodel.CartUiState
 
+/**
+ * El tramo de ruta que abre «Mi cuenta» en el historial: `#/cuenta/historial`.
+ *
+ * Constante y no literal suelto porque lo escriben dos sitios —quien navega y quien lo
+ * interpreta— y dos cadenas iguales escritas aparte acaban siendo dos cadenas distintas.
+ */
+const val SECCION_HISTORIAL = "historial"
+
 @Composable
 fun AccountScreen(
     authState: AuthUiState,
@@ -49,8 +57,16 @@ fun AccountScreen(
     onGoToCart: () -> Unit = {},
     /** Abre el cobro de una solicitud del historial. Recibe su id. */
     onPagar: (String) -> Unit = {},
+    /** Lo que venga en la ruta: `#/cuenta/<seccionInicial>`. Ver [SECCION_HISTORIAL]. */
+    seccionInicial: String? = null,
 ) {
-    val currentContent = remember { mutableStateOf("Main") }
+    // `#/cuenta/historial` abre directamente el historial. Lo usa el regreso de Mercado
+    // Pago: quien acaba de pagar quiere ver si entró, y dejarlo en su perfil le obliga a
+    // ir a buscar la pestaña justo en el momento en que menos ganas tiene de buscar nada.
+    // De paso la URL se puede compartir, como el resto de las rutas.
+    val currentContent = remember(seccionInicial) {
+        mutableStateOf(if (seccionInicial == SECCION_HISTORIAL) "History" else "Main")
+    }
 
     // El historial se pide al abrir su pestaña, no en cada composición: `loadSolicitudes`
     // cambia el estado, lo que vuelve a componer, lo que volvería a pedirlo. Que la clave
