@@ -278,12 +278,28 @@ fun App() {
     // a medio enviar una solicitud y dejarlo en otra pantalla le hace repetir el camino.
     var volverAlCarrito by remember { mutableStateOf(false) }
 
+    /**
+     * La sección de «Mi cuenta» a la que se iba antes de que pidieran acceder.
+     *
+     * Quien vuelve de Mercado Pago con la sesión caducada rebota a la pantalla de
+     * acceso, y sin esto entraría a su perfil: justo la persona con más prisa por saber
+     * si su pago entró es la que acabaría buscando la pestaña a mano.
+     */
+    var seccionTrasAcceder by remember { mutableStateOf<String?>(null) }
+
     // Al iniciar o cerrar sesión, mueve al usuario a la pantalla que corresponde.
     LaunchedEffect(authState.isAuthenticated) {
         if (authState.isAuthenticated && routeState.value.screen == Screen.Login) {
-            routeState.value = if (volverAlCarrito) Route(Screen.Cart) else Route(Screen.Account)
+            routeState.value = if (volverAlCarrito) {
+                Route(Screen.Cart)
+            } else {
+                Route(Screen.Account, id = seccionTrasAcceder)
+            }
             volverAlCarrito = false
+            seccionTrasAcceder = null
         } else if (!authState.isAuthenticated && routeState.value.screen == Screen.Account) {
+            // Se apunta a dónde iba antes de mandarlo a acceder, para devolverlo ahí.
+            seccionTrasAcceder = routeState.value.id
             routeState.value = Route(Screen.Login)
         }
     }
