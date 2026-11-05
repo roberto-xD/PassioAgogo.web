@@ -106,11 +106,25 @@ async function firmaValida(
   const v1 = partes.get("v1") ?? "";
   if (!ts || !v1) return false;
 
-  const manifiesto = [
-    dataId ? `id:${dataId};` : "",
-    requestId ? `request-id:${requestId};` : "",
-    `ts:${ts};`,
-  ].join("");
+  const armar = (id: string) =>
+    [
+      id ? `id:${id};` : "",
+      requestId ? `request-id:${requestId};` : "",
+      `ts:${ts};`,
+    ].join("");
+
+  // Varias formas del manifiesto, porque la documentación no las fija.
+  //
+  //  - El id **en minúsculas**. Con la API vieja de pagos los ids eran numéricos y la
+  //    caja daba igual; los de la Orders API son `ORDTST01M6MR8…`, en mayúsculas, y
+  //    varias implementaciones lo pasan a minúsculas al firmar.
+  //  - **Sin el id**, porque la documentación se contradice entre regiones sobre si los
+  //    pares que faltan se omiten de la plantilla.
+  //
+  // Probar unas pocas no debilita nada: siguen haciendo falta el secreto y un HMAC
+  // válido, y lo único que cambia es sobre qué texto. Quedarse con una sola forma y
+  // acertar la equivocada deja todos los pagos sin confirmar, que es lo que pasa ahora.
+  const candidatos = new Set([armar(dataId), armar(dataId.toLowerCase()), armar("")]);
 
   const llave = await crypto.subtle.importKey(
     "raw",
@@ -119,22 +133,42 @@ async function firmaValida(
     false,
     ["sign"],
   );
-  const firma = await crypto.subtle.sign(
-    "HMAC",
-    llave,
-    new TextEncoder().encode(manifiesto),
-  );
-  const esperado = Array.from(new Uint8Array(firma))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
 
-  // Comparación en tiempo constante: si saliera antes al primer carácter distinto, el
-  // tiempo de respuesta diría cuántos caracteres se acertaron y la firma se podría
-  // adivinar a trozos.
-  if (esperado.length !== v1.length) return false;
+  for (const manifiesto of candidatos) {
+    const firma = await crypto.subtle.sign(
+      "HMAC",
+      llave,
+      new TextEncoder().encode(manifiesto),
+    );
+    const esperado = Array.from(new Uint8Array(firma))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    if (igualEnTiempoConstante(esperado, v1)) {
+      if (DEBUG) console.log("firma válida con el manifiesto:", manifiesto);
+      return true;
+    }
+  }
+
+  // Con DEBUG, qué se probó. Sin el secreto ni las firmas: lo que hace falta para
+  // entender un fallo es el texto que se firmó, no la llave.
+  if (DEBUG) {
+    console.error("ninguna forma del manifiesto cuadró:", [...candidatos].join(" | "));
+  }
+  return false;
+}
+
+/**
+ * Compara sin que el tiempo delate cuánto se acertó.
+ *
+ * Saliendo al primer carácter distinto, el tiempo de respuesta diría cuántos caracteres
+ * son correctos y la firma se podría adivinar a trozos.
+ */
+function igualEnTiempoConstante(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
   let diferencia = 0;
-  for (let i = 0; i < esperado.length; i++) {
-    diferencia |= esperado.charCodeAt(i) ^ v1.charCodeAt(i);
+  for (let i = 0; i < a.length; i++) {
+    diferencia |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
   return diferencia === 0;
 }
