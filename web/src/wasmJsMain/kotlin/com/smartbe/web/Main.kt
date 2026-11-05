@@ -495,6 +495,13 @@ fun App() {
                                 routeState.value = Route(Screen.Account, id = SECCION_HISTORIAL)
                             },
                             onGoToLogin = { navigate(Screen.Login) },
+                            onAbrirProducto = { producto ->
+                                routeState.value = Route(
+                                    screen = Screen.Section,
+                                    id = producto.seccion,
+                                    subId = producto.slug,
+                                )
+                            },
                         )
                         Screen.Terms -> TermsScreen()
                         Screen.Privacy -> PrivacyScreen()

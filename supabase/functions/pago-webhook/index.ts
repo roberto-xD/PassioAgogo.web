@@ -165,6 +165,8 @@ interface Estado {
   estadoCrudo: string;
   monto: number | null;
   metodo: string;
+  /** Cuatro dígitos exactos, o vacío. Nunca el número completo. */
+  ultimos4: string;
   pagoId: string;
   ordenId: string;
 }
@@ -251,9 +253,29 @@ async function consultar(tipo: string, id: string): Promise<Estado | null> {
     estadoCrudo: crudo || estadoBase,
     monto: monto != null && Number.isFinite(monto) ? monto : null,
     metodo: texto(buscar(datos, "payment_method_id") ?? buscar(datos, "payment_type_id")),
+    ultimos4: ultimos4De(datos),
     pagoId: texto((ultimo && ultimo.id) ?? (esPago ? id : "")),
     ordenId: esPago ? texto(buscar(datos, "order_id")) : id,
   };
+}
+
+/**
+ * Los últimos cuatro dígitos de la tarjeta, si pagó con una.
+ *
+ * Se filtra a cuatro dígitos exactos antes de devolverlos, y no por tiquismiquis: la
+ * columna tiene un `check` con esa forma, así que cualquier otra cosa haría fallar el
+ * update entero y perderíamos también el estado del pago. Mejor quedarse sin el dato
+ * que sin el cobro.
+ *
+ * El número completo **no aparece por ningún lado**, ni aquí ni en lo que guardamos:
+ * lo captura Mercado Pago en su propia página. Esa es la razón de usar Checkout Pro.
+ */
+// deno-lint-ignore no-explicit-any
+function ultimos4De(datos: any): string {
+  const crudo = texto(
+    buscar(datos, "last_four_digits") ?? buscar(datos, "last_four") ?? "",
+  );
+  return /^[0-9]{4}$/.test(crudo) ? crudo : "";
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -355,6 +377,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         pago_total: estado.monto ?? solicitud.pago_total,
         pago_referencia: estado.pagoId || null,
         pago_metodo: estado.metodo || null,
+        pago_ultimos4: estado.ultimos4 || null,
         pago_actualizado_en: new Date().toISOString(),
       } as never)
       .eq("id", solicitud.id);

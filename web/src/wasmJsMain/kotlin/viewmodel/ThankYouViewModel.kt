@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import models.Acuse
+import models.Recomendado
 import network.AcuseRepository
 import network.AddressCrypto
 import network.Direccion
@@ -35,6 +36,12 @@ data class ThankYouUiState(
     val detalleAbierto: Boolean = false,
     /** La sesión caducó: hay que ofrecerle entrar, no decirle que su pedido no existe. */
     val sinSesion: Boolean = false,
+    /** La promesa de empaque discreto, de `site_settings`. Vacía la oculta. */
+    val empaque: String = "",
+    /** Lo que se leerá en el estado de cuenta de la tarjeta. */
+    val statement: String = "",
+    /** Productos sugeridos al final. Vacío oculta la sección. */
+    val recomendados: List<Recomendado> = emptyList(),
     val error: String? = null,
 )
 
@@ -83,6 +90,10 @@ class ThankYouViewModel(
         enCurso?.cancel()
         _uiState.value = ThankYouUiState(cargando = true)
 
+        // Los ajustes y las sugerencias van por su lado: no dependen del pedido ni del
+        // sondeo, y hacerlos esperar retrasaría lo único que a esa persona le urge ver.
+        scope.launch { cargarAdornos() }
+
         enCurso = scope.launch {
             var intentos = 0
             while (true) {
@@ -126,6 +137,31 @@ class ThankYouViewModel(
                 delay(esperaMs)
             }
         }
+    }
+
+    /**
+     * El empaque, el rótulo del estado de cuenta y las sugerencias.
+     *
+     * Nada de esto es crítico: si no llega, la pantalla se enseña sin ello. Por eso va
+     * en su propia corrutina y no corta el resto si falla.
+     */
+    private suspend fun cargarAdornos() {
+        val ajustes = repository.ajustes()
+        _uiState.update {
+            it.copy(
+                empaque = ajustes["acuse_empaque"].orEmpty(),
+                statement = ajustes["pago_statement"].orEmpty(),
+            )
+        }
+
+        val skus = ajustes["acuse_recomendados"].orEmpty()
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+        if (skus.isEmpty()) return
+
+        val sugeridos = repository.recomendados(skus)
+        _uiState.update { it.copy(recomendados = sugeridos) }
     }
 
     /**

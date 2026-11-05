@@ -64,13 +64,19 @@ const MP_API = "https://api.mercadopago.com";
 const SITIO = (Deno.env.get("SITIO_URL") ?? "").trim().replace(/\/+$/, "");
 
 /**
- * Lo que la persona leerá en su estado de cuenta.
+ * Lo que la persona leerá en su estado de cuenta, por si la base no contesta.
  *
- * Mercado Pago lo recorta a 13 caracteres. Discreto a propósito: el estado de cuenta lo
- * puede leer quien comparte la tarjeta, y el nombre de la tienda ahí es información que
- * quien compra no eligió dar. Mismo criterio que el contenido declarado en la guía.
+ * El valor bueno vive en `site_settings.pago_statement` (40_acuse.sql), y esto es solo
+ * el respaldo. Está en la base y no aquí porque **la web también lo enseña**: le dice a
+ * la persona que verá esto en su tarjeta. Con dos copias —un secret y una constante en
+ * el bundle— acabarían diciendo cosas distintas, y entonces le estaríamos prometiendo
+ * algo falso sobre su estado de cuenta.
+ *
+ * Discreto a propósito: el estado de cuenta lo puede leer quien comparte la tarjeta, y
+ * el nombre de la tienda ahí es información que quien compra no eligió dar. Mismo
+ * criterio que el contenido declarado en la guía.
  */
-const STATEMENT = (Deno.env.get("MP_STATEMENT") ?? "PAG").trim().slice(0, 13);
+const STATEMENT_RESPALDO = (Deno.env.get("MP_STATEMENT") ?? "PAG").trim().slice(0, 13);
 
 /** Tope de meses sin intereses. 1 deja solo el pago de una vez. */
 const MAX_MESES = Math.max(1, Number(Deno.env.get("MP_MAX_MESES") ?? "1"));
@@ -147,6 +153,33 @@ interface FilaSolicitud {
 interface FilaVariante {
   id: string;
   precio_venta: number | null;
+}
+
+/**
+ * El texto del estado de cuenta, de `site_settings`.
+ *
+ * Nunca lanza: si la fila no está o la consulta falla, se usa el respaldo. Quedarse sin
+ * cobrar porque no se pudo leer un rótulo de trece caracteres sería absurdo.
+ */
+async function statement(): Promise<string> {
+  try {
+    // Cliente propio, como en `anotar`: el tipo genérico del de fuera no encaja aquí y
+    // pelearse con eso cuesta más que las tres líneas de construir otro.
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+    const { data } = await supabase
+      .from("site_settings")
+      .select("valor")
+      .eq("clave", "pago_statement")
+      .maybeSingle();
+    const valor = String((data as { valor?: unknown } | null)?.valor ?? "").trim();
+    return valor ? valor.slice(0, 13) : STATEMENT_RESPALDO;
+  } catch (e) {
+    console.error("no se pudo leer pago_statement", String(e));
+    return STATEMENT_RESPALDO;
+  }
 }
 
 /**
@@ -412,7 +445,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       },
       // Dentro de `config`, no al nivel superior. Estaba fuera y Mercado Pago
       // respondía 400 a la orden entera por un campo que no reconocía ahí.
-      statement_descriptor: STATEMENT,
+      statement_descriptor: await statement(),
     },
   };
 

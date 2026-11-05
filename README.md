@@ -487,12 +487,19 @@ no decidió.
 Lo que ve Mercado Pago es **genérico**: un renglón «Articulos de higiene personal» y, si
 lo hay, otro de envío. El nombre del producto no va, porque aparecería en el correo de
 Mercado Pago y en el estado de cuenta de la tarjeta — que es justo lo que no controla
-quien compra. Por lo mismo, `MP_STATEMENT` es discreto. La dirección tampoco va: sigue
-cifrada extremo a extremo y no hace falta para cobrar.
+quien compra. La dirección tampoco va: sigue cifrada extremo a extremo y no hace falta
+para cobrar.
+
+El rótulo del estado de cuenta vive en **`site_settings.pago_statement`** (`PAG` por
+defecto, máximo 13 caracteres), y esa fila es la única fuente: la lee `crear-pago` para
+mandársela a Mercado Pago y la lee la pantalla de gracias para decirle a la persona qué
+verá en su tarjeta. Cambiarla ahí los cambia a los dos. El secret `MP_STATEMENT` sigue
+existiendo solo como respaldo por si la fila falta.
 
 Puesta en marcha:
 
-1. Ejecuta [`db/39_pagos.sql`](db/39_pagos.sql) en el SQL Editor.
+1. Ejecuta [`db/39_pagos.sql`](db/39_pagos.sql) y [`db/40_acuse.sql`](db/40_acuse.sql)
+   en el SQL Editor.
 2. En [Mercado Pago → Tus integraciones](https://www.mercadopago.com.mx/developers/panel)
    crea una aplicación. De ahí salen **dos credenciales distintas** que se confunden con
    facilidad:
@@ -514,8 +521,12 @@ Puesta en marcha:
    > esto, porque el cobro sí se hace: lo que se pierde es el aviso. Si ves pagos
    > cobrados en el panel de Mercado Pago y «en proceso» en la web, mira esto primero.
 4. Secrets de las funciones: `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `SITIO_URL` (la raíz
-   del sitio, para el regreso) y opcionalmente `MP_STATEMENT` (máx. 13 caracteres),
-   `MP_MAX_MESES` (meses sin intereses, 1 = ninguno) y `MP_DEBUG`.
+   del sitio, para el regreso) y opcionalmente `MP_MAX_MESES` (meses sin intereses,
+   1 = ninguno) y `MP_DEBUG`.
+
+   > `SITIO_URL` **no** es la URL de notificaciones de Mercado Pago: son direcciones
+   > opuestas. `SITIO_URL` es a dónde vuelve el navegador de quien pagó (tu sitio); la
+   > de notificaciones es a dónde Mercado Pago manda los avisos (la Edge Function).
 5. En *Webhooks* de la aplicación, apunta la URL de notificaciones a
    `https://<proyecto>.supabase.co/functions/v1/pago-webhook` y suscríbete a los eventos
    de órdenes y pagos.
@@ -531,6 +542,30 @@ releer el estado de la base.
 Pago, y añade a la respuesta de `crear-pago` el motivo crudo de un rechazo junto con lo
 que le mandamos. **Apágalo antes de producción**: ahí dentro van datos del pago y el
 detalle de la integración.
+
+### La pantalla de gracias
+
+Al volver de pagar, `SITIO_URL` recibe los parámetros de Mercado Pago y la app enruta a
+`#/gracias/<id de la solicitud>`, sacándolo de `external_reference`. Ese id **no se
+cree, se usa para buscar**: el RLS limita `order_requests` a las propias, así que pedir
+una ajena no devuelve nada.
+
+Lo que condiciona el diseño de esa pantalla es que **al cargar no sabemos si el pago
+entró**: lo escribe el webhook, que llega segundos después. Por eso hay un «estamos
+confirmando» que repregunta cada dos segundos, doce veces, y para — pasado ese plazo se
+enseña lo que diga la base, que para un pago en efectivo es la respuesta definitiva.
+
+Tres cosas se configuran desde `site_settings`, sin desplegar:
+
+| Clave | Para qué |
+|---|---|
+| `pago_statement` | El rótulo del estado de cuenta. También lo usa `crear-pago` |
+| `acuse_empaque` | La promesa de empaque discreto. Vacío la oculta |
+| `acuse_recomendados` | SKUs separados por coma que se sugieren al final, en ese orden. Vacío oculta la sección |
+
+El detalle de lo comprado empieza **plegado**, detrás de un «Ver detalle»: la pantalla
+se abre sola al volver de Mercado Pago, en el navegador de alguien que puede no estar
+solo. Mismo criterio que el contenido declarado en la guía.
 
 ### Probar un pago
 

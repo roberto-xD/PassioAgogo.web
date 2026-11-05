@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -22,10 +24,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import models.Acuse
 import models.EstadoPago
 import models.MetodoEntrega
+import models.Recomendado
 import models.formatPrice
 import network.WhatsAppConfig
 import ui.components.ContentScreen
@@ -57,6 +63,7 @@ fun ThankYouScreen(
     onGoToCatalog: () -> Unit,
     onGoToRequests: () -> Unit,
     onGoToLogin: () -> Unit = {},
+    onAbrirProducto: (Recomendado) -> Unit = {},
 ) {
     ContentScreen(title = "Gracias por tu compra") {
         when {
@@ -83,6 +90,7 @@ fun ThankYouScreen(
                 onAlternarDetalle = onAlternarDetalle,
                 onGoToCatalog = onGoToCatalog,
                 onGoToRequests = onGoToRequests,
+                onAbrirProducto = onAbrirProducto,
             )
         }
     }
@@ -95,6 +103,7 @@ private fun Contenido(
     onAlternarDetalle: () -> Unit,
     onGoToCatalog: () -> Unit,
     onGoToRequests: () -> Unit,
+    onAbrirProducto: (Recomendado) -> Unit,
 ) {
     Encabezado(acuse, state.esperandoPago)
 
@@ -109,10 +118,25 @@ private fun Contenido(
     Importes(acuse, state.detalleAbierto, onAlternarDetalle)
 
     Spacer(Modifier.height(PassionTheme.spacing.s4))
-    Pago(acuse, state.esperandoPago)
+    Pago(acuse, state.esperandoPago, state.statement)
 
     Spacer(Modifier.height(PassionTheme.spacing.s4))
     Entrega(acuse, state)
+
+    // El empaque discreto va justo después de la dirección, que es donde la pregunta
+    // aparece sola: acabas de ver a dónde llega el paquete y lo siguiente que te
+    // preguntas es qué va a ver quien te lo entregue.
+    if (state.empaque.isNotBlank()) {
+        Spacer(Modifier.height(PassionTheme.spacing.s4))
+        Tarjeta {
+            Titulo("Empaque discreto")
+            Text(
+                text = state.empaque,
+                color = PassionTheme.semantics.onBackgroundMuted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
 
     Spacer(Modifier.height(PassionTheme.spacing.s4))
     QueSigue(acuse)
@@ -133,9 +157,85 @@ private fun Contenido(
         Text("Seguir viendo", style = MaterialTheme.typography.labelLarge)
     }
 
+    if (state.recomendados.isNotEmpty()) {
+        Spacer(Modifier.height(PassionTheme.spacing.s6))
+        Recomendados(state.recomendados, onAbrirProducto)
+    }
+
     Spacer(Modifier.height(PassionTheme.spacing.s5))
     Contacto(acuse)
     Spacer(Modifier.height(PassionTheme.spacing.s6))
+}
+
+/**
+ * Lo que se sugiere al final.
+ *
+ * Al final **a propósito**: lo primero que esa persona necesita es saber que su pago
+ * entró y qué pasa ahora. Ponerle más productos delante de eso sería contarle lo que
+ * nos interesa a nosotros antes que lo que le interesa a ella.
+ *
+ * Se eligen a mano, por SKU, desde `site_settings.acuse_recomendados`.
+ */
+@Composable
+private fun Recomendados(
+    productos: List<Recomendado>,
+    onAbrir: (Recomendado) -> Unit,
+) {
+    Text(
+        text = "Combina bien con tu compra",
+        color = PassionTheme.semantics.onBackgroundStrong,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(bottom = PassionTheme.spacing.s2),
+    )
+
+    productos.forEach { producto ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = PassionTheme.spacing.s2)
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onAbrir(producto) }
+                .background(PassionTheme.semantics.overlayWeak)
+                .padding(PassionTheme.spacing.s3),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (producto.imagen.isNotBlank()) {
+                AsyncImage(
+                    model = producto.imagen,
+                    contentDescription = producto.nombre,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(MaterialTheme.shapes.small),
+                )
+                Spacer(Modifier.width(PassionTheme.spacing.s3))
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                if (producto.categoria.isNotBlank()) {
+                    Text(
+                        text = producto.categoria,
+                        color = PassionTheme.semantics.onBackgroundSubtle,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+                Text(
+                    text = producto.nombre,
+                    color = PassionTheme.semantics.onBackgroundStrong,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            Text(
+                text = formatPrice(producto.precio),
+                color = PassionTheme.semantics.onBackgroundStrong,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(start = PassionTheme.spacing.s2),
+            )
+        }
+    }
 }
 
 /**
@@ -240,7 +340,7 @@ private fun Importes(acuse: Acuse, detalleAbierto: Boolean, onAlternar: () -> Un
 }
 
 @Composable
-private fun Pago(acuse: Acuse, esperando: Boolean) {
+private fun Pago(acuse: Acuse, esperando: Boolean, statement: String) {
     Tarjeta {
         Titulo("Pago")
 
@@ -261,7 +361,26 @@ private fun Pago(acuse: Acuse, esperando: Boolean) {
             },
         )
         if (acuse.pagoMetodo.isNotBlank()) {
-            FilaDato("Método", metodoDePago(acuse.pagoMetodo))
+            // Con los cuatro dígitos cuando los hay: es lo que permite reconocer *con
+            // cuál* de sus tarjetas pagó, que es la duda real al revisar un cobro.
+            FilaDato(
+                etiqueta = "Método",
+                valor = metodoDePago(acuse.pagoMetodo) +
+                    acuse.pagoUltimos4.takeIf { it.isNotBlank() }?.let { " ···· $it" }
+                        .orEmpty(),
+            )
+        }
+
+        // Lo que verá en su estado de cuenta. Sale de `site_settings`, el mismo sitio
+        // del que lo lee la Edge Function al crear la orden: con dos copias acabarían
+        // diciendo cosas distintas y le prometeríamos algo falso sobre su tarjeta.
+        if (statement.isNotBlank() && acuse.pagoMetodo.esDeTarjeta()) {
+            Spacer(Modifier.height(PassionTheme.spacing.s2))
+            Text(
+                text = "En tu estado de cuenta aparecerá como «$statement».",
+                color = PassionTheme.semantics.onBackgroundMuted,
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
 
         // La referencia es su comprobante: es lo que sirve para reclamar en Mercado
@@ -353,11 +472,9 @@ private fun QueSigue(acuse: Acuse) {
                     "Confirmamos disponibilidad y la entrega por WhatsApp, al número " +
                     "que nos diste."
             )
-            add(
-                "Preparamos tu paquete" to
-                    "Lo empacamos sin nada que delate el contenido: la guía declara " +
-                    "«Artículos de higiene personal»."
-            )
+            // Sin repetir aquí lo del empaque: ya tiene su propia tarjeta arriba, y
+            // decirlo dos veces en la misma pantalla suena a insistir.
+            add("Preparamos tu paquete" to "En cuanto confirmemos, lo dejamos listo.")
             if (acuse.entrega == MetodoEntrega.Domicilio) {
                 add(
                     "Lo enviamos" to
@@ -469,3 +586,14 @@ private fun metodoDePago(clave: String): String = when (clave.lowercase()) {
     "bank_transfer", "spei" -> "Transferencia"
     else -> clave
 }
+
+/**
+ * ¿Se pagó con una tarjeta?
+ *
+ * Lo que se lee en el estado de cuenta solo tiene sentido decírselo a quien va a tener
+ * un estado de cuenta. A quien pagó en efectivo en un OXXO, no.
+ */
+private fun String.esDeTarjeta(): Boolean = lowercase() in setOf(
+    "credit_card", "debit_card", "prepaid_card",
+    "visa", "master", "amex", "debvisa", "debmaster",
+)
