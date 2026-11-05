@@ -225,9 +225,7 @@ async function consultar(tipo: string, id: string): Promise<Estado | null> {
   // El estado del pago manda sobre el de la orden: una orden «processed» cuyo pago se
   // reembolsó después sigue diciendo processed, y lo que hay que enseñar es el reembolso.
   const pagos = (buscar(datos, "payments") ?? []) as Array<Record<string, unknown>>;
-  const ultimo = Array.isArray(pagos) && pagos.length > 0
-    ? pagos[pagos.length - 1]
-    : null;
+  const ultimo = elPagoQueManda(pagos);
 
   const crudo = texto(
     (ultimo && (ultimo.status_detail ?? ultimo.status)) ??
@@ -244,7 +242,10 @@ async function consultar(tipo: string, id: string): Promise<Estado | null> {
     console.error("estado desconocido de mercado pago", crudo, estadoBase);
   }
 
-  const montoCrudo = (ultimo && ultimo.amount) ??
+  // `paid_amount` antes que `amount`: el primero es lo que de verdad se cobró y el
+  // segundo lo que se pidió cobrar. Coinciden casi siempre, y cuando no, el bueno es el
+  // primero. En un intento fallido `paid_amount` ni aparece.
+  const montoCrudo = (ultimo && (ultimo.paid_amount ?? ultimo.amount)) ??
     buscar(datos, "total_paid_amount") ??
     buscar(datos, "transaction_amount") ??
     buscar(datos, "total_amount");
@@ -261,6 +262,63 @@ async function consultar(tipo: string, id: string): Promise<Estado | null> {
     pagoId: texto((ultimo && ultimo.id) ?? (esPago ? id : "")),
     ordenId: esPago ? texto(buscar(datos, "order_id")) : id,
   };
+}
+
+/**
+ * Qué tan lejos llegó el dinero. Comparte tabla con la regla de precedencia de abajo.
+ *
+ * Nada (0), un intento que no cuajó (1), cobrado (2), devuelto (3). Rechazado y
+ * cancelado comparten rango porque para la cuenta significan lo mismo: no hay dinero.
+ */
+const RANGO: Record<string, number> = {
+  pendiente: 0,
+  rechazado: 1,
+  cancelado: 1,
+  aprobado: 2,
+  reembolsado: 3,
+};
+
+/** Nuestro estado a partir de los suyos, probando el detalle y luego el estado a secas. */
+function nuestroEstado(status: unknown, detalle: unknown): string | undefined {
+  const d = texto(detalle).toLowerCase();
+  const s = texto(status).toLowerCase();
+  return ESTADOS[d] ?? ESTADOS[s];
+}
+
+/**
+ * De todos los intentos, el que decide en qué quedó la orden.
+ *
+ * **No es «el último del array».** Una orden con dos intentos —uno rechazado y otro
+ * aprobado— los trae a los dos, y coger el último funciona solo mientras Mercado Pago
+ * los devuelva del más viejo al más nuevo, cosa que no promete. Si algún día invirtiera
+ * el orden, leeríamos el intento fallido y marcaríamos como rechazado un pedido ya
+ * pagado: de todos los errores posibles aquí, el más caro.
+ *
+ * Así que se elige por significado y no por posición: gana el que llegó más lejos con
+ * el dinero, con el mismo rango que usa la regla de precedencia. Un reembolso gana a un
+ * cobro, un cobro gana a un rechazo. A igualdad, el intento más reciente.
+ */
+function elPagoQueManda(
+  pagos: Array<Record<string, unknown>>,
+): Record<string, unknown> | null {
+  if (!Array.isArray(pagos) || pagos.length === 0) return null;
+
+  let mejor: Record<string, unknown> | null = null;
+  let mejorRango = -1;
+  let mejorIntento = -1;
+
+  for (const pago of pagos) {
+    const estado = nuestroEstado(pago.status, pago.status_detail) ?? "pendiente";
+    const rango = RANGO[estado] ?? 0;
+    const intento = Number(pago.attempt_number ?? 0) || 0;
+
+    if (rango > mejorRango || (rango === mejorRango && intento >= mejorIntento)) {
+      mejor = pago;
+      mejorRango = rango;
+      mejorIntento = intento;
+    }
+  }
+  return mejor;
 }
 
 /**
@@ -378,22 +436,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   // Los avisos llegan desordenados y repetidos, así que un estado solo avanza.
   //
-  // El rango dice qué tan lejos ha llegado el dinero: nada (0), un intento que no
-  // cuajó (1), cobrado (2), devuelto (3). Rechazado y cancelado comparten rango porque
-  // los dos significan lo mismo para la cuenta: no hay dinero.
-  //
   // Solo se bloquea el retroceso **desde cobrado o devuelto**, que son los dos estados
   // donde el dinero se movió de verdad. Desde ahí, un aviso viejo que llegue tarde
   // diciendo «pendiente» o «rechazado» se descarta: sin esto, un reembolso ya hecho
   // volvería a leerse como pagado. Hacia arriba todo pasa, y un `rechazado → pendiente`
   // también, que es el segundo intento de quien cambió de tarjeta.
-  const RANGO: Record<string, number> = {
-    pendiente: 0,
-    rechazado: 1,
-    cancelado: 1,
-    aprobado: 2,
-    reembolsado: 3,
-  };
+  //
+  // El rango es el mismo que usa `elPagoQueManda` para elegir entre varios intentos:
+  // una sola definición, arriba, porque son la misma idea.
   const antes = RANGO[texto(solicitud.pago_estado)] ?? 0;
   const ahora = RANGO[estado.estado] ?? 0;
   const retrocede = antes >= 2 && ahora < antes;
