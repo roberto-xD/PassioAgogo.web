@@ -142,13 +142,43 @@ data class CartUiState(
     val faltaDireccion: Boolean
         get() = autenticado && entrega == MetodoEntrega.Domicilio && !hayDireccion
 
-    val canSubmit: Boolean
+    /**
+     * Lo que hace falta salga por donde salga: quién pide, cómo localizarle y, para
+     * envío a domicilio, a dónde se manda.
+     */
+    val datosListos: Boolean
         get() = !isSubmitting &&
+            pagando == null &&
             cart.items.isNotEmpty() &&
             nombre.trim().isNotEmpty() &&
             telefonoCompleto &&
-            confirmado &&
             !faltaDireccion
+
+    /**
+     * ¿Se puede ir a pagar?
+     *
+     * A domicilio hace falta haber elegido envío: sin eso el total no lleva el envío
+     * dentro y cobraríamos de menos. Para recoger en persona no hay envío que elegir.
+     */
+    val puedePagar: Boolean
+        get() = datosListos &&
+            (entrega == MetodoEntrega.Personal || envioElegido != null)
+
+    /**
+     * ¿Se puede seguir por WhatsApp?
+     *
+     * Solo en entrega personal, y con la casilla marcada: ese camino deja el trato a
+     * medias en un mensaje, y la casilla es donde se cuenta cómo sigue.
+     *
+     * La casilla **no** bloquea el pago. Pagar es el mismo acto en los dos escenarios y
+     * a domicilio no se pide ninguna casilla; exigirla aquí y no allí sería arbitrario.
+     */
+    val puedeSeguirPorWhatsApp: Boolean
+        get() = datosListos && entrega == MetodoEntrega.Personal && confirmado
+
+    /** La casilla solo pinta donde hay un camino que explicar. */
+    val requiereConfirmacion: Boolean
+        get() = entrega == MetodoEntrega.Personal
 }
 
 /**
@@ -336,21 +366,38 @@ class CartViewModel(
      */
     fun pagar(solicitudId: String) {
         if (solicitudId.isBlank() || _uiState.value.pagando != null) return
+        scope.launch { cobrar(solicitudId, folioSiFalla = null) }
+    }
+
+    /**
+     * Abre el cobro. Lo usan el botón del historial y el carrito encadenado.
+     *
+     * [folioSiFalla] solo llega desde el carrito: es el folio de la solicitud que
+     * acabamos de crear, para poder enseñar el acuse si el cobro no abre. Desde el
+     * historial no hace falta, porque de ahí no nos movemos.
+     */
+    private suspend fun cobrar(solicitudId: String, folioSiFalla: Long?) {
         _uiState.update { it.copy(pagando = solicitudId, errorPago = null) }
 
-        scope.launch {
-            when (val resultado = payments.abrirCobro(solicitudId)) {
-                is PagoResult.Listo -> _uiState.update {
-                    // `pagando` se queda puesto: entre esto y que el navegador se vaya
-                    // pasa un instante, y apagarlo antes haría parpadear el botón.
-                    it.copy(urlPago = resultado.checkoutUrl)
-                }
-                is PagoResult.Fallo -> _uiState.update {
-                    it.copy(pagando = null, errorPago = resultado.mensaje)
-                }
-                PagoResult.SinSesion -> _uiState.update {
-                    it.copy(pagando = null, pideSesion = true)
-                }
+        when (val resultado = payments.abrirCobro(solicitudId)) {
+            is PagoResult.Listo -> _uiState.update {
+                // `pagando` se queda puesto: entre esto y que el navegador se vaya
+                // pasa un instante, y apagarlo antes haría parpadear el botón.
+                it.copy(urlPago = resultado.checkoutUrl)
+            }
+            is PagoResult.Fallo -> _uiState.update {
+                it.copy(
+                    pagando = null,
+                    errorPago = resultado.mensaje,
+                    folioEnviado = it.folioEnviado ?: folioSiFalla,
+                )
+            }
+            PagoResult.SinSesion -> _uiState.update {
+                it.copy(
+                    pagando = null,
+                    pideSesion = true,
+                    folioEnviado = it.folioEnviado ?: folioSiFalla,
+                )
             }
         }
     }
@@ -386,9 +433,18 @@ class CartViewModel(
         }
     }
 
-    fun submit() {
+    /**
+     * Crea la solicitud y, si [conPago], abre el cobro a continuación.
+     *
+     * Encadenado a propósito: el carrito termina en «Pagar», no en «Enviar solicitud y
+     * ahora busca dónde pagarla». La solicitud se crea igual aunque el cobro no llegue
+     * a abrirse o la persona lo cancele en Mercado Pago — queda registrada y pendiente,
+     * y se paga después desde el historial.
+     */
+    fun submit(conPago: Boolean = false) {
         val estado = _uiState.value
-        if (!estado.canSubmit) return
+        val puede = if (conPago) estado.puedePagar else estado.puedeSeguirPorWhatsApp
+        if (!puede) return
         _uiState.update { it.copy(isSubmitting = true, errorMessage = null, pideSesion = false) }
 
         scope.launch {
@@ -419,12 +475,21 @@ class CartViewModel(
                             // La casilla vuelve a su sitio: es por solicitud, no por
                             // sesión, y la siguiente tiene que confirmarse igual.
                             confirmado = false,
-                            folioEnviado = resultado.folio,
+                            // El acuse solo cuando nos quedamos. Si vamos a Mercado
+                            // Pago, enseñar «solicitud enviada» un instante antes de
+                            // que la página se vaya es un parpadeo que no informa de
+                            // nada.
+                            folioEnviado = if (conPago) null else resultado.folio,
                             idEnviada = resultado.id,
                             totalEnviado = total,
                             solicitudes = null,
                         )
                     }
+
+                    // Si el cobro no se puede abrir, el acuse aparece entonces: la
+                    // solicitud existe, y dejar el carrito vacío con un error suelto
+                    // haría pensar que se perdió.
+                    if (conPago) cobrar(resultado.id, folioSiFalla = resultado.folio)
                 }
                 is EnvioResult.Fallo -> _uiState.update {
                     it.copy(isSubmitting = false, errorMessage = resultado.mensaje)

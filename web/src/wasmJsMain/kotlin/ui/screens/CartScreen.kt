@@ -40,6 +40,7 @@ import models.MetodoEntrega
 import models.OpcionEnvio
 import models.formatPrice
 import network.Direccion
+import network.WhatsAppConfig
 import ui.Chip
 import ui.components.BottomSheet
 import ui.components.ContentScreen
@@ -47,6 +48,7 @@ import ui.components.DataCard
 import ui.components.DataLine
 import ui.components.FormField
 import ui.components.Paragraph
+import ui.components.openInNewTab
 import ui.components.SectionTitle
 import ui.theme.PassionTheme
 import viewmodel.AddressUiState
@@ -99,7 +101,7 @@ fun CartScreen(
     onConfirmadoChange: (Boolean) -> Unit,
     onCotizarEnvio: (String) -> Unit = {},
     onElegirEnvio: (OpcionEnvio) -> Unit = {},
-    onSubmit: () -> Unit,
+    onSubmit: (Boolean) -> Unit,
     onPagar: (String) -> Unit = {},
     onReset: () -> Unit,
     onGoToLogin: () -> Unit,
@@ -230,21 +232,65 @@ fun CartScreen(
 
         state.errorMessage?.let { Aviso(texto = it, esError = true) }
 
-        Spacer(Modifier.height(PassionTheme.spacing.s4))
-        Confirmacion(marcado = state.confirmado, onMarcar = onConfirmadoChange)
+        // La casilla solo existe donde hay un camino que explicar. A domicilio el
+        // carrito termina en «Pagar» y no hay nada que acordar aparte.
+        if (state.requiereConfirmacion) {
+            Spacer(Modifier.height(PassionTheme.spacing.s4))
+            Confirmacion(marcado = state.confirmado, onMarcar = onConfirmadoChange)
+        }
 
         Spacer(Modifier.height(PassionTheme.spacing.s4))
+        val trabajando = state.isSubmitting || state.pagando != null
         Button(
-            onClick = onSubmit,
-            enabled = state.canSubmit,
+            onClick = { onSubmit(true) },
+            enabled = state.puedePagar,
             shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                text = if (state.isSubmitting) "Enviando…" else "Enviar solicitud",
+                text = when {
+                    trabajando -> "Abriendo el pago…"
+                    // Para recoger en persona el pago es una opción entre dos, así que
+                    // el botón dice las dos cosas que hace. A domicilio es el único
+                    // camino y no hace falta anunciar que además se envía la solicitud.
+                    state.entrega == MetodoEntrega.Personal -> "Enviar solicitud y pagar"
+                    else -> "Pagar ${formatPrice(state.totalConEnvio)}"
+                },
                 style = MaterialTheme.typography.labelLarge,
             )
         }
+
+        if (state.entrega == MetodoEntrega.Personal) {
+            Button(
+                onClick = { onSubmit(false) },
+                enabled = state.puedeSeguirPorWhatsApp,
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = PassionTheme.spacing.s2),
+            ) {
+                Text(
+                    text = if (state.isSubmitting) "Enviando…" else "Continuar por WhatsApp",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        } else {
+            // Decir a dónde lleva el botón antes de pulsarlo. Salir del sitio a una
+            // pasarela sin aviso se parece demasiado a lo que hace un fraude.
+            Text(
+                text = "Serás redirigido a Mercado Pago para realizar tu pago de forma " +
+                    "segura.",
+                color = PassionTheme.semantics.onBackgroundMuted,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+            )
+        }
+
+        state.errorPago?.let { Aviso(texto = it, esError = true) }
         // Un botón apagado sin explicación se lee como una app rota. Se dice lo que
         // falta, y solo eso: en cuanto se cumple, el texto desaparece.
         queFalta(state)?.let {
@@ -258,13 +304,23 @@ fun CartScreen(
     }
 }
 
-/** Lo que impide enviar, en el orden en que la persona se lo encuentra al bajar. */
+/**
+ * Lo que impide continuar, en el orden en que la persona se lo encuentra al bajar.
+ *
+ * Un botón apagado sin explicación se lee como una app rota. Se nombra **una** cosa, la
+ * primera que falta: una lista de cinco reproches no se lee, se abandona.
+ */
 private fun queFalta(state: CartUiState): String? = when {
-    state.isSubmitting -> null
+    state.isSubmitting || state.pagando != null -> null
     state.nombre.trim().isEmpty() -> "Falta el nombre."
     !state.telefonoCompleto -> "Falta tu teléfono de contacto."
     state.faltaDireccion -> "Falta guardar la dirección de envío."
-    !state.confirmado -> "Marca la casilla para continuar."
+    // Sin envío elegido el total no lleva el envío dentro, así que no se puede cobrar.
+    state.entrega == MetodoEntrega.Domicilio && state.envioElegido == null ->
+        "Elige una opción de envío para continuar."
+    // Solo estorba al camino de WhatsApp: el de pagar no la necesita.
+    state.requiereConfirmacion && !state.confirmado ->
+        "Marca la casilla para continuar por WhatsApp."
     else -> null
 }
 
@@ -604,10 +660,11 @@ private fun Confirmacion(marcado: Boolean, onMarcar: (Boolean) -> Unit) {
     ) {
         Checkbox(checked = marcado, onCheckedChange = onMarcar)
         Text(
-            text = "Al dar click en «Enviar solicitud» el proceso de compra continúa vía " +
-                "mensaje directo en WhatsApp, donde se le dará seguimiento al método de " +
-                "envío / entrega seleccionado, y podrás realizar el pago de manera " +
-                "electrónica.",
+            text = "Al dar click en «Continuar por WhatsApp» el proceso de compra " +
+                "continúa vía mensaje directo en WhatsApp, donde se le dará seguimiento " +
+                "a la entrega. Si prefieres, puedes pagar ahora y adelantar el proceso " +
+                "haciendo click en «Enviar solicitud y pagar»; si algo no estuviera " +
+                "disponible, te devolvemos el importe.",
             color = PassionTheme.semantics.onBackgroundMuted,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier
@@ -770,23 +827,33 @@ private fun Acuse(
             modifier = Modifier.padding(top = PassionTheme.spacing.s3),
         )
 
-        // Pagar ya, para quien quiera cerrar el trámite sin esperar el mensaje.
+        // Aquí se llega desde «Continuar por WhatsApp», así que lo primero es WhatsApp.
+        // Un botón que promete una conversación y luego deja a la persona buscando el
+        // número no ha cumplido nada.
+        if (WhatsAppConfig.isConfigured) {
+            Button(
+                onClick = { openInNewTab(WhatsAppConfig.enlaceParaPedido(folio)) },
+                shape = MaterialTheme.shapes.extraLarge,
+                modifier = Modifier.padding(top = PassionTheme.spacing.s4),
+            ) {
+                Text("Abrir WhatsApp", style = MaterialTheme.typography.labelLarge)
+            }
+        }
+
+        // Pagar ya, para quien cambie de idea y quiera cerrarlo sin esperar el mensaje.
         if (total > 0.0) {
-            Text(
-                text = "Si prefieres, puedes pagarla ahora y adelantar el proceso. Si " +
-                    "algo no estuviera disponible, te devolvemos el importe.",
-                color = PassionTheme.semantics.onBackgroundMuted,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = PassionTheme.spacing.s3),
-            )
             Button(
                 onClick = onPagar,
                 enabled = !pagando,
                 shape = MaterialTheme.shapes.extraLarge,
-                modifier = Modifier.padding(top = PassionTheme.spacing.s3),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
             ) {
                 Text(
-                    text = if (pagando) "Abriendo…" else "Pagar ${formatPrice(total)}",
+                    text = if (pagando) "Abriendo…" else "Pagar ${formatPrice(total)} ahora",
                     style = MaterialTheme.typography.labelLarge,
                 )
             }
