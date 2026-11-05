@@ -363,9 +363,11 @@ private fun Pago(acuse: Acuse, esperando: Boolean, statement: String) {
         if (acuse.pagoMetodo.isNotBlank()) {
             // Con los cuatro dígitos cuando los hay: es lo que permite reconocer *con
             // cuál* de sus tarjetas pagó, que es la duda real al revisar un cobro.
+            // La marca antes que la clase: «Mastercard ···· 4821» se reconoce de un
+            // vistazo; «Tarjeta de crédito ···· 4821» obliga a pensar cuál era.
             FilaDato(
                 etiqueta = "Método",
-                valor = metodoDePago(acuse.pagoMetodo) +
+                valor = marcaDePago(acuse.pagoMarca).ifBlank { metodoDePago(acuse.pagoMetodo) } +
                     acuse.pagoUltimos4.takeIf { it.isNotBlank() }?.let { " ···· $it" }
                         .orEmpty(),
             )
@@ -588,12 +590,26 @@ private fun metodoDePago(clave: String): String = when (clave.lowercase()) {
 }
 
 /**
+ * La marca, con el nombre que la gente reconoce en su tarjeta.
+ *
+ * Vacío cuando no se sabe o cuando la marca no aporta nada por sí sola —`oxxo` ya lo
+ * dice todo con la clase «Efectivo»—, y entonces quien llama cae a la clase.
+ */
+private fun marcaDePago(marca: String): String = when (marca.lowercase()) {
+    "master", "debmaster", "mastercard" -> "Mastercard"
+    "visa", "debvisa" -> "Visa"
+    "amex" -> "American Express"
+    "carnet" -> "Carnet"
+    else -> ""
+}
+
+/**
  * ¿Se pagó con una tarjeta?
  *
- * Lo que se lee en el estado de cuenta solo tiene sentido decírselo a quien va a tener
- * un estado de cuenta. A quien pagó en efectivo en un OXXO, no.
+ * Se mira la **clase**, no la marca: la clase es justo la pregunta —`credit_card` frente
+ * a `ticket`— mientras que con la marca habría que mantener una lista de todas las que
+ * existen y acertar siempre. Lo que se lee en el estado de cuenta solo tiene sentido
+ * decírselo a quien va a tener un estado de cuenta; a quien pagó en efectivo, no.
  */
-private fun String.esDeTarjeta(): Boolean = lowercase() in setOf(
-    "credit_card", "debit_card", "prepaid_card",
-    "visa", "master", "amex", "debvisa", "debmaster",
-)
+private fun String.esDeTarjeta(): Boolean =
+    lowercase() in setOf("credit_card", "debit_card", "prepaid_card")

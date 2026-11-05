@@ -74,7 +74,7 @@ class AcuseRepository(
             append("envio_costo, envio_descripcion, envio_entrega, ")
             if (conPago) {
                 append("pago_estado, pago_total, pago_metodo, pago_referencia, ")
-                append("pago_ultimos4, ")
+                append("pago_ultimos4, pago_marca, ")
             }
             append("dir_version, dir_contenido, dir_iv, dir_dk_usuario, dir_iv_usuario, ")
             append("dir_salt_usuario, dir_kdf_iteraciones, dir_dk_admin, dir_admin_key_id, ")
@@ -227,6 +227,7 @@ class AcuseRepository(
             pagoMetodo = dto.pagoMetodo.orEmpty(),
             pagoReferencia = dto.pagoReferencia.orEmpty(),
             pagoUltimos4 = dto.pagoUltimos4.orEmpty(),
+            pagoMarca = dto.pagoMarca.orEmpty(),
             articulos = articulos,
             sobre = sobre,
         )

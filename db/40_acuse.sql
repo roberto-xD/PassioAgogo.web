@@ -20,11 +20,20 @@ begin;
 -- nuestro servidor ni nuestro navegador. Esa es la razón de usar Checkout Pro.
 
 alter table order_requests
-  add column if not exists pago_ultimos4 text;
+  add column if not exists pago_ultimos4 text,
+  add column if not exists pago_marca    text;
 
 comment on column order_requests.pago_ultimos4 is
   'Ultimos cuatro digitos de la tarjeta, tal como los da Mercado Pago. Nunca el '
   'numero completo: ese no pasa por esta aplicacion.';
+
+-- La marca va aparte de `pago_metodo` porque son dos preguntas distintas y las dos
+-- hacen falta. `pago_metodo` guarda la CLASE (`credit_card`, `ticket`, `account_money`)
+-- y es la que decide si tiene sentido hablarle de su estado de cuenta; `pago_marca`
+-- guarda la MARCA (`master`, `visa`, `oxxo`) y es la que se reconoce al leerla:
+-- «Mastercard ···· 4821» dice mas que «Tarjeta de credito ···· 4821».
+comment on column order_requests.pago_marca is
+  'Marca del medio de pago segun Mercado Pago: master, visa, amex, oxxo...';
 
 -- Cuatro dígitos, o nada. Un campo de texto libre aquí acabaría recibiendo cualquier
 -- cosa el día que alguien escriba a mano en la tabla.
@@ -39,7 +48,7 @@ begin
 end $$;
 
 -- Lo lee el cliente; lo escribe el webhook con service_role, como el resto de `pago_*`.
-grant select (pago_ultimos4) on order_requests to authenticated;
+grant select (pago_ultimos4, pago_marca) on order_requests to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 2. Ajustes del acuse

@@ -28,6 +28,8 @@ data class Acuse(
     val pagoReferencia: String,
     /** Los cuatro últimos de la tarjeta. Vacío si no pagó con una. */
     val pagoUltimos4: String,
+    /** La marca: `master`, `visa`, `oxxo`… Más reconocible que la clase. */
+    val pagoMarca: String = "",
     val articulos: List<ArticuloAcuse>,
     /** El sobre cifrado tal cual se copió al enviar. Nulo si va a recoger en persona. */
     val sobre: network.SobreDireccion? = null,
@@ -105,6 +107,7 @@ data class AcuseDto(
     @SerialName("pago_metodo") val pagoMetodo: String? = null,
     @SerialName("pago_referencia") val pagoReferencia: String? = null,
     @SerialName("pago_ultimos4") val pagoUltimos4: String? = null,
+    @SerialName("pago_marca") val pagoMarca: String? = null,
     // El sobre de la dirección, copiado al enviar. Se descifra en el navegador con la
     // clave de la persona; la base nunca lo ve en claro.
     @SerialName("dir_version") val dirVersion: Int? = null,

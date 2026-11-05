@@ -465,8 +465,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Esto además es obligatorio, no una mejora: `X-Idempotency-Key` es la misma para la
   // misma solicitud y el mismo monto, y Mercado Pago responde 409 a una llave ya usada.
   // Sin este camino, «Continuar el pago» fallaría siempre.
+  //
+  // También tras un rechazo, no solo con el pago pendiente. Cuando una tarjeta no pasa,
+  // Mercado Pago deja la orden en `action_required` / `waiting_retry`: sigue viva y
+  // esperando otro intento. Si abriéramos una segunda, quedarían dos órdenes pagables
+  // por lo mismo, y quien tenga las dos pestañas abiertas podría pagarlas las dos.
+  // Quien decide si la vieja sirve es Mercado Pago, en `ordenAbierta`.
   if (
-    solicitud.pago_estado === "pendiente" &&
+    (solicitud.pago_estado === "pendiente" || solicitud.pago_estado === "rechazado") &&
     solicitud.pago_orden_id &&
     Math.abs(Number(solicitud.pago_total ?? 0) - total) <= 0.01
   ) {

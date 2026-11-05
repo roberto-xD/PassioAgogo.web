@@ -164,7 +164,10 @@ interface Estado {
   estado: string;
   estadoCrudo: string;
   monto: number | null;
+  /** La clase: `credit_card`, `debit_card`, `ticket`, `account_money`… */
   metodo: string;
+  /** La marca: `master`, `visa`, `amex`, `oxxo`… */
+  marca: string;
   /** Cuatro dígitos exactos, o vacío. Nunca el número completo. */
   ultimos4: string;
   pagoId: string;
@@ -252,11 +255,39 @@ async function consultar(tipo: string, id: string): Promise<Estado | null> {
     estado,
     estadoCrudo: crudo || estadoBase,
     monto: monto != null && Number.isFinite(monto) ? monto : null,
-    metodo: texto(buscar(datos, "payment_method_id") ?? buscar(datos, "payment_type_id")),
+    metodo: metodoDe(ultimo, datos, "type"),
+    marca: metodoDe(ultimo, datos, "id"),
     ultimos4: ultimos4De(datos),
     pagoId: texto((ultimo && ultimo.id) ?? (esPago ? id : "")),
     ordenId: esPago ? texto(buscar(datos, "order_id")) : id,
   };
+}
+
+/**
+ * Con qué se pagó. [campo] es `type` (la clase: `credit_card`, `ticket`…) o `id` (la
+ * marca: `master`, `visa`, `oxxo`).
+ *
+ * **La Orders API los anida** en `payment_method: { id, type }`. La API vieja de pagos
+ * los daba planos, en `payment_method_id` y `payment_type_id`, y buscar solo esos
+ * dejaba el método vacío en todos los avisos — y con él la marca, los cuatro dígitos y
+ * la línea del estado de cuenta, que cuelgan de saber que fue una tarjeta.
+ *
+ * Se mira primero el pago concreto y luego la orden: la orden trae una copia, pero si
+ * alguna vez hubiera dos intentos con medios distintos, el bueno es el del último.
+ */
+// deno-lint-ignore no-explicit-any
+function metodoDe(pago: any, datos: any, campo: "id" | "type"): string {
+  const delPago = pago?.payment_method?.[campo];
+  if (delPago) return texto(delPago);
+
+  const deLaOrden = (buscar(datos, "payment_method") as any)?.[campo];
+  if (deLaOrden) return texto(deLaOrden);
+
+  // Los nombres planos, por si el aviso viene de la API de pagos y no de la de órdenes.
+  const plano = campo === "type"
+    ? buscar(datos, "payment_type_id")
+    : buscar(datos, "payment_method_id");
+  return texto(plano ?? "");
 }
 
 /**
@@ -377,6 +408,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         pago_total: estado.monto ?? solicitud.pago_total,
         pago_referencia: estado.pagoId || null,
         pago_metodo: estado.metodo || null,
+        pago_marca: estado.marca || null,
         pago_ultimos4: estado.ultimos4 || null,
         pago_actualizado_en: new Date().toISOString(),
       } as never)
@@ -402,7 +434,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     orden_id: estado.ordenId || null,
     pago_id: estado.pagoId || null,
     monto: estado.monto,
-    metodo: estado.metodo || null,
+    // En el historial va clase y marca juntas: es para leerlo, no para decidir nada.
+    metodo: [estado.metodo, estado.marca].filter(Boolean).join(" · ") || null,
     estado_crudo: estado.estadoCrudo || null,
     nota: retrocede ? `Descartado: llegó después de ${solicitud.pago_estado}` : null,
   } as never);
