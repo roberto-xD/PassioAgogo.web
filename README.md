@@ -532,6 +532,56 @@ Pago, y añade a la respuesta de `crear-pago` el motivo crudo de un rechazo junt
 que le mandamos. **Apágalo antes de producción**: ahí dentro van datos del pago y el
 detalle de la integración.
 
+### Probar un pago
+
+**En una ventana de incógnito.** La documentación lo pide para evitar errores por
+credenciales duplicadas, y sin ella el checkout te reconoce con tu cuenta de producción
+y te ofrece tus tarjetas reales — que no pueden pagar una orden de prueba (las de prueba
+llevan `ORDTST…` en el `order_id`).
+
+No hace falta crear una cuenta de prueba para lo normal: basta con pagar como invitado
+usando una tarjeta de prueba. El resultado **lo decides tú escribiendo un código en el
+nombre del titular**:
+
+| Nombre del titular | Qué pasa |
+|---|---|
+| `APRO` | Pago aprobado |
+| `CONT` | Queda pendiente |
+| `FUND` | Rechazado por saldo insuficiente |
+| `SECU` | Rechazado por código de seguridad inválido |
+| `OTHE` | Rechazado por error general |
+
+Tarjetas de prueba (CVV `123`, vencimiento `11/30`; Amex usa CVV de 4 dígitos):
+
+| Marca | Número |
+|---|---|
+| Mastercard crédito | `5474 9254 3267 0366` |
+| Visa crédito | `4075 5957 1648 3764` |
+| American Express | `3711 803032 57522` (CVV `1234`) |
+| Mastercard débito | `5579 0534 6148 2647` |
+| Visa débito | `4189 1412 2126 7633` |
+
+Si el escenario necesita entrar como otra cuenta, las cuentas de prueba se crean en
+*Integraciones → Cuentas de prueba* (máximo 15).
+
+Qué mirar después de pagar, en este orden:
+
+1. Los **logs de `pago-webhook`**: que entró el aviso y se consultó el recurso. Si dice
+   «firma inválida» con un `data.id` real, el manifiesto no coincide con lo documentado
+   y hay que ajustarlo con lo que muestre el log.
+2. La **fila de la solicitud**: `pago_estado` debe pasar a `aprobado`, con `pago_total`,
+   `pago_referencia` y `pago_metodo` puestos.
+   ```sql
+   select folio, pago_estado, pago_total, pago_referencia, pago_metodo, pago_actualizado_en
+     from order_requests where id = '<id de la solicitud>';
+   ```
+3. La **tabla `pagos`**, que guarda cada aviso con el estado crudo de Mercado Pago.
+
+> El **regreso del navegador** es lo último que hay que mirar, y no prueba nada: va a
+> `SITIO_URL`, que apunta al sitio publicado. Si ahí todavía no está desplegado este
+> bundle, la persona cae en la portada con una URL llena de parámetros y no pasa nada.
+> El cobro sigue siendo correcto: quien lo registra es el webhook.
+
 > Un `502` de `crear-pago` significa que Mercado Pago rechazó la orden. Con `MP_DEBUG=1`
 > el motivo viene en el JSON de la respuesta, en `detalle`, al lado de `enviado`; sin él
 > hay que ir a los logs de la función. Lo que casi siempre falla es un campo en el sitio
