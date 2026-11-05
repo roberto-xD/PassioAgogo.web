@@ -192,6 +192,34 @@ function texto(v: unknown): string {
   return v == null ? "" : String(v).trim();
 }
 
+/**
+ * ¿De qué habla este aviso?
+ *
+ * Mercado Pago manda varios temas a la misma URL, y no todos son nuestros:
+ *
+ *  - `order` — la Orders API, que es con la que cobramos. Su id es `ORDTST01M6…`.
+ *  - `payment` — la API clásica de pagos. Id numérico.
+ *  - `topic_merchant_order_wh` / `merchant_order` — el aviso **antiguo** de «orden
+ *    comercial», con un id numérico que no es el de una orden de la Orders API.
+ *
+ * El tercero llegaba y se le pedía `/v1/orders/<id numérico>`, Mercado Pago contestaba
+ * `invalid_path_param`, y nosotros devolvíamos 500 — con lo que lo reintentaba una y
+ * otra vez. Además de ensuciar los logs, un webhook que falla seguido acaba
+ * desactivado. Y no se pierde nada ignorándolo: el aviso de `order` trae lo mismo y es
+ * el que usamos.
+ *
+ * El orden de las comprobaciones importa: `topic_merchant_order_wh` **contiene**
+ * «order», así que hay que descartarlo antes de preguntar por eso.
+ */
+function temaDelAviso(tipo: string): "orden" | "pago" | "otro" {
+  if (tipo.includes("merchant_order")) return "otro";
+  if (tipo.includes("payment")) return "pago";
+  if (tipo.includes("order")) return "orden";
+  return "otro";
+}
+
+const esDePago = (tipo: string) => temaDelAviso(tipo) === "pago";
+
 /** Lo que le preguntamos a Mercado Pago, ya exprimido. */
 interface Estado {
   solicitudId: string;
@@ -220,7 +248,7 @@ interface Estado {
  * nada: dejar el pago pendiente es recuperable, marcarlo aprobado por error no.
  */
 async function consultar(tipo: string, id: string): Promise<Estado | null> {
-  const esPago = tipo.includes("payment");
+  const esPago = esDePago(tipo);
   const url = esPago ? `${MP_API}/v1/payments/${id}` : `${MP_API}/v1/orders/${id}`;
 
   let respuesta: Response;
@@ -285,17 +313,50 @@ async function consultar(tipo: string, id: string): Promise<Estado | null> {
     buscar(datos, "total_amount");
   const monto = montoCrudo == null ? null : Number(montoCrudo);
 
+  const clase = metodoDe(ultimo, datos, "type");
+
   return {
     solicitudId,
     estado,
     estadoCrudo: crudo || estadoBase,
     monto: monto != null && Number.isFinite(monto) ? monto : null,
-    metodo: metodoDe(ultimo, datos, "type"),
+    metodo: clase,
     marca: metodoDe(ultimo, datos, "id"),
-    ultimos4: ultimos4De(datos),
+    ultimos4: ultimos4De(datos) || await ultimos4DelPagoClasico(ultimo, clase),
     pagoId: texto((ultimo && ultimo.id) ?? (esPago ? id : "")),
     ordenId: esPago ? texto(buscar(datos, "order_id")) : id,
   };
+}
+
+/**
+ * Los cuatro dígitos, preguntándolos a la API clásica de pagos.
+ *
+ * La Orders API **no los devuelve**: ni en el aviso ni en el recurso de la orden. Pero
+ * cada intento trae `reference.id`, que es el identificador del pago en la API de
+ * siempre, y esa sí los da en `card.last_four_digits`.
+ *
+ * Es una llamada de más, así que solo se hace cuando sirve de algo: cuando se pagó con
+ * tarjeta y no los tenemos ya. Nunca lanza, y si no se pueden conseguir se devuelve
+ * vacío — enseñar «Mastercard» a secas es perfectamente digno.
+ */
+// deno-lint-ignore no-explicit-any
+async function ultimos4DelPagoClasico(pago: any, clase: string): Promise<string> {
+  const esTarjeta = ["credit_card", "debit_card", "prepaid_card"].includes(clase);
+  const referencia = texto(pago?.reference?.id);
+  if (!esTarjeta || !referencia) return "";
+
+  try {
+    const respuesta = await fetch(`${MP_API}/v1/payments/${referencia}`, {
+      headers: { "Authorization": `Bearer ${MP_TOKEN}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!respuesta.ok) return "";
+    const datos = await respuesta.json();
+    return ultimos4De(datos);
+  } catch (e) {
+    console.error("no se pudieron pedir los últimos dígitos", referencia, String(e));
+    return "";
+  }
 }
 
 /**
@@ -441,6 +502,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // aviso llegó bien, es que no hablaba de ningún recurso.
     console.error("aviso sin recurso", tipo);
     return new Response("Sin recurso", { status: 200 });
+  }
+
+  // Un tema que no es nuestro se da por recibido y se deja estar. 200 y no 500: el
+  // aviso llegó bien, simplemente no habla de nada que tengamos que hacer, y
+  // contestar error haría que lo reintentara para siempre.
+  if (temaDelAviso(tipo) === "otro") {
+    if (DEBUG) console.log("aviso de otro tema, ignorado:", tipo, dataId);
+    return new Response("Otro tema", { status: 200 });
   }
 
   const estado = await consultar(tipo, dataId);

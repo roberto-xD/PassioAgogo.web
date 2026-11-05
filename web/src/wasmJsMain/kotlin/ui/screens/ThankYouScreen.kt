@@ -484,8 +484,10 @@ private fun QueSigue(acuse: Acuse) {
             if (acuse.entrega == MetodoEntrega.Domicilio) {
                 add(
                     "Lo enviamos" to
-                        "Tu número de guía aparecerá en esta misma página, en «Mi " +
-                        "cuenta → Historial de solicitudes», para que lo rastrees."
+                        // Sin flecha: la tipografía del sitio no trae «→» y se pinta
+                        // como un cuadro vacío.
+                        "Tu número de guía aparecerá en esta misma página, en el " +
+                        "historial de solicitudes de tu cuenta, para que lo rastrees."
                 )
             }
         }
