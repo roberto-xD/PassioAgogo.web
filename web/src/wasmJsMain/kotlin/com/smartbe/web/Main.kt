@@ -47,6 +47,7 @@ import ui.components.Footer
 import ui.components.clearQuery
 import ui.components.currentQuery
 import ui.components.goToExternal
+import ui.components.queryParam
 import ui.components.LocalHtmlOverlayClip
 import ui.components.LocalSnackbarHostState
 import ui.components.NavBar
@@ -70,6 +71,7 @@ import ui.screens.CartScreen
 import ui.screens.PrivacyScreen
 import ui.screens.SectionProductScreen
 import ui.screens.TermsScreen
+import ui.screens.ThankYouScreen
 import ui.screens.VideoScreen
 import ui.screens.WheelScreen
 import viewmodel.AuthViewModel
@@ -81,6 +83,7 @@ import viewmodel.ContactViewModel
 import viewmodel.EventsViewModel
 import viewmodel.GalleryViewModel
 import viewmodel.GuidesViewModel
+import viewmodel.ThankYouViewModel
 import viewmodel.WheelViewModel
 
 /** Cada cuánto se comprueba que la sesión de la pantalla y la del cliente coincidan. */
@@ -179,6 +182,11 @@ fun App() {
     val cartViewModel = remember { CartViewModel(OrdersRepository()) }
     val cartState by cartViewModel.uiState.collectAsState()
 
+    // El acuse de «gracias». Va aparte del carrito porque tiene su propio ciclo: carga
+    // por id de la URL y sigue preguntando hasta que el webhook del pago conteste.
+    val thankYouViewModel = remember { ThankYouViewModel() }
+    val thankYouState by thankYouViewModel.uiState.collectAsState()
+
     val addressViewModel = remember { AddressViewModel(AddressRepository()) }
     val addressState by addressViewModel.uiState.collectAsState()
 
@@ -212,6 +220,18 @@ fun App() {
         }
     }
 
+    // El acuse carga con el id que trae la ruta, y deja de sondear al salir de la
+    // pantalla: un sondeo que sigue en segundo plano pregunta por un pedido que ya nadie
+    // está mirando.
+    LaunchedEffect(routeState.value.screen, routeState.value.id) {
+        val ruta = routeState.value
+        if (ruta.screen == Screen.ThankYou) {
+            thankYouViewModel.cargar(ruta.id.orEmpty())
+        } else {
+            thankYouViewModel.limpiar()
+        }
+    }
+
     // Hay URL de Mercado Pago: se lleva esta pestaña allí.
     //
     // La navegación se hace aquí y no en el ViewModel porque irse de la página es cosa
@@ -235,14 +255,21 @@ fun App() {
         val vieneDeUnPago = listOf("payment_id", "collection_id", "preference_id", "external_reference")
             .any { it in consulta }
         if (vieneDeUnPago) {
+            // `external_reference` es el id de la solicitud, que es lo que pusimos al
+            // crear la orden. **No se cree, se usa para buscar**: el RLS limita
+            // `order_requests` a las propias, así que uno ajeno no devuelve nada.
+            val solicitud = queryParam("external_reference")
             // Se limpian en cuanto se leen: dejarlos puestos haría que recargar
             // pareciera otro regreso, y que la URL compartida llevara dentro el id de
             // un pago de alguien.
             clearQuery()
             cartViewModel.volviDelPago()
-            // Al historial, no a «Mi cuenta» a secas: lo que esa persona quiere ver
-            // ahora mismo es si su pago entró.
-            routeState.value = Route(Screen.Account, id = SECCION_HISTORIAL)
+            routeState.value = if (solicitud.isNotBlank()) {
+                Route(Screen.ThankYou, id = solicitud)
+            } else {
+                // Sin referencia no hay acuse que enseñar, pero sí hay historial.
+                Route(Screen.Account, id = SECCION_HISTORIAL)
+            }
         }
     }
 
@@ -459,6 +486,15 @@ fun App() {
                             direccion = addressState,
                             onEditarDireccion = addressViewModel::editar,
                             onGuardarDireccion = addressViewModel::guardar,
+                        )
+                        Screen.ThankYou -> ThankYouScreen(
+                            state = thankYouState,
+                            onAlternarDetalle = thankYouViewModel::alternarDetalle,
+                            onGoToCatalog = { navigate(Screen.Catalog) },
+                            onGoToRequests = {
+                                routeState.value = Route(Screen.Account, id = SECCION_HISTORIAL)
+                            },
+                            onGoToLogin = { navigate(Screen.Login) },
                         )
                         Screen.Terms -> TermsScreen()
                         Screen.Privacy -> PrivacyScreen()

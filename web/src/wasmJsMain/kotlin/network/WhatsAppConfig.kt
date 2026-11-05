@@ -42,6 +42,16 @@ object WhatsAppConfig {
     fun enlaceParaDuda(): String = enlace(MENSAJE_DUDA)
 
     /**
+     * Duda sobre un pedido concreto, desde el acuse o el historial.
+     *
+     * Lleva el folio porque es lo que permite atender sin preguntar primero «¿cuál de
+     * tus pedidos?». Va el folio y no el identificador interno: es el número que la
+     * persona ve en su pantalla.
+     */
+    fun enlaceParaPedido(folio: Long): String =
+        enlace("Hola, tengo una duda sobre mi pedido #$folio")
+
+    /**
      * Reclamación de un premio de la ruleta.
      *
      * El código va en el mensaje porque es lo que se verifica contra `wheel_spins` al

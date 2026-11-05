@@ -67,6 +67,28 @@ fun goToExternal(url: String): Unit = js("window.location.assign(url)")
 fun currentQuery(): String = window.location.search.removePrefix("?")
 
 /**
+ * Un parámetro de la URL actual, o cadena vacía.
+ *
+ * Lo que saca de aquí es **texto de quien escribió la URL**, no un dato de confianza.
+ * Sirve para saber *qué* buscar, nunca para dar algo por cierto: el `external_reference`
+ * del regreso de Mercado Pago dice de qué pedido hablar, y el RLS se encarga de que
+ * pedir uno ajeno no devuelva nada.
+ */
+fun queryParam(nombre: String): String {
+    val crudo = currentQuery()
+    if (crudo.isBlank()) return ""
+    for (par in crudo.split("&")) {
+        val i = par.indexOf('=')
+        if (i <= 0) continue
+        if (decodeUri(par.substring(0, i)) == nombre) return decodeUri(par.substring(i + 1))
+    }
+    return ""
+}
+
+private fun decodeUri(valor: String): String =
+    js("decodeURIComponent(valor.replace(/\\+/g, ' '))")
+
+/**
  * Borra los parámetros de consulta sin recargar ni añadir otra entrada al historial.
  *
  * Se limpian en cuanto se leen: dejarlos puestos hace que el botón de recargar vuelva a

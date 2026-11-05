@@ -13,6 +13,15 @@ enum class Screen(val route: String, val title: String) {
     Care("uso-y-cuidados", "Uso y cuidados"),
     Wheel("ruleta", "Gira y gana"),
     Cart("carrito", "Mi solicitud"),
+    /**
+     * El acuse al volver de pagar: `#/gracias/<id de la solicitud>`.
+     *
+     * Lleva el id en la ruta porque es a lo único que puede agarrarse al volver: la
+     * pestaña se fue a Mercado Pago y volvió, así que lo que hubiera en memoria ya no
+     * está. Ese id llega en la URL de regreso y **no se cree, se usa para buscar**: el
+     * RLS ya limita a las solicitudes propias, así que uno ajeno no devuelve nada.
+     */
+    ThankYou("gracias", "Gracias por tu compra"),
     Contact("contacto", "Contacto"),
     Login("acceder", "Acceder"),
     Account("cuenta", "Mi cuenta"),
