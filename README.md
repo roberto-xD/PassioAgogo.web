@@ -528,7 +528,15 @@ una URL que cualquiera puede escribir— y por eso lo único que hace la app al 
 releer el estado de la base.
 
 `MP_DEBUG` escribe en los logs el cuerpo de los avisos y de las respuestas de Mercado
-Pago. **Apágalo antes de producción**: ahí dentro van datos del pago.
+Pago, y añade a la respuesta de `crear-pago` el motivo crudo de un rechazo junto con lo
+que le mandamos. **Apágalo antes de producción**: ahí dentro van datos del pago y el
+detalle de la integración.
+
+> Un `502` de `crear-pago` significa que Mercado Pago rechazó la orden. Con `MP_DEBUG=1`
+> el motivo viene en el JSON de la respuesta, en `detalle`, al lado de `enviado`; sin él
+> hay que ir a los logs de la función. Lo que casi siempre falla es un campo en el sitio
+> equivocado — `statement_descriptor` va dentro de `config`, no al nivel superior — y eso
+> solo se ve comparando lo enviado con su queja.
 
 ## ⚠️ Seguridad
 

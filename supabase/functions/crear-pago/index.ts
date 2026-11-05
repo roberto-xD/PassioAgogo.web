@@ -75,6 +75,15 @@ const STATEMENT = (Deno.env.get("MP_STATEMENT") ?? "PAG").trim().slice(0, 13);
 /** Tope de meses sin intereses. 1 deja solo el pago de una vez. */
 const MAX_MESES = Math.max(1, Number(Deno.env.get("MP_MAX_MESES") ?? "1"));
 
+/**
+ * Añade a la respuesta el motivo crudo de Mercado Pago y lo que le mandamos.
+ *
+ * Para afinar el mapeo de campos, que es donde se va el tiempo: Mercado Pago contesta
+ * 400 con el nombre del campo que no le gustó, y sin ver lado a lado lo enviado y su
+ * queja hay que adivinar. **Apagarlo en producción.**
+ */
+const DEBUG = Deno.env.get("MP_DEBUG") === "1";
+
 const ALLOWED_ORIGINS = (Deno.env.get("CONTACT_ALLOWED_ORIGINS") ?? "*")
   .split(",")
   .map((o) => o.trim())
@@ -401,8 +410,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       payment_method: {
         max_installments: MAX_MESES,
       },
+      // Dentro de `config`, no al nivel superior. Estaba fuera y Mercado Pago
+      // respondía 400 a la orden entera por un campo que no reconocía ahí.
+      statement_descriptor: STATEMENT,
     },
-    statement_descriptor: STATEMENT,
   };
 
   // El correo y el nombre solo para que no los vuelva a escribir. La dirección **no**
@@ -490,6 +501,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       {
         error: "No pudimos abrir el pago ahora mismo. Inténtalo de nuevo.",
         estadoMp: respuesta.status,
+        // Con MP_DEBUG, el motivo de Mercado Pago tal cual, y lo que le mandamos.
+        //
+        // Sin esto, un 502 en la consola del navegador no dice nada: hay que ir a los
+        // logs de Supabase a buscarlo. Y lo que casi siempre falla aquí es un campo con
+        // el tipo equivocado, que solo se ve comparando lo enviado con su queja.
+        //
+        // **Apagarlo en producción**: esto enseña el detalle de nuestra integración a
+        // quien pulse el botón.
+        ...(DEBUG ? { detalle: texto.slice(0, 2000), enviado: orden } : {}),
       },
       502,
       origin,
