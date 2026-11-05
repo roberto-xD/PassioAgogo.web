@@ -164,6 +164,7 @@ class OrdersRepository(
             if (conGuia) append("guia_numero, guia_rastreo_url, guia_paqueteria, ")
             if (conGuia) append("envio_costo, envio_descripcion, ")
             if (conPago) append("pago_estado, pago_total, pago_metodo, pago_referencia, ")
+            if (conPago) append("pago_marca, pago_ultimos4, ")
             append("order_request_items(cantidad, precio_estimado)")
         }
 
@@ -191,6 +192,8 @@ class OrdersRepository(
                     pagoEstado = dto.pagoEstado.orEmpty(),
                     pagoTotal = dto.pagoTotal ?: 0.0,
                     pagoMetodo = dto.pagoMetodo.orEmpty(),
+                    pagoMarca = dto.pagoMarca.orEmpty(),
+                    pagoUltimos4 = dto.pagoUltimos4.orEmpty(),
                     pagoReferencia = dto.pagoReferencia.orEmpty(),
                 )
             }
@@ -207,7 +210,8 @@ private fun faltaLaColumna(raw: String): Boolean {
         "envio_servicio" in m || "envio_descripcion" in m ||
         "envio_costo" in m || "envio_entrega" in m ||
         "pago_estado" in m || "pago_total" in m ||
-        "pago_metodo" in m || "pago_referencia" in m
+        "pago_metodo" in m || "pago_referencia" in m ||
+        "pago_marca" in m || "pago_ultimos4" in m
     return nombra &&
         ("does not exist" in m || "no existe" in m || "pgrst204" in m || "schema cache" in m)
 }

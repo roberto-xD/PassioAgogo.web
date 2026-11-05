@@ -32,6 +32,8 @@ import models.Acuse
 import models.EstadoPago
 import models.MetodoEntrega
 import models.Recomendado
+import models.esPagoConTarjeta
+import models.etiquetaDePago
 import models.formatPrice
 import network.WhatsAppConfig
 import ui.components.ContentScreen
@@ -367,16 +369,18 @@ private fun Pago(acuse: Acuse, esperando: Boolean, statement: String) {
             // vistazo; «Tarjeta de crédito ···· 4821» obliga a pensar cuál era.
             FilaDato(
                 etiqueta = "Método",
-                valor = marcaDePago(acuse.pagoMarca).ifBlank { metodoDePago(acuse.pagoMetodo) } +
-                    acuse.pagoUltimos4.takeIf { it.isNotBlank() }?.let { " ···· $it" }
-                        .orEmpty(),
+                valor = etiquetaDePago(
+                    marca = acuse.pagoMarca,
+                    metodo = acuse.pagoMetodo,
+                    ultimos4 = acuse.pagoUltimos4,
+                ),
             )
         }
 
         // Lo que verá en su estado de cuenta. Sale de `site_settings`, el mismo sitio
         // del que lo lee la Edge Function al crear la orden: con dos copias acabarían
         // diciendo cosas distintas y le prometeríamos algo falso sobre su tarjeta.
-        if (statement.isNotBlank() && acuse.pagoMetodo.esDeTarjeta()) {
+        if (statement.isNotBlank() && esPagoConTarjeta(acuse.pagoMetodo)) {
             Spacer(Modifier.height(PassionTheme.spacing.s2))
             Text(
                 text = "En tu estado de cuenta aparecerá como «$statement».",
@@ -573,43 +577,5 @@ private fun FilaDato(etiqueta: String, valor: String) {
     }
 }
 
-/**
- * El medio de pago con palabras, no con la clave de Mercado Pago.
- *
- * Lo que no esté en la lista se enseña tal cual antes que esconderlo: para quien revisa
- * su pedido, un `pec` raro dice más que un hueco.
- */
-private fun metodoDePago(clave: String): String = when (clave.lowercase()) {
-    "credit_card", "visa", "master", "amex" -> "Tarjeta de crédito"
-    "debit_card", "debvisa", "debmaster" -> "Tarjeta de débito"
-    "prepaid_card" -> "Tarjeta prepagada"
-    "account_money" -> "Saldo en Mercado Pago"
-    "ticket", "oxxo", "paycash" -> "Efectivo"
-    "bank_transfer", "spei" -> "Transferencia"
-    else -> clave
-}
 
-/**
- * La marca, con el nombre que la gente reconoce en su tarjeta.
- *
- * Vacío cuando no se sabe o cuando la marca no aporta nada por sí sola —`oxxo` ya lo
- * dice todo con la clase «Efectivo»—, y entonces quien llama cae a la clase.
- */
-private fun marcaDePago(marca: String): String = when (marca.lowercase()) {
-    "master", "debmaster", "mastercard" -> "Mastercard"
-    "visa", "debvisa" -> "Visa"
-    "amex" -> "American Express"
-    "carnet" -> "Carnet"
-    else -> ""
-}
 
-/**
- * ¿Se pagó con una tarjeta?
- *
- * Se mira la **clase**, no la marca: la clase es justo la pregunta —`credit_card` frente
- * a `ticket`— mientras que con la marca habría que mantener una lista de todas las que
- * existen y acertar siempre. Lo que se lee en el estado de cuenta solo tiene sentido
- * decírselo a quien va a tener un estado de cuenta; a quien pagó en efectivo, no.
- */
-private fun String.esDeTarjeta(): Boolean =
-    lowercase() in setOf("credit_card", "debit_card", "prepaid_card")

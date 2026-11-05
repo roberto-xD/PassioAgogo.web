@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import models.EstadoPago
 import models.Solicitud
+import models.etiquetaDePago
 import models.formatPrice
 import ui.components.Paragraph
 import ui.components.copyToClipboard
@@ -197,8 +198,11 @@ private fun Pago(solicitud: Solicitud, pagando: Boolean, onPagar: () -> Unit) {
         text = when (pago) {
             EstadoPago.Aprobado ->
                 "Pagado · ${formatPrice(solicitud.pagoTotal.takeIf { it > 0.0 } ?: solicitud.total)}" +
-                    solicitud.pagoMetodo.takeIf { it.isNotBlank() }
-                        ?.let { " · ${metodoLegible(it)}" }.orEmpty()
+                    etiquetaDePago(
+                        marca = solicitud.pagoMarca,
+                        metodo = solicitud.pagoMetodo,
+                        ultimos4 = solicitud.pagoUltimos4,
+                    ).takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()
             // «En proceso» y no «pendiente»: en Mercado Pago esto es también el estado
             // de un pago en efectivo con ficha sin pagar, y el de una tarjeta en
             // revisión. Lo que las une es que todavía no se sabe.
@@ -262,20 +266,6 @@ private fun Pago(solicitud: Solicitud, pagando: Boolean, onPagar: () -> Unit) {
             style = MaterialTheme.typography.labelLarge,
         )
     }
-}
-
-/**
- * El medio de pago con palabras, no con la clave de Mercado Pago.
- *
- * Solo los que es probable ver; cualquier otro se enseña tal cual antes que esconderlo,
- * que para quien revisa su historial es más útil un `pec` raro que nada.
- */
-private fun metodoLegible(clave: String): String = when (clave.lowercase()) {
-    "credit_card", "debit_card", "prepaid_card" -> "Tarjeta"
-    "account_money" -> "Saldo en Mercado Pago"
-    "ticket", "oxxo", "paycash" -> "Efectivo"
-    "bank_transfer", "spei" -> "Transferencia"
-    else -> clave
 }
 
 /**

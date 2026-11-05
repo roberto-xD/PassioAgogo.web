@@ -123,6 +123,8 @@ data class SolicitudDto(
     @SerialName("pago_estado") val pagoEstado: String? = null,
     @SerialName("pago_total") val pagoTotal: Double? = null,
     @SerialName("pago_metodo") val pagoMetodo: String? = null,
+    @SerialName("pago_marca") val pagoMarca: String? = null,
+    @SerialName("pago_ultimos4") val pagoUltimos4: String? = null,
     @SerialName("pago_referencia") val pagoReferencia: String? = null,
     @SerialName("order_request_items") val items: List<ItemSolicitudDto> = emptyList(),
 )
@@ -154,6 +156,10 @@ data class Solicitud(
     /** Lo que Mercado Pago dice que se cobró. Puede no coincidir con [total]. */
     val pagoTotal: Double = 0.0,
     val pagoMetodo: String = "",
+    /** La marca: `master`, `visa`… Más reconocible que la clase. */
+    val pagoMarca: String = "",
+    /** Los cuatro últimos de la tarjeta. Vacío si no pagó con una. */
+    val pagoUltimos4: String = "",
     val pagoReferencia: String = "",
 ) {
     val tieneGuia: Boolean get() = guiaNumero.isNotBlank()
@@ -199,6 +205,67 @@ data class Solicitud(
  * cuando todavía no se ha abierto ningún cobro. Mercado Pago distingue muchos más
  * estados; esos se guardan sin traducir en `pagos.estado_crudo`, que es donde sirven.
  */
+/**
+ * Con qué se pagó, en una línea: «Mastercard ···· 4821», «Efectivo», «Tarjeta».
+ *
+ * Vive aquí y no en las pantallas porque lo enseñan dos —el acuse y el historial— y dos
+ * copias de la misma idea acaban diciendo cosas distintas sobre el mismo pedido.
+ *
+ * La marca va por delante de la clase cuando se conoce: «Mastercard ···· 4821» se
+ * reconoce de un vistazo, mientras que «Tarjeta de crédito ···· 4821» obliga a pensar
+ * cuál era. Vacío cuando no sabemos nada, para que quien llama decida si callar.
+ */
+fun etiquetaDePago(marca: String, metodo: String, ultimos4: String): String {
+    val nombre = marcaDePago(marca).ifBlank { claseDePago(metodo) }
+    if (nombre.isBlank()) return ""
+    val cola = ultimos4.takeIf { it.isNotBlank() }?.let { " ···· $it" }.orEmpty()
+    return nombre + cola
+}
+
+/**
+ * La marca con el nombre que se lee en la tarjeta.
+ *
+ * Vacío cuando no aporta nada por sí sola —`oxxo` ya lo dice todo con la clase
+ * «Efectivo»— y entonces se cae a la clase.
+ */
+private fun marcaDePago(marca: String): String = when (marca.lowercase()) {
+    "master", "debmaster", "mastercard" -> "Mastercard"
+    "visa", "debvisa" -> "Visa"
+    "amex" -> "American Express"
+    "carnet" -> "Carnet"
+    else -> ""
+}
+
+/**
+ * La clase de medio de pago, en palabras.
+ *
+ * Lo que no esté en la lista se enseña tal cual antes que esconderlo: a quien revisa su
+ * pedido, un `pec` raro le dice más que un hueco.
+ */
+private fun claseDePago(clave: String): String = when (clave.lowercase()) {
+    "" -> ""
+    "credit_card" -> "Tarjeta de crédito"
+    "debit_card" -> "Tarjeta de débito"
+    "prepaid_card" -> "Tarjeta prepagada"
+    "account_money" -> "Saldo en Mercado Pago"
+    "ticket", "oxxo", "paycash" -> "Efectivo"
+    "bank_transfer", "spei" -> "Transferencia"
+    // Las marcas sueltas, por si llegan en el campo de la clase.
+    "visa", "master", "amex", "debvisa", "debmaster" -> "Tarjeta"
+    else -> clave
+}
+
+/**
+ * ¿Se pagó con una tarjeta?
+ *
+ * Se mira la **clase** y no la marca: la clase es justo la pregunta —`credit_card`
+ * frente a `ticket`— mientras que con la marca habría que mantener la lista de todas
+ * las que existen y acertar siempre. Lo que se lee en el estado de cuenta solo tiene
+ * sentido decírselo a quien va a tener un estado de cuenta.
+ */
+fun esPagoConTarjeta(metodo: String): Boolean =
+    metodo.lowercase() in setOf("credit_card", "debit_card", "prepaid_card")
+
 enum class EstadoPago(val clave: String, val etiqueta: String) {
     Ninguno("", "Sin pagar"),
     Pendiente("pendiente", "Pago en proceso"),
