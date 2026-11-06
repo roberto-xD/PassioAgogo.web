@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,10 +17,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ui.navigation.Screen
 import ui.theme.PassionTheme
 import viewmodel.CatalogSection
+
+/**
+ * Por debajo de esto la barra va sin logotipo.
+ *
+ * El mismo umbral que usa el widget de eventos: una sola idea de «pantalla estrecha»
+ * para todo el sitio, en vez de un número distinto en cada componente.
+ */
+private val COMPACTO_MAX = 640.dp
 
 /** Antes de las secciones del catálogo, que se insertan justo después de Catálogo. */
 private val ItemsAntesDeSecciones = listOf(
@@ -54,64 +64,81 @@ fun NavBar(
     onNavigateSection: (CatalogSection) -> Unit = {},
     cartCount: Int = 0,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(PassionTheme.semantics.barSurface)
-            .horizontalScroll(rememberScrollState())
-            .padding(
-                horizontal = PassionTheme.spacing.s5,
-                vertical = PassionTheme.spacing.s3,
-            ),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s6),
-    ) {
-        Text(
-            text = "Passion à gogo",
-            color = MaterialTheme.colorScheme.primary,
-            style = PassionTheme.type.scriptAccent,
-            fontSize = 28.sp,
-            modifier = Modifier.clickable { onNavigate(Screen.Home) },
-        )
-        Spacer(Modifier.width(PassionTheme.spacing.s2))
-        ItemsAntesDeSecciones.forEach { screen ->
-            NavItem(
-                label = screen.title,
-                selected = screen == current,
-                onClick = { onNavigate(screen) },
-            )
-        }
-        // Las secciones van pegadas a Catálogo: son catálogo, solo que aparte.
-        sections.forEach { section ->
-            NavItem(
-                label = section.nombre,
-                selected = current == Screen.Section && section.slug == currentSectionSlug,
-                onClick = { onNavigateSection(section) },
-            )
-        }
-        ItemsDespuesDeSecciones.forEach { screen ->
-            NavItem(
-                label = screen.title,
-                selected = screen == current,
-                onClick = { onNavigate(screen) },
-            )
-        }
+    // El ancho se mide por fuera del `Row`: dentro de uno que se desplaza en
+    // horizontal las restricciones son infinitas y `maxWidth` no diría nada.
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val compacto = maxWidth < COMPACTO_MAX
 
-        // Último elemento: acceso o cuenta, según haya sesión iniciada.
-        val accountScreen = if (isAuthenticated) Screen.Account else Screen.Login
-        NavItem(
-            label = accountScreen.title,
-            selected = current == Screen.Login || current == Screen.Account,
-            onClick = { onNavigate(accountScreen) },
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(PassionTheme.semantics.barSurface)
+                .horizontalScroll(rememberScrollState())
+                .padding(
+                    horizontal = PassionTheme.spacing.s5,
+                    vertical = PassionTheme.spacing.s3,
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s6),
+        ) {
+            // En pantalla estrecha el logotipo no va.
+            //
+            // Ocupaba media barra y empujaba los enlaces fuera de la vista, así que la
+            // barra parecía terminar donde terminaba la pantalla y nadie adivinaba que se
+            // desliza. Sin él caben cuatro entradas y la quinta asoma cortada por la
+            // derecha, que es lo que de verdad dice «aquí hay más».
+            //
+            // No se pierde el camino a casa: «Inicio» es la primera entrada, y el logotipo
+            // sigue en el pie.
+            if (!compacto) {
+                Text(
+                    text = "Passion à gogo",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = PassionTheme.type.scriptAccent,
+                    fontSize = 28.sp,
+                    modifier = Modifier.clickable { onNavigate(Screen.Home) },
+                )
+                Spacer(Modifier.width(PassionTheme.spacing.s2))
+            }
+            ItemsAntesDeSecciones.forEach { screen ->
+                NavItem(
+                    label = screen.title,
+                    selected = screen == current,
+                    onClick = { onNavigate(screen) },
+                )
+            }
+            // Las secciones van pegadas a Catálogo: son catálogo, solo que aparte.
+            sections.forEach { section ->
+                NavItem(
+                    label = section.nombre,
+                    selected = current == Screen.Section && section.slug == currentSectionSlug,
+                    onClick = { onNavigateSection(section) },
+                )
+            }
+            ItemsDespuesDeSecciones.forEach { screen ->
+                NavItem(
+                    label = screen.title,
+                    selected = screen == current,
+                    onClick = { onNavigate(screen) },
+                )
+            }
 
-        // El carrito va al final y lleva la cuenta: es lo que se consulta de un vistazo
-        // para saber si queda algo pendiente de enviar.
-        NavItem(
-            label = if (cartCount > 0) "Mi solicitud ($cartCount)" else "Mi solicitud",
-            selected = current == Screen.Cart,
-            onClick = { onNavigate(Screen.Cart) },
-        )
+            // Último elemento: acceso o cuenta, según haya sesión iniciada.
+            val accountScreen = if (isAuthenticated) Screen.Account else Screen.Login
+            NavItem(
+                label = accountScreen.title,
+                selected = current == Screen.Login || current == Screen.Account,
+                onClick = { onNavigate(accountScreen) },
+            )
+
+            // El carrito va al final y lleva la cuenta: es lo que se consulta de un vistazo
+            // para saber si queda algo pendiente de enviar.
+            NavItem(
+                label = if (cartCount > 0) "Mi solicitud ($cartCount)" else "Mi solicitud",
+                selected = current == Screen.Cart,
+                onClick = { onNavigate(Screen.Cart) },
+            )
+        }
     }
 }
 
