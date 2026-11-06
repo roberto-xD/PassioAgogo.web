@@ -652,5 +652,19 @@ Qué mirar después de pagar, en este orden:
   ```
   (Tras esto, consultas `select=*` de `anon` sobre variantes fallarán; la app ya usa
   columnas explícitas.)
+- **Las Edge Functions que cuestan dinero exigen sesión.** `cotizar-envio` se abre en
+  abanico —una petición a Envia por paquetería—, así que llamarla en bucle gasta la
+  cuota de la tienda y deja sin cotizar a quien compra de verdad. Se llamaba con la
+  `ANON_KEY`, que es pública; ahora pide el token de la persona y cuenta las llamadas
+  por cuenta y por conexión ([`db/41_cotizacion_limite.sql`](db/41_cotizacion_limite.sql),
+  ajustable con `ENVIA_MAX_POR_HORA` y `ENVIA_MAX_POR_HORA_IP`). No añade fricción:
+  para cotizar hace falta una dirección, y para tenerla hace falta cuenta.
+  `crear-pago` y `generar-guia` ya la exigían.
+- El contador **no guarda el código postal**: para contar llamadas no hace falta saber a
+  dónde miraba cada quien, y guardarlo abriría por detrás el rastro que el cifrado de
+  direcciones evita por delante. El IP tampoco va en claro, solo su hash con sal.
+- Para el spam de cuentas, el punto no es ninguna pantalla sino el **registro**: Supabase
+  Auth trae captcha integrado (hCaptcha o Turnstile) que se activa en su panel sin tocar
+  código. Un captcha en el carrito llegaría tarde y estorbaría justo antes de pagar.
 - Nota histórica: el repo contuvo una **API key de AWS hardcodeada** (ya eliminada del
   código). Sigue en el historial de git, así que **debe rotarse** en AWS.

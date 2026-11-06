@@ -14,6 +14,15 @@
 // pagar el envío más barato. Es el mismo criterio que la ruleta: lo que
 // decide un cobro no se decide en el navegador.
 //
+// **Exige sesión y cuenta las llamadas.** Cotizar se abre en abanico:
+// una petición a Envia por paquetería. Con la llave anónima —que es
+// pública— cualquiera podía pedirlas en bucle y gastar la cuota de la
+// tienda, dejando sin cotizar a quien compra de verdad. Pedir sesión no
+// estorba: para cotizar hace falta una dirección, y para tenerla hace
+// falta cuenta. El contador vive en `cotizacion_intentos`
+// (41_cotizacion_limite.sql) y no guarda el código postal: para contar
+// llamadas no hace falta saber a dónde miraba cada quien.
+//
 // Lo que **no** recibe ni guarda: la dirección. Solo el código postal de
 // destino, que llega suelto para esta consulta y no se escribe en
 // ninguna parte. El domicilio sigue cifrado extremo a extremo.
@@ -26,6 +35,11 @@
 //   ENVIA_DEBUG             "1" añade la respuesta cruda de Envia a lo
 //                           que se devuelve, para afinar el mapeo.
 //   CONTACT_ALLOWED_ORIGINS orígenes permitidos, separados por coma.
+//   CONTACT_IP_SALT         sal del hash del IP, la misma de `contact`.
+//                           Sin ella el freno por conexión sigue
+//                           funcionando, pero el hash es adivinable.
+//   ENVIA_MAX_POR_HORA      cotizaciones por cuenta y hora (40).
+//   ENVIA_MAX_POR_HORA_IP   cotizaciones por conexión y hora (120).
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los inyecta la plataforma.
 // ============================================================
 
@@ -223,6 +237,87 @@ interface Opcion {
    * domicilio»: ofrecerlos ahí sin decirlo se descubre cuando el paquete no llega.
    */
   aDomicilio: boolean;
+}
+
+/**
+ * Cuántas cotizaciones caben en una hora, por cuenta y por conexión.
+ *
+ * El de la cuenta es holgado a propósito: cambiar de código postal, probar con otra
+ * dirección o recargar la página son cosas normales, y frenar a quien compra de verdad
+ * cuesta más que lo que ahorra. El de la conexión existe para quien abre diez cuentas
+ * desde el mismo sitio.
+ */
+const MAX_POR_USUARIO = Math.max(1, Number(Deno.env.get("ENVIA_MAX_POR_HORA") ?? "40"));
+const MAX_POR_IP = Math.max(1, Number(Deno.env.get("ENVIA_MAX_POR_HORA_IP") ?? "120"));
+
+/** La sal del hash del IP. Se comparte con `contact` y `spin`. */
+const IP_SALT = Deno.env.get("CONTACT_IP_SALT") ?? "";
+
+function clientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for") ?? "";
+  return forwarded.split(",")[0].trim() || "desconocido";
+}
+
+/** El IP **nunca en claro**: solo su resumen con sal, como en `contact`. */
+async function hashIp(ip: string): Promise<string> {
+  const bytes = new TextEncoder().encode(`${IP_SALT}:${ip}`);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/**
+ * ¿Se ha pasado? Devuelve el motivo, o `null` si puede cotizar.
+ *
+ * Anota el intento antes de devolver, y de paso borra lo que ya no cuenta: así la
+ * tabla no crece y no hace falta nada que la limpie aparte.
+ *
+ * **Nunca lanza.** Si el contador falla se deja pasar: quedarse sin cotizar porque la
+ * tabla de un límite no respondió sería cambiar un problema que no tenemos por uno que
+ * sí. El freno protege de un bucle, no de un enemigo.
+ */
+async function demasiadas(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  usuarioId: string,
+  ipHash: string,
+): Promise<string | null> {
+  try {
+    const desde = new Date(Date.now() - 3600 * 1000).toISOString();
+
+    await supabase.from("cotizacion_intentos").delete().lt("created_at", desde);
+
+    const { count: delUsuario } = await supabase
+      .from("cotizacion_intentos")
+      .select("id", { count: "exact", head: true })
+      .eq("usuario_id", usuarioId)
+      .gte("created_at", desde);
+
+    if ((delUsuario ?? 0) >= MAX_POR_USUARIO) {
+      return "Has pedido muchas cotizaciones seguidas. Espera un momento y vuelve a " +
+        "intentarlo.";
+    }
+
+    const { count: delIp } = await supabase
+      .from("cotizacion_intentos")
+      .select("id", { count: "exact", head: true })
+      .eq("ip_hash", ipHash)
+      .gte("created_at", desde);
+
+    if ((delIp ?? 0) >= MAX_POR_IP) {
+      return "Demasiadas cotizaciones desde esta conexión. Espera un momento.";
+    }
+
+    await supabase
+      .from("cotizacion_intentos")
+      .insert({ usuario_id: usuarioId, ip_hash: ipHash } as never);
+
+    return null;
+  } catch (e) {
+    console.error("no se pudo contar las cotizaciones", String(e));
+    return null;
+  }
 }
 
 function corsHeaders(origin: string | null): Record<string, string> {
@@ -692,6 +787,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ error: "La cotización no está configurada." }, 503, origin);
   }
 
+  // ---- quién llama ----
+  //
+  // Con **su** token, no con la llave anónima. Antes bastaba con la anónima, que es
+  // pública: cualquiera podía pedir cotizaciones en bucle, y cada una se abre en
+  // abanico contra Envia —una llamada por paquetería—, gastando la cuota de la tienda.
+  //
+  // Exigir sesión no estorba a nadie: para cotizar hace falta una dirección, y para
+  // tener dirección hace falta cuenta. Quien llegaba aquí ya había entrado.
+  const token = (req.headers.get("authorization") ?? "")
+    .replace(/^Bearer\s+/i, "")
+    .trim();
+  if (!token) return json({ error: "Necesitas una sesión para cotizar." }, 401, origin);
+
+  const comoQuienLlama = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    { global: { headers: { Authorization: `Bearer ${token}` } } },
+  );
+  const { data: sesion } = await comoQuienLlama.auth.getUser();
+  const usuario = sesion?.user;
+  if (!usuario) return json({ error: "Necesitas una sesión para cotizar." }, 401, origin);
+
   // ---- lo que manda el navegador, que es poco y se revisa todo ----
   let cuerpo: { cpDestino?: unknown; items?: unknown };
   try {
@@ -724,6 +841,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
   );
+
+  // ---- cuántas van en la última hora ----
+  const freno = await demasiadas(supabase, usuario.id, await hashIp(clientIp(req)));
+  if (freno) return json({ error: freno }, 429, origin);
 
   // ---- el origen: la ubicación marcada como tal ----
   const { data: filaOrigen } = await supabase

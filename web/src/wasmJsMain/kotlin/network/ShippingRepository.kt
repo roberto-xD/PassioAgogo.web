@@ -1,5 +1,7 @@
 package network
 
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.js.Js
 import io.ktor.client.request.header
@@ -39,8 +41,11 @@ sealed interface CotizacionResult {
  * Del domicilio solo viaja el código postal, y porque sin él no hay a dónde cotizar.
  */
 class ShippingRepository(
+    supabaseProvider: () -> SupabaseClient = ::createSupabase,
     private val client: HttpClient = HttpClient(Js),
 ) {
+    private val supabase: SupabaseClient by lazy(supabaseProvider)
+
     suspend fun cotizar(cpDestino: String, items: List<CartItem>): CotizacionResult {
         if (!SupabaseConfig.isConfigured) {
             return CotizacionResult.Fallo("La cotización de envíos aún no está configurada.")
@@ -53,9 +58,18 @@ class ShippingRepository(
         }
         if (items.isEmpty()) return CotizacionResult.Fallo("No hay nada que enviar.")
 
+        // Con la sesión, no con la llave anónima. La función la exige: con la anónima
+        // —que es pública— cualquiera podía pedir cotizaciones en bucle, y cada una se
+        // abre en abanico contra Envia. No estorba a nadie: para cotizar hace falta una
+        // dirección, y para tenerla hace falta cuenta.
+        val token = supabase.auth.currentSessionOrNull()?.accessToken
+            ?: return CotizacionResult.Fallo(
+                "Vuelve a entrar para calcular el envío."
+            )
+
         return runCatching {
             val respuesta = client.post("${SupabaseConfig.URL}/functions/v1/cotizar-envio") {
-                header(HttpHeaders.Authorization, "Bearer ${SupabaseConfig.ANON_KEY}")
+                header(HttpHeaders.Authorization, "Bearer $token")
                 header("apikey", SupabaseConfig.ANON_KEY)
                 contentType(ContentType.Application.Json)
                 setBody(
