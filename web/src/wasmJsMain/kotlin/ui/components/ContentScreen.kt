@@ -17,7 +17,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ui.theme.PassionTheme
 
-/** Layout base para las pantallas de contenido: columna centrada, ancho máximo y scroll. */
+/**
+ * Layout base para las pantallas de contenido: columna centrada, ancho máximo y scroll.
+ *
+ * Con [title] en blanco no se pinta encabezado. Es para las pantallas que traen el suyo
+ * —la de «gracias» abre con un titular propio—: dos títulos seguidos compiten entre sí
+ * y el de arriba no aporta nada.
+ */
 @Composable
 fun ContentScreen(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(
@@ -35,12 +41,14 @@ fun ContentScreen(title: String, content: @Composable ColumnScope.() -> Unit) {
                     vertical = PassionTheme.spacing.s8,
                 ),
         ) {
-            Text(
-                text = title,
-                color = PassionTheme.semantics.onBackgroundStrong,
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = PassionTheme.spacing.s5),
-            )
+            if (title.isNotBlank()) {
+                Text(
+                    text = title,
+                    color = PassionTheme.semantics.onBackgroundStrong,
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(bottom = PassionTheme.spacing.s5),
+                )
+            }
             content()
         }
     }

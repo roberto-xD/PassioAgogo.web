@@ -86,7 +86,9 @@ fun ThankYouScreen(
     onGoToLogin: () -> Unit = {},
     onAbrirProducto: (Recomendado) -> Unit = {},
 ) {
-    ContentScreen(title = "Gracias por tu compra") {
+    // Sin encabezado cuando hay acuse: el titular propio ya lo es. En los demás casos
+    // —cargando, o un error— sí hace falta algo arriba que diga dónde estás.
+    ContentScreen(title = if (state.acuse != null) "" else "Gracias por tu compra") {
         when {
             state.cargando -> Paragraph("Cargando tu pedido…")
             state.error != null -> {
@@ -597,7 +599,15 @@ private fun Pago(acuse: Acuse, esperando: Boolean, statement: String) {
         // Lo que verá en su estado de cuenta. Sale de `site_settings`, el mismo sitio
         // del que lo lee la Edge Function al crear la orden: con dos copias acabarían
         // diciendo cosas distintas y le prometeríamos algo falso sobre su tarjeta.
-        if (statement.isNotBlank() && esPagoConTarjeta(acuse.pagoMetodo)) {
+        //
+        // Solo si de verdad se cobró. Decírselo junto a «el pago no se completó» sería
+        // anunciarle un cargo que no existe, y mandarlo a buscar en su banco algo que
+        // no va a encontrar.
+        if (
+            statement.isNotBlank() &&
+            acuse.pago == EstadoPago.Aprobado &&
+            esPagoConTarjeta(acuse.pagoMetodo)
+        ) {
             Spacer(Modifier.height(PassionTheme.spacing.s2))
             Text(
                 text = "En tu estado de cuenta aparecerá como «$statement».",
