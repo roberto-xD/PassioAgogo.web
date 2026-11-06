@@ -1,6 +1,25 @@
 package ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -108,13 +127,6 @@ private fun Contenido(
     onAbrirProducto: (Recomendado) -> Unit,
 ) {
     Encabezado(acuse, state.esperandoPago)
-
-    Spacer(Modifier.height(PassionTheme.spacing.s5))
-    Tarjeta {
-        FilaDato("Pedido", "#${acuse.folio}")
-        FilaDato("Fecha", acuse.fecha)
-        FilaDato("Artículos", "${acuse.unidades}")
-    }
 
     Spacer(Modifier.height(PassionTheme.spacing.s4))
     Importes(acuse, state.detalleAbierto, onAlternarDetalle)
@@ -246,39 +258,244 @@ private fun Recomendados(
  * Mientras se confirma no se felicita a nadie: decir «pago recibido» y desdecirse un
  * segundo después es peor que esperar.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Encabezado(acuse: Acuse, esperando: Boolean) {
-    val (titulo, texto) = when {
-        esperando -> "Estamos confirmando tu pago" to
-            "Tarda unos segundos. No cierres esta página; se actualiza sola."
-        acuse.pago == EstadoPago.Aprobado -> "¡Pago recibido!" to
-            "Tu pedido queda registrado. Te escribimos por WhatsApp para confirmarte " +
-            "la entrega."
-        acuse.pago == EstadoPago.Pendiente -> "Tu pedido está apartado" to
-            "El pago todavía no se ha confirmado. Si elegiste efectivo, se confirma " +
-            "cuando la tienda reporte el pago; suele tardar unos minutos."
-        acuse.pago == EstadoPago.Rechazado -> "El pago no se completó" to
-            "No se te cobró nada. Puedes volver a intentarlo desde tu historial, con " +
-            "otra tarjeta u otro método."
-        acuse.pago == EstadoPago.Cancelado -> "El pago se canceló" to
-            "No se te cobró nada. Tu solicitud sigue guardada y puedes pagarla desde " +
-            "tu historial."
-        acuse.pago == EstadoPago.Reembolsado -> "Pago reembolsado" to
-            "El importe se devolvió a tu método de pago."
+    // Antetítulo, titular y explicación. El antetítulo es el estado en dos palabras,
+    // para quien solo mira; el titular, lo que le pasa a su pedido; el texto, qué hacer.
+    val (antetitulo, resto) = when {
+        esperando -> "Confirmando el pago" to (
+            "Estamos confirmando tu pago" to
+                "Tarda unos segundos. No cierres esta página; se actualiza sola."
+            )
+        acuse.pago == EstadoPago.Aprobado -> "Pedido confirmado" to (
+            "Tu pedido ya está en preparación" to
+                "Recibimos tu pago. Te escribimos por WhatsApp para confirmarte la entrega."
+            )
+        acuse.pago == EstadoPago.Pendiente -> "Pedido reservado" to (
+            "Tu pedido está apartado" to
+                "El pago todavía no se ha confirmado. Si elegiste efectivo, se confirma " +
+                "cuando la tienda reporte el pago; suele tardar unos minutos."
+            )
+        acuse.pago == EstadoPago.Rechazado -> "Pago no completado" to (
+            "El pago no se completó" to
+                "No se te cobró nada. Puedes volver a intentarlo desde tu historial, con " +
+                "otra tarjeta u otro método."
+            )
+        acuse.pago == EstadoPago.Cancelado -> "Pago cancelado" to (
+            "El pago se canceló" to
+                "No se te cobró nada. Tu solicitud sigue guardada y puedes pagarla desde " +
+                "tu historial."
+            )
+        acuse.pago == EstadoPago.Reembolsado -> "Pago reembolsado" to (
+            "Te devolvimos el importe" to
+                "El dinero vuelve a tu método de pago; tu banco puede tardar unos días " +
+                "en reflejarlo."
+            )
         // Volvió sin pagar: dio «volver a la tienda» o cerró la página de Mercado Pago.
-        else -> "Tu solicitud está registrada" to
-            "Todavía no hay ningún pago. Puedes pagarla cuando quieras desde tu " +
-            "historial, o acordarlo con nosotros por WhatsApp."
+        else -> "Solicitud registrada" to (
+            "Tu solicitud está registrada" to
+                "Todavía no hay ningún pago. Puedes pagarla cuando quieras desde tu " +
+                "historial, o acordarlo con nosotros por WhatsApp."
+            )
+    }
+    val (titulo, texto) = resto
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = PassionTheme.spacing.s5),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s3),
+    ) {
+        Insignia(acuse, esperando)
+
+        Text(
+            text = antetitulo.uppercase(),
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.Center,
+        )
+
+        // El «¡Gracias!» solo cuando hay algo que agradecer. Sobre «el pago no se
+        // completó» sonaría a burla, y sobre «estamos confirmando» sería hablar antes
+        // de tiempo.
+        if (acuse.pago == EstadoPago.Aprobado && !esperando) {
+            Text(
+                text = "¡Gracias!",
+                color = MaterialTheme.colorScheme.primary,
+                style = PassionTheme.type.scriptAccent.copy(
+                    fontSize = 64.sp,
+                    lineHeight = 64.sp,
+                ),
+            )
+        }
+
+        Text(
+            text = titulo,
+            color = PassionTheme.semantics.onBackgroundStrong,
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = 640.dp),
+        )
+
+        Text(
+            text = texto,
+            color = PassionTheme.semantics.onBackgroundMuted,
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = 560.dp),
+        )
+
+        // Pedido, fecha y total en una línea, que es lo que se busca de un vistazo.
+        // Aquí y no en una tarjeta aparte: estaban los dos y decían lo mismo.
+        FlowRow(
+            modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+            horizontalArrangement = Arrangement.spacedBy(
+                PassionTheme.spacing.s5,
+                Alignment.CenterHorizontally,
+            ),
+            verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s1),
+        ) {
+            DatoDelTitular("Pedido ", "#${acuse.folio}")
+            Text(
+                text = acuse.fecha,
+                color = PassionTheme.semantics.onBackgroundMuted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            DatoDelTitular("Total ", formatPrice(acuse.total))
+        }
+    }
+}
+
+/** «Pedido #6»: la etiqueta en tono suave y el dato en fuerte, sin dos `Text` seguidos. */
+@Composable
+private fun DatoDelTitular(etiqueta: String, valor: String) {
+    Text(
+        text = buildAnnotatedString {
+            append(etiqueta)
+            withStyle(
+                SpanStyle(
+                    fontWeight = FontWeight.SemiBold,
+                    color = PassionTheme.semantics.onBackgroundStrong,
+                )
+            ) { append(valor) }
+        },
+        color = PassionTheme.semantics.onBackgroundMuted,
+        style = MaterialTheme.typography.bodySmall,
+    )
+}
+
+/**
+ * El disco con el signo del estado.
+ *
+ * El signo se dibuja en vez de traerse de una librería de iconos: el proyecto no
+ * depende de ninguna, y arrastrar una entera por tres trazos engordaría un wasm que ya
+ * pesa ocho megas. Dibujado, además, se tiñe con el color que toca y escala sin pixelar.
+ */
+@Composable
+private fun Insignia(acuse: Acuse, esperando: Boolean) {
+    val semantics = PassionTheme.semantics
+    val color = when {
+        esperando -> MaterialTheme.colorScheme.primary
+        acuse.pago == EstadoPago.Aprobado -> semantics.success
+        acuse.pago == EstadoPago.Rechazado || acuse.pago == EstadoPago.Cancelado ->
+            semantics.danger
+        else -> MaterialTheme.colorScheme.primary
     }
 
-    Text(
-        text = titulo,
-        color = PassionTheme.semantics.onBackgroundStrong,
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(top = PassionTheme.spacing.s2),
-    )
-    Paragraph(texto)
+    Box(
+        modifier = Modifier
+            .size(88.dp)
+            .shadow(
+                elevation = 16.dp,
+                shape = CircleShape,
+                ambientColor = color,
+                spotColor = color,
+            )
+            .background(semantics.barSurface, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.size(40.dp)) {
+            val trazo = Stroke(
+                width = size.minDimension * 0.11f,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round,
+            )
+            val w = size.width
+            val h = size.height
+
+            when {
+                // Tres puntos: se está esperando a que Mercado Pago conteste.
+                esperando -> {
+                    val r = w * 0.07f
+                    listOf(0.22f, 0.5f, 0.78f).forEach { x ->
+                        drawCircle(color, radius = r, center = Offset(w * x, h * 0.5f))
+                    }
+                }
+                // Palomita.
+                acuse.pago == EstadoPago.Aprobado -> drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.18f, h * 0.52f)
+                        lineTo(w * 0.42f, h * 0.74f)
+                        lineTo(w * 0.82f, h * 0.28f)
+                    },
+                    color = color,
+                    style = trazo,
+                )
+                // Aspa: no se cobró.
+                acuse.pago == EstadoPago.Rechazado || acuse.pago == EstadoPago.Cancelado -> {
+                    drawLine(
+                        color, Offset(w * 0.25f, h * 0.25f), Offset(w * 0.75f, h * 0.75f),
+                        strokeWidth = trazo.width, cap = StrokeCap.Round,
+                    )
+                    drawLine(
+                        color, Offset(w * 0.75f, h * 0.25f), Offset(w * 0.25f, h * 0.75f),
+                        strokeWidth = trazo.width, cap = StrokeCap.Round,
+                    )
+                }
+                // Flecha de vuelta: el dinero se devolvió.
+                acuse.pago == EstadoPago.Reembolsado -> drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.42f, h * 0.22f)
+                        lineTo(w * 0.18f, h * 0.46f)
+                        lineTo(w * 0.42f, h * 0.70f)
+                    },
+                    color = color,
+                    style = trazo,
+                ).also {
+                    drawArc(
+                        color = color,
+                        startAngle = 180f,
+                        sweepAngle = 180f,
+                        useCenter = false,
+                        topLeft = Offset(w * 0.18f, h * 0.46f),
+                        size = Size(w * 0.64f, h * 0.48f),
+                        style = trazo,
+                    )
+                }
+                // Sobre cerrado: la solicitud está, el pago no.
+                else -> {
+                    drawRoundRect(
+                        color = color,
+                        topLeft = Offset(w * 0.15f, h * 0.26f),
+                        size = Size(w * 0.70f, h * 0.48f),
+                        cornerRadius = CornerRadius(w * 0.06f),
+                        style = trazo,
+                    )
+                    drawPath(
+                        path = Path().apply {
+                            moveTo(w * 0.15f, h * 0.30f)
+                            lineTo(w * 0.50f, h * 0.55f)
+                            lineTo(w * 0.85f, h * 0.30f)
+                        },
+                        color = color,
+                        style = trazo,
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
