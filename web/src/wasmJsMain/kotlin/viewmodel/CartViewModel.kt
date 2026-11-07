@@ -109,6 +109,8 @@ data class CartUiState(
     val codigoAplicado: String = "",
     /** El porcentaje de ese código. Solo para enseñar el total: cobra el servidor. */
     val codigoPct: Int = 0,
+    /** Con un premio de regalo, qué se gana. Vacío si el código descuenta. */
+    val codigoRegalo: String = "",
     val codigoError: String? = null,
     /** Se intentó enviar sin sesión: hay que pedir acceso sin perder el carrito. */
     val pideSesion: Boolean = false,
@@ -384,6 +386,7 @@ class CartViewModel(
             codigoError = null,
             codigoAplicado = "",
             codigoPct = 0,
+            codigoRegalo = "",
         )
     }
 
@@ -408,6 +411,9 @@ class CartViewModel(
                         codigo = resultado.codigo,
                         codigoAplicado = resultado.codigo,
                         codigoPct = resultado.pct,
+                        // Con descuento no hay regalo y al revés: el validador manda
+                        // uno u otro, nunca los dos.
+                        codigoRegalo = if (resultado.pct > 0) "" else resultado.detalle,
                         codigoError = null,
                     )
                 }
@@ -416,6 +422,7 @@ class CartViewModel(
                         validandoCodigo = false,
                         codigoAplicado = "",
                         codigoPct = 0,
+                        codigoRegalo = "",
                         codigoError = resultado.motivo,
                     )
                 }
@@ -427,7 +434,13 @@ class CartViewModel(
     }
 
     fun quitarCodigo() = _uiState.update {
-        it.copy(codigo = "", codigoAplicado = "", codigoPct = 0, codigoError = null)
+        it.copy(
+            codigo = "",
+            codigoAplicado = "",
+            codigoPct = 0,
+            codigoRegalo = "",
+            codigoError = null,
+        )
     }
 
     /** Se vuelve del acuse al carrito, o se descarta el aviso de sesión. */
@@ -565,6 +578,7 @@ class CartViewModel(
                             codigo = "",
                             codigoAplicado = "",
                             codigoPct = 0,
+                            codigoRegalo = "",
                             codigoError = null,
                             // El acuse solo cuando nos quedamos. Si vamos a Mercado
                             // Pago, enseñar «solicitud enviada» un instante antes de

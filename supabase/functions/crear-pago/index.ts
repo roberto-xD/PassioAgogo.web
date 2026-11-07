@@ -190,37 +190,55 @@ async function descuentoDe(
   supabase: any,
   codigo: string,
   totalArticulos: number,
-): Promise<{ monto: number; pct: number; error?: string }> {
-  if (!codigo) return { monto: 0, pct: 0 };
+): Promise<{ monto: number; pct: number; regalo: string; error?: string }> {
+  if (!codigo) return { monto: 0, pct: 0, regalo: "" };
 
   const { data } = await supabase
     .from("wheel_spins")
-    .select("codigo, canjeado, expira_at, wheel_prizes(descuento_pct)")
+    .select("codigo, canjeado, expira_at, wheel_prizes(tipo, descuento_pct, detalle)")
     .eq("codigo", codigo)
     .maybeSingle();
 
   const giro = data as
-    | { canjeado: boolean; expira_at: string | null;
-        wheel_prizes: { descuento_pct: number | null } | null }
+    | {
+      canjeado: boolean;
+      expira_at: string | null;
+      wheel_prizes:
+        | { tipo: string | null; descuento_pct: number | null; detalle: string | null }
+        | null;
+    }
     | null;
 
-  if (!giro) return { monto: 0, pct: 0, error: "Ese código de descuento no existe." };
-  if (giro.canjeado) {
-    return { monto: 0, pct: 0, error: "Ese código de descuento ya se usó." };
-  }
+  const nada = { monto: 0, pct: 0, regalo: "" };
+  if (!giro) return { ...nada, error: "Ese código no existe." };
+  if (giro.canjeado) return { ...nada, error: "Ese código ya se usó." };
   if (giro.expira_at && new Date(giro.expira_at).getTime() < Date.now()) {
-    return { monto: 0, pct: 0, error: "Ese código de descuento ya caducó." };
+    return { ...nada, error: "Ese código ya caducó." };
   }
 
-  const pct = Number(giro.wheel_prizes?.descuento_pct ?? 0);
+  const premio = giro.wheel_prizes;
+  const tipo = limpio(premio?.tipo);
+
+  // Un regalo no toca el importe: lo que hace es que la tienda meta un artículo más en
+  // la caja. Se guarda su descripción en la solicitud para que quien la prepare lo lea
+  // sin cruzar tablas.
+  if (tipo === "regalo") {
+    return { monto: 0, pct: 0, regalo: limpio(premio?.detalle) || codigo };
+  }
+
+  if (tipo !== "descuento") {
+    return { ...nada, error: "Ese código no trae ningún premio que aplicar." };
+  }
+
+  const pct = Number(premio?.descuento_pct ?? 0);
   if (!(pct >= 1 && pct <= 100)) {
-    return { monto: 0, pct: 0, error: "Ese premio no es un descuento." };
+    return { ...nada, error: "Ese código no trae ningún premio que aplicar." };
   }
 
   // Se redondea el descuento, no el total: así el importe cobrado y el guardado salen
   // del mismo número y no se separan por un centavo.
   const monto = Math.round(totalArticulos * pct) / 100;
-  return { monto, pct };
+  return { monto, pct, regalo: "" };
 }
 
 /**
@@ -667,6 +685,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // aplicó a esta persona no lo reescribe nadie.
       descuento_pct: descuento.pct || null,
       descuento_monto: descuento.monto || null,
+      regalo: descuento.regalo || null,
     } as never)
     .eq("id", solicitud.id);
 

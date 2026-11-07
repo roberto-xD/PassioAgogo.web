@@ -523,6 +523,10 @@ private fun CodigoDescuento(
             // que el total de arriba no corresponda a lo que dice el campo.
             enabled = !aplicado && !state.validandoCodigo,
             supportingText = when {
+                // Un regalo no descuenta: lo que cambia es lo que llega en la caja, y
+                // decir «0 % de descuento» sonaría a que el código no sirvió.
+                aplicado && state.codigoRegalo.isNotBlank() ->
+                    "Aplicado: ${state.codigoRegalo}"
                 aplicado -> "Aplicado: ${state.codigoPct}% de descuento en los productos."
                 state.codigoError != null -> state.codigoError
                 else -> null
@@ -556,7 +560,8 @@ private fun CodigoDescuento(
     }
 
     // El descuento no toca el envío, y vale decirlo antes de que lo note en el total.
-    if (aplicado) {
+    // Con un regalo no aplica: no hay nada que descontar.
+    if (aplicado && state.codigoRegalo.isBlank()) {
         Text(
             text = "El descuento aplica a los productos; el envío se cobra completo.",
             color = PassionTheme.semantics.onBackgroundSubtle,

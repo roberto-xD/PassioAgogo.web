@@ -23,14 +23,25 @@ private data class PeticionCodigo(val codigo: String)
 private data class RespuestaCodigo(
     val valido: Boolean = false,
     val motivo: String? = null,
+    val tipo: String? = null,
     val pct: Int? = null,
     val rotulo: String? = null,
+    val detalle: String? = null,
     val error: String? = null,
 )
 
 /** El código vale, o hay un motivo que contarle a la persona. */
 sealed interface CodigoResult {
-    data class Vale(val codigo: String, val pct: Int, val rotulo: String) : CodigoResult
+    /**
+     * El código vale. [pct] en cero significa que no descuenta: es un regalo, y lo que
+     * se gana está en [detalle].
+     */
+    data class Vale(
+        val codigo: String,
+        val pct: Int,
+        val rotulo: String,
+        val detalle: String = "",
+    ) : CodigoResult
     data class NoVale(val motivo: String) : CodigoResult
     data object SinSesion : CodigoResult
 }
@@ -72,8 +83,12 @@ class CodigoRepository(
             // El cuerpo se lee siempre: el motivo va dentro, no en el código de estado.
             val cuerpo = json.decodeFromString<RespuestaCodigo>(respuesta.bodyAsText())
             when {
-                cuerpo.valido && (cuerpo.pct ?: 0) > 0 ->
-                    CodigoResult.Vale(limpio, cuerpo.pct!!, cuerpo.rotulo.orEmpty())
+                cuerpo.valido -> CodigoResult.Vale(
+                    codigo = limpio,
+                    pct = cuerpo.pct ?: 0,
+                    rotulo = cuerpo.rotulo.orEmpty(),
+                    detalle = cuerpo.detalle.orEmpty(),
+                )
                 cuerpo.motivo != null -> CodigoResult.NoVale(cuerpo.motivo)
                 cuerpo.error != null -> CodigoResult.NoVale(cuerpo.error)
                 else -> CodigoResult.NoVale("No pudimos comprobar ese código.")

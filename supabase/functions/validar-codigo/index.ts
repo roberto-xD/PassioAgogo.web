@@ -57,6 +57,11 @@ function json(body: unknown, status: number, origin: string | null): Response {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders(origin) });
 }
 
+/** Texto limpio, o cadena vacía. */
+function texto(v: unknown): string {
+  return v == null ? "" : String(v).trim();
+}
+
 function clientIp(req: Request): string {
   const forwarded = req.headers.get("x-forwarded-for") ?? "";
   return forwarded.split(",")[0].trim() || "desconocido";
@@ -76,7 +81,9 @@ interface FilaGiro {
   rotulo: string;
   canjeado: boolean;
   expira_at: string | null;
-  wheel_prizes: { descuento_pct: number | null } | null;
+  wheel_prizes:
+    | { tipo: string | null; descuento_pct: number | null; detalle: string | null }
+    | null;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -134,8 +141,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
 interface Veredicto {
   valido: boolean;
   motivo?: string;
+  /** `descuento` o `regalo`. Decide qué enseña la pantalla. */
+  tipo?: string;
+  /** Solo con `descuento`. Con un regalo es cero: no descuenta nada. */
   pct?: number;
   rotulo?: string;
+  /** Con un regalo, qué se gana. Es lo que se lee al preparar la caja. */
+  detalle?: string;
 }
 
 /**
@@ -153,7 +165,10 @@ async function revisar(
 ): Promise<Veredicto> {
   const { data } = await supabase
     .from("wheel_spins")
-    .select("codigo, rotulo, canjeado, expira_at, wheel_prizes(descuento_pct)")
+    .select(
+      "codigo, rotulo, canjeado, expira_at, " +
+        "wheel_prizes(tipo, descuento_pct, detalle)",
+    )
     .eq("codigo", codigo)
     .maybeSingle();
 
@@ -165,14 +180,30 @@ async function revisar(
     return { valido: false, motivo: "Ese código ya caducó." };
   }
 
-  const pct = giro.wheel_prizes?.descuento_pct ?? null;
-  if (!pct || pct < 1 || pct > 100) {
-    // El premio existe pero no es un descuento —una consolación, o algo que se
-    // entrega en mano—. No es culpa de quien lo escribió, así que se le dice.
+  const premio = giro.wheel_prizes;
+  const tipo = texto(premio?.tipo);
+
+  // Un premio de consolación no tiene nada que aplicar. Se le dice sin rodeos, que no
+  // es culpa suya haber escrito un código real.
+  if (tipo !== "descuento" && tipo !== "regalo") {
+    return { valido: false, motivo: "Ese código no trae ningún premio que aplicar." };
+  }
+
+  // Un regalo no descuenta: lo que hace es que la tienda meta algo más en la caja. Se
+  // aplica igual, porque si no se aplica, nadie se entera de que hay que meterlo.
+  if (tipo === "regalo") {
     return {
-      valido: false,
-      motivo: "Ese premio no es un descuento. Escríbenos por WhatsApp para reclamarlo.",
+      valido: true,
+      tipo,
+      pct: 0,
+      rotulo: giro.rotulo,
+      detalle: texto(premio?.detalle) || giro.rotulo,
     };
+  }
+
+  const pct = Number(premio?.descuento_pct ?? 0);
+  if (!(pct >= 1 && pct <= 100)) {
+    return { valido: false, motivo: "Ese código no trae ningún premio que aplicar." };
   }
 
   // Un código vale una vez: si ya está puesto en otra solicitud, está apartado. Lo
@@ -187,7 +218,7 @@ async function revisar(
     return { valido: false, motivo: "Ese código ya está aplicado en otro pedido." };
   }
 
-  return { valido: true, pct, rotulo: giro.rotulo };
+  return { valido: true, tipo, pct, rotulo: giro.rotulo };
 }
 
 /** ¿Se ha pasado probando? Devuelve el motivo, o `null`. Nunca lanza. */
