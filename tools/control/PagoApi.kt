@@ -99,8 +99,8 @@ class PagoApi(private val supabase: SupabaseClient) {
         supabase.from("pagos")
             .select(
                 Columns.raw(
-                    "accion, orden_id, pago_id, monto, metodo, estado_crudo, usuario, " +
-                        "nota, created_at"
+                    "accion, orden_id, pago_id, monto, neto, comisiones, metodo, " +
+                        "estado_crudo, usuario, nota, created_at"
                 )
             ) {
                 filter { eq("request_id", solicitudId) }
@@ -138,6 +138,16 @@ data class EventoPago(
     @SerialName("orden_id") val ordenId: String? = null,
     @SerialName("pago_id") val pagoId: String? = null,
     val monto: Double? = null,
+    /**
+     * Lo que Mercado Pago acredita, ya sin su comisión.
+     *
+     * Nulo mientras no lo sepamos: en un pago en efectivo sin pagar no hay neto, y en
+     * uno rechazado tampoco. La comisión es `monto - neto`, y en `order_requests` está
+     * ya calculada en `pago_comision`.
+     */
+    val neto: Double? = null,
+    /** El desglose crudo de Mercado Pago: `[{type, amount, fee_payer}]`. */
+    val comisiones: kotlinx.serialization.json.JsonElement? = null,
     val metodo: String? = null,
     /** Las palabras de Mercado Pago, sin traducir: `accredited`, `cc_rejected_*`… */
     @SerialName("estado_crudo") val estadoCrudo: String? = null,

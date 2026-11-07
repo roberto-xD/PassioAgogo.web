@@ -498,8 +498,8 @@ existiendo solo como respaldo por si la fila falta.
 
 Puesta en marcha:
 
-1. Ejecuta [`db/39_pagos.sql`](db/39_pagos.sql) y [`db/40_acuse.sql`](db/40_acuse.sql)
-   en el SQL Editor.
+1. Ejecuta [`db/39_pagos.sql`](db/39_pagos.sql), [`db/40_acuse.sql`](db/40_acuse.sql) y
+   [`db/42_pago_neto.sql`](db/42_pago_neto.sql) en el SQL Editor.
 2. En [Mercado Pago → Tus integraciones](https://www.mercadopago.com.mx/developers/panel)
    crea una aplicación. De ahí salen **dos credenciales distintas** que se confunden con
    facilidad:
@@ -537,6 +537,34 @@ las escribe `pago-webhook` con `service_role`, después de comprobar la firma y 
 a preguntarle a Mercado Pago cuánto se pagó. El regreso del navegador no prueba nada —es
 una URL que cualquiera puede escribir— y por eso lo único que hace la app al volver es
 releer el estado de la base.
+
+### Cuánto deja cada venta
+
+`pago_total` es lo que paga el cliente; no es lo que le queda a la tienda. El webhook
+guarda también **`pago_neto`** —lo que Mercado Pago acredita ya sin su comisión— y
+**`pago_liberacion`**, la fecha en que lo libera. `pago_comision` es una columna
+calculada: `pago_total - pago_neto`.
+
+Sale de la misma llamada que ya se hacía para los cuatro dígitos de la tarjeta: la
+Orders API no da ni una cosa ni la otra, pero cada intento trae `reference.id`, y
+`GET /v1/payments/{id}` devuelve `transaction_details.net_received_amount`,
+`money_release_date` y `fee_details`. Una petición para las cuatro cosas.
+
+La comisión se **resta**, no se suma de `fee_details`: la documentación de Mercado Pago
+no enumera los valores de `type` ni de `fee_payer` —hay comisiones que paga el
+comprador—, así que sumarlas sería interpretar algo que no está escrito. El desglose
+crudo se guarda igualmente en `pagos.comisiones`, sin tocar, para poder entenderlo el
+día que haga falta.
+
+> **Acreditado no es disponible, y disponible no es cobrado.** `pago_neto` es lo que
+> Mercado Pago te apunta por esa venta; `pago_liberacion` dice cuándo puedes usarlo; y
+> el retiro a tu banco es otro paso. Para «cuánto gané con este pedido» el neto es el
+> número; para «cuánto tengo», no.
+
+> **Estas tres columnas no se le conceden al cliente**: son el margen de la tienda. Esa
+> concesión por columnas solo sirve si **no** hay un `grant select` sobre la tabla
+> entera — el mismo caso que `product_variants.costo`. La comprobación y el remedio
+> están al final de [`db/42_pago_neto.sql`](db/42_pago_neto.sql).
 
 `MP_DEBUG` escribe en los logs el cuerpo de los avisos y de las respuestas de Mercado
 Pago, y añade a la respuesta de `crear-pago` el motivo crudo de un rechazo junto con lo

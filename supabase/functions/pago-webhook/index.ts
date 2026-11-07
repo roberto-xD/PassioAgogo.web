@@ -232,6 +232,12 @@ interface Estado {
   marca: string;
   /** Cuatro dígitos exactos, o vacío. Nunca el número completo. */
   ultimos4: string;
+  /** Lo que Mercado Pago acredita a la tienda, sin su comisión. */
+  neto: number | null;
+  /** Cuándo libera el dinero. Acreditado no es disponible. */
+  liberacion: string;
+  /** El desglose de comisiones tal cual lo manda, sin interpretar. */
+  comisiones: unknown;
   pagoId: string;
   ordenId: string;
 }
@@ -314,6 +320,7 @@ async function consultar(tipo: string, id: string): Promise<Estado | null> {
   const monto = montoCrudo == null ? null : Number(montoCrudo);
 
   const clase = metodoDe(ultimo, datos, "type");
+  const clasico = await delPagoClasico(ultimo, clase, estado);
 
   return {
     solicitudId,
@@ -322,40 +329,88 @@ async function consultar(tipo: string, id: string): Promise<Estado | null> {
     monto: monto != null && Number.isFinite(monto) ? monto : null,
     metodo: clase,
     marca: metodoDe(ultimo, datos, "id"),
-    ultimos4: ultimos4De(datos) || await ultimos4DelPagoClasico(ultimo, clase),
+    ultimos4: ultimos4De(datos) || clasico.ultimos4,
+    neto: clasico.neto,
+    liberacion: clasico.liberacion,
+    comisiones: clasico.comisiones,
     pagoId: texto((ultimo && ultimo.id) ?? (esPago ? id : "")),
     ordenId: esPago ? texto(buscar(datos, "order_id")) : id,
   };
 }
 
+/** Lo que solo da la API clásica de pagos. Todo opcional: se vive sin ello. */
+interface DelPagoClasico {
+  ultimos4: string;
+  /** Lo que Mercado Pago acredita, ya sin su comisión. */
+  neto: number | null;
+  /** Cuándo lo libera. Acreditado no es lo mismo que disponible. */
+  liberacion: string;
+  /** El desglose de comisiones tal cual, sin interpretar. */
+  comisiones: unknown;
+}
+
 /**
- * Los cuatro dígitos, preguntándolos a la API clásica de pagos.
+ * Lo que la Orders API no cuenta, preguntándoselo a la API clásica de pagos.
  *
- * La Orders API **no los devuelve**: ni en el aviso ni en el recurso de la orden. Pero
- * cada intento trae `reference.id`, que es el identificador del pago en la API de
- * siempre, y esa sí los da en `card.last_four_digits`.
+ * La Orders API no da ni los cuatro dígitos ni la comisión. Pero cada intento trae
+ * `reference.id`, que es el identificador del pago en la API de siempre, y esa sí
+ * devuelve `card.last_four_digits`, `transaction_details.net_received_amount`,
+ * `money_release_date` y `fee_details`.
  *
- * Es una llamada de más, así que solo se hace cuando sirve de algo: cuando se pagó con
- * tarjeta y no los tenemos ya. Nunca lanza, y si no se pueden conseguir se devuelve
- * vacío — enseñar «Mastercard» a secas es perfectamente digno.
+ * Una sola llamada para las cuatro cosas, y solo cuando alguna sirve: con el pago
+ * cobrado o devuelto —que es cuando hay comisión que contar— o con una tarjeta, de la
+ * que al menos se sacan los dígitos.
+ *
+ * Nunca lanza. Si no se puede preguntar, se sigue sin estos datos: el estado del pago
+ * ya está, y perderlo por no poder adornarlo sería absurdo.
  */
 // deno-lint-ignore no-explicit-any
-async function ultimos4DelPagoClasico(pago: any, clase: string): Promise<string> {
-  const esTarjeta = ["credit_card", "debit_card", "prepaid_card"].includes(clase);
+async function delPagoClasico(
+  pago: any,
+  clase: string,
+  estado: string,
+): Promise<DelPagoClasico> {
+  const vacio: DelPagoClasico = {
+    ultimos4: "",
+    neto: null,
+    liberacion: "",
+    comisiones: null,
+  };
+
   const referencia = texto(pago?.reference?.id);
-  if (!esTarjeta || !referencia) return "";
+  const esTarjeta = ["credit_card", "debit_card", "prepaid_card"].includes(clase);
+  const hayDinero = estado === "aprobado" || estado === "reembolsado";
+  if (!referencia || !(esTarjeta || hayDinero)) return vacio;
 
   try {
     const respuesta = await fetch(`${MP_API}/v1/payments/${referencia}`, {
       headers: { "Authorization": `Bearer ${MP_TOKEN}` },
       signal: AbortSignal.timeout(10_000),
     });
-    if (!respuesta.ok) return "";
-    const datos = await respuesta.json();
-    return ultimos4De(datos);
+    if (!respuesta.ok) return vacio;
+
+    // deno-lint-ignore no-explicit-any
+    const datos: any = await respuesta.json();
+    if (DEBUG) {
+      console.log("pago clásico", JSON.stringify(datos).slice(0, 3000));
+    }
+
+    // El neto viene dentro de `transaction_details`, no suelto.
+    const crudo = datos?.transaction_details?.net_received_amount ??
+      buscar(datos, "net_received_amount");
+    const neto = crudo == null ? null : Number(crudo);
+
+    return {
+      ultimos4: ultimos4De(datos),
+      // Con una ficha de efectivo sin pagar el neto llega en cero, que no es «esta
+      // venta no dejó nada» sino «todavía no ha pasado nada». Cero se descarta.
+      neto: neto != null && Number.isFinite(neto) && neto > 0 ? neto : null,
+      liberacion: texto(datos?.money_release_date),
+      comisiones: Array.isArray(datos?.fee_details) ? datos.fee_details : null,
+    };
   } catch (e) {
-    console.error("no se pudieron pedir los últimos dígitos", referencia, String(e));
-    return "";
+    console.error("no se pudo pedir el pago clásico", referencia, String(e));
+    return vacio;
   }
 }
 
@@ -526,7 +581,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const { data: solicitud } = await supabase
     .from("order_requests")
-    .select("id, folio, pago_estado, pago_total")
+    .select("id, folio, pago_estado, pago_total, pago_neto, pago_liberacion")
     .eq("id", estado.solicitudId)
     .maybeSingle();
 
@@ -563,6 +618,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
         pago_metodo: estado.metodo || null,
         pago_marca: estado.marca || null,
         pago_ultimos4: estado.ultimos4 || null,
+        // Lo que de verdad entra. Si esta vez no se pudo averiguar se deja lo que
+        // hubiera: un aviso posterior que no traiga el neto no debe borrar el que ya
+        // teníamos. `pago_comision` la calcula la base.
+        pago_neto: estado.neto ?? solicitud.pago_neto,
+        pago_liberacion: estado.liberacion || solicitud.pago_liberacion,
         pago_actualizado_en: new Date().toISOString(),
       } as never)
       .eq("id", solicitud.id);
@@ -589,6 +649,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     monto: estado.monto,
     // En el historial va clase y marca juntas: es para leerlo, no para decidir nada.
     metodo: [estado.metodo, estado.marca].filter(Boolean).join(" · ") || null,
+    neto: estado.neto,
+    // Sin interpretar: hoy no sabemos qué significa cada `type` y guardarlo entero
+    // permite entenderlo el día que haga falta.
+    comisiones: estado.comisiones,
     estado_crudo: estado.estadoCrudo || null,
     nota: retrocede ? `Descartado: llegó después de ${solicitud.pago_estado}` : null,
   } as never);
