@@ -118,6 +118,21 @@ function json(body: unknown, status: number, origin: string | null): Response {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders(origin) });
 }
 
+/**
+ * Lo menos que se puede cobrar.
+ *
+ * Con un 75 % de descuento un pedido pequeño se queda en unos pocos pesos, y por
+ * debajo de cierto importe la comisión se come el cobro entero —además de que Mercado
+ * Pago tiene sus propios mínimos—. Mejor decirlo y resolverlo a mano que abrir una
+ * orden que se va a atascar.
+ */
+const MINIMO = Math.max(0, Number(Deno.env.get("MP_MINIMO") ?? "20"));
+
+/** Texto limpio, o cadena vacía. */
+function limpio(v: unknown): string {
+  return v == null ? "" : String(v).trim();
+}
+
 /** Dos decimales, como cadena, que es como los quiere Mercado Pago. */
 function dinero(n: number): string {
   return (Math.round(n * 100) / 100).toFixed(2);
@@ -147,12 +162,65 @@ interface FilaSolicitud {
   pago_estado: string | null;
   pago_orden_id: string | null;
   pago_total: number | null;
+  codigo_descuento: string | null;
   order_request_items: Renglon[] | null;
 }
 
 interface FilaVariante {
   id: string;
   precio_venta: number | null;
+}
+
+/**
+ * Cuánto descuenta el código de esta solicitud, en pesos sobre los artículos.
+ *
+ * Valida de nuevo todo: que exista, que no esté canjeado, que no haya caducado y que
+ * el premio sea de verdad un descuento. Lo que diga el navegador no entra aquí.
+ *
+ * **No marca el código como canjeado.** Eso lo hace el webhook cuando el pago se
+ * aprueba: quemarlo al abrir la orden le quitaría el premio a quien cierre la pestaña
+ * sin pagar.
+ *
+ * Si algo no cuadra devuelve `error` en vez de cobrar sin descuento: quien escribió un
+ * código espera que se le aplique, y cobrarle el precio entero en silencio es la peor
+ * de las salidas.
+ */
+async function descuentoDe(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  codigo: string,
+  totalArticulos: number,
+): Promise<{ monto: number; pct: number; error?: string }> {
+  if (!codigo) return { monto: 0, pct: 0 };
+
+  const { data } = await supabase
+    .from("wheel_spins")
+    .select("codigo, canjeado, expira_at, wheel_prizes(descuento_pct)")
+    .eq("codigo", codigo)
+    .maybeSingle();
+
+  const giro = data as
+    | { canjeado: boolean; expira_at: string | null;
+        wheel_prizes: { descuento_pct: number | null } | null }
+    | null;
+
+  if (!giro) return { monto: 0, pct: 0, error: "Ese código de descuento no existe." };
+  if (giro.canjeado) {
+    return { monto: 0, pct: 0, error: "Ese código de descuento ya se usó." };
+  }
+  if (giro.expira_at && new Date(giro.expira_at).getTime() < Date.now()) {
+    return { monto: 0, pct: 0, error: "Ese código de descuento ya caducó." };
+  }
+
+  const pct = Number(giro.wheel_prizes?.descuento_pct ?? 0);
+  if (!(pct >= 1 && pct <= 100)) {
+    return { monto: 0, pct: 0, error: "Ese premio no es un descuento." };
+  }
+
+  // Se redondea el descuento, no el total: así el importe cobrado y el guardado salen
+  // del mismo número y no se separan por un centavo.
+  const monto = Math.round(totalArticulos * pct) / 100;
+  return { monto, pct };
 }
 
 /**
@@ -293,7 +361,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .select(
       "id, folio, created_by, cliente_nombre, cliente_email, total_estimado, " +
         "envio_costo, envio_descripcion, metodo_entrega, " +
-        "pago_estado, pago_orden_id, pago_total, " +
+        "pago_estado, pago_orden_id, pago_total, codigo_descuento, " +
         "order_request_items(variant_id, cantidad)",
     )
     .eq("id", solicitudId)
@@ -386,12 +454,36 @@ Deno.serve(async (req: Request): Promise<Response> => {
     );
   }
 
+  // ---- el descuento ----
+  //
+  // Se **vuelve a validar aquí**, aunque `validar-codigo` ya lo hiciera. Aquélla es
+  // para enseñar el total antes de pulsar; ésta es la que cobra. Del navegador llega
+  // el código y nada más: si llegara el porcentaje, bastaría con editar la petición
+  // para regalarse un 100 %.
+  const descuento = await descuentoDe(
+    supabase,
+    limpio(solicitud.codigo_descuento),
+    totalArticulos,
+  );
+  if (descuento.error) return json({ error: descuento.error }, 409, origin);
+
   // El envío sí se toma de la solicitud: lo puso la cotización, que ya era del
   // servidor, y es lo que se le prometió. Recotizar aquí lo cambiaría a espaldas suyas.
+  //
+  // Y **no se descuenta**: lo paga la tienda entero a la paquetería, así que recortarlo
+  // saldría del bolsillo de la tienda sin que el cliente lo note.
   const envio = Math.max(0, Number(solicitud.envio_costo ?? 0));
-  const total = Math.round((totalArticulos + envio) * 100) / 100;
-  if (total <= 0) {
-    return json({ error: "No hay nada que cobrar en esta solicitud." }, 400, origin);
+  const total = Math.round((totalArticulos - descuento.monto + envio) * 100) / 100;
+
+  if (total < MINIMO) {
+    return json(
+      {
+        error: `El total con descuento queda por debajo del mínimo que podemos ` +
+          `cobrar (${dinero(MINIMO)}). Escríbenos y lo resolvemos por WhatsApp.`,
+      },
+      409,
+      origin,
+    );
   }
 
   // ---- la orden ----
@@ -399,11 +491,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // exige que `total_amount` sea exactamente la suma de los renglones, así que el envío
   // va como renglón y no como un extra aparte. De paso se lee desglosado en su página,
   // que es lo que la persona espera ver.
+  // El descuento se resta del renglón de artículos en vez de ir como uno negativo:
+  // Mercado Pago exige que `total_amount` sea la suma de los renglones, y un importe
+  // negativo ahí es pedir un rechazo. El desglose lo ve la persona en nuestro acuse.
   const items: Array<Record<string, unknown>> = [
     {
       title: CONCEPTO,
       quantity: 1,
-      unit_price: dinero(totalArticulos),
+      unit_price: dinero(totalArticulos - descuento.monto),
       external_code: `solicitud-${solicitud.folio ?? ""}`,
     },
   ];
@@ -568,6 +663,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       pago_total: total,
       pago_orden_id: ordenId || null,
       pago_actualizado_en: new Date().toISOString(),
+      // Lo que se descontó, copiado aquí: si mañana cambia el premio, lo que se le
+      // aplicó a esta persona no lo reescribe nadie.
+      descuento_pct: descuento.pct || null,
+      descuento_monto: descuento.monto || null,
     } as never)
     .eq("id", solicitud.id);
 

@@ -164,7 +164,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const { data: premios, error: errorPremios } = await supabase
     .from("wheel_prizes")
-    .select("id, rotulo, detalle, peso, otorga_premio")
+    .select("id, rotulo, detalle, peso, otorga_premio, vigencia_dias")
     .eq("activo", true)
     .order("orden", { ascending: true });
 
@@ -182,6 +182,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // combinaciones es improbable, pero la columna es única y una colisión
   // devolvería un error feo en lugar de un premio.
   let codigo = "";
+  // La caducidad se graba **en el giro**, no se deduce del premio al canjear. Si
+  // mañana acortas la vigencia, los códigos ya emitidos conservan la que se les
+  // prometió: no se le cambia el plazo a nadie a toro pasado. Sin vigencia, nulo, que
+  // es «no caduca».
+  const dias = Number((ganador as { vigencia_dias?: number | null }).vigencia_dias ?? 0);
+  const expiraAt = dias > 0
+    ? new Date(Date.now() + dias * 86_400_000).toISOString()
+    : null;
+
   let guardado = false;
   for (let intento = 0; intento < 5 && !guardado; intento++) {
     codigo = nuevoCodigo();
@@ -191,6 +200,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       rotulo: ganador.rotulo,
       otorga_premio: ganador.otorga_premio,
       ip_hash: ipHash,
+      expira_at: expiraAt,
     });
     if (!error) guardado = true;
     else if (!error.message.includes("duplicate")) {

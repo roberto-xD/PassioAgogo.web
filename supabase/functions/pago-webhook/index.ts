@@ -517,6 +517,33 @@ function ultimos4De(datos: any): string {
   return /^[0-9]{4}$/.test(crudo) ? crudo : "";
 }
 
+/**
+ * Marca el código como canjeado. Nunca lanza.
+ *
+ * Si falla, el cobro ya está hecho y el pedido en orden: lo único que queda es un
+ * código que podría usarse otra vez. Tirar el aviso entero por eso sería dejar sin
+ * registrar un pago para proteger un descuento.
+ *
+ * Solo marca el que todavía no lo estaba (`eq("canjeado", false)`), para que un aviso
+ * repetido no reescriba la fecha del canje original.
+ */
+async function quemarCodigo(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  codigo: string,
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from("wheel_spins")
+      .update({ canjeado: true, canjeado_at: new Date().toISOString() } as never)
+      .eq("codigo", codigo)
+      .eq("canjeado", false);
+    if (error) console.error("no se pudo canjear el código", codigo, error.message);
+  } catch (e) {
+    console.error("no se pudo canjear el código", codigo, String(e));
+  }
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   // Mercado Pago no manda `OPTIONS` ni le interesa CORS: esto no lo llama un navegador.
   // Por eso tampoco hay cabeceras de CORS en las respuestas.
@@ -581,7 +608,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const { data: solicitud } = await supabase
     .from("order_requests")
-    .select("id, folio, pago_estado, pago_total, pago_neto, pago_liberacion")
+    .select("id, folio, pago_estado, pago_total, pago_neto, pago_liberacion, codigo_descuento")
     .eq("id", estado.solicitudId)
     .maybeSingle();
 
@@ -634,6 +661,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       "→",
       estado.estado,
     );
+  }
+
+  // Con el pago cobrado, el código de la ruleta se quema. **Aquí y no antes**: al
+  // abrir la orden habría quemado el premio de quien cierra la pestaña sin pagar, y
+  // al validarlo, el de quien solo quiso ver cuánto le quedaba.
+  if (!retrocede && estado.estado === "aprobado" && solicitud.codigo_descuento) {
+    await quemarCodigo(supabase, String(solicitud.codigo_descuento));
   }
 
   // El historial se escribe siempre, incluso para el aviso descartado: que llegó, es un
