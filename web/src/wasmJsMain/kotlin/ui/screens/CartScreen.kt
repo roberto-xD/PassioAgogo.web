@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -101,6 +102,9 @@ fun CartScreen(
     onConfirmadoChange: (Boolean) -> Unit,
     onCotizarEnvio: (String) -> Unit = {},
     onElegirEnvio: (OpcionEnvio) -> Unit = {},
+    onCodigoChange: (String) -> Unit = {},
+    onAplicarCodigo: () -> Unit = {},
+    onQuitarCodigo: () -> Unit = {},
     onSubmit: (Boolean) -> Unit,
     onPagar: (String) -> Unit = {},
     onReset: () -> Unit,
@@ -205,6 +209,13 @@ fun CartScreen(
         // El total va después de elegir cómo recibirlo, porque hasta aquí no se sabe
         // cuánto cuesta el envío: enseñarlo antes obligaba a decir «no incluye envío»,
         // que era avisar de que la cifra de arriba no era la cifra.
+        CodigoDescuento(
+            state = state,
+            onCambiar = onCodigoChange,
+            onAplicar = onAplicarCodigo,
+            onQuitar = onQuitarCodigo,
+        )
+
         Totales(state)
 
         FormField(
@@ -455,17 +466,104 @@ private fun Totales(state: CartUiState) {
         modifier = Modifier.padding(vertical = PassionTheme.spacing.s4),
     )
 
-    if (state.envioElegido != null) {
+    // El desglose aparece en cuanto hay algo que desglosar: un envío elegido o un
+    // descuento. Con un total a secas, una cifra menor que la suma de los artículos
+    // parece un error.
+    val hayDesglose = state.envioElegido != null || state.descuento > 0.0
+    if (hayDesglose) {
         RenglonTotal("Productos", formatPrice(state.cart.total), fuerte = false)
-        RenglonTotal(
-            etiqueta = "Envío · ${state.envioElegido.titulo}",
-            valor = formatPrice(envio),
-            fuerte = false,
-        )
+        if (state.descuento > 0.0) {
+            RenglonTotal(
+                etiqueta = "Descuento · ${state.codigoPct}%",
+                valor = "−${formatPrice(state.descuento)}",
+                fuerte = false,
+            )
+        }
+        if (state.envioElegido != null) {
+            RenglonTotal(
+                etiqueta = "Envío · ${state.envioElegido.titulo}",
+                valor = formatPrice(envio),
+                fuerte = false,
+            )
+        }
         Spacer(Modifier.height(PassionTheme.spacing.s2))
     }
 
     RenglonTotal("Total estimado", formatPrice(state.totalConEnvio), fuerte = true)
+}
+
+/**
+ * El campo del código de la ruleta.
+ *
+ * Se escribe a mano a propósito: nadie quiere que le apliquen un premio sin pedirlo, y
+ * un código es de quien lo tiene, no de quien tiene la cuenta.
+ *
+ * Lo que se enseña aquí es **para mirar**. El descuento lo aplica el servidor al cobrar,
+ * que vuelve a validar el código por su cuenta; lo que viaja desde aquí es el código y
+ * nunca el importe.
+ */
+@Composable
+private fun CodigoDescuento(
+    state: CartUiState,
+    onCambiar: (String) -> Unit,
+    onAplicar: () -> Unit,
+    onQuitar: () -> Unit,
+) {
+    val aplicado = state.codigoAplicado.isNotBlank()
+
+    Spacer(Modifier.height(PassionTheme.spacing.s4))
+    SectionTitle("¿Tienes un código?")
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        FormField(
+            value = state.codigo,
+            onValueChange = onCambiar,
+            label = "Código de la ruleta",
+            // Puesto no se edita: para cambiarlo se quita, y así no hay un momento en
+            // que el total de arriba no corresponda a lo que dice el campo.
+            enabled = !aplicado && !state.validandoCodigo,
+            supportingText = when {
+                aplicado -> "Aplicado: ${state.codigoPct}% de descuento en los productos."
+                state.codigoError != null -> state.codigoError
+                else -> null
+            },
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(PassionTheme.spacing.s2))
+        Button(
+            onClick = if (aplicado) onQuitar else onAplicar,
+            enabled = state.validandoCodigo.not() &&
+                (aplicado || state.codigo.isNotBlank()),
+            shape = MaterialTheme.shapes.extraLarge,
+            colors = if (aplicado) {
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                ButtonDefaults.buttonColors()
+            },
+        ) {
+            Text(
+                text = when {
+                    state.validandoCodigo -> "Revisando…"
+                    aplicado -> "Quitar"
+                    else -> "Aplicar"
+                },
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+    }
+
+    // El descuento no toca el envío, y vale decirlo antes de que lo note en el total.
+    if (aplicado) {
+        Text(
+            text = "El descuento aplica a los productos; el envío se cobra completo.",
+            color = PassionTheme.semantics.onBackgroundSubtle,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s1),
+        )
+    }
 }
 
 @Composable

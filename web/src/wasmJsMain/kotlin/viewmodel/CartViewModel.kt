@@ -14,6 +14,8 @@ import models.MetodoEntrega
 import models.OpcionEnvio
 import models.Solicitud
 import network.CartStorage
+import network.CodigoRepository
+import network.CodigoResult
 import network.CotizacionResult
 import network.EnvioResult
 import network.OrdersRepository
@@ -100,6 +102,14 @@ data class CartUiState(
      * cosa de la pantalla; este ViewModel no sabe de navegadores.
      */
     val urlPago: String? = null,
+    /** Lo que se está escribiendo en el campo del código. */
+    val codigo: String = "",
+    val validandoCodigo: Boolean = false,
+    /** El código ya comprobado. Vacío si no hay ninguno puesto. */
+    val codigoAplicado: String = "",
+    /** El porcentaje de ese código. Solo para enseñar el total: cobra el servidor. */
+    val codigoPct: Int = 0,
+    val codigoError: String? = null,
     /** Se intentó enviar sin sesión: hay que pedir acceso sin perder el carrito. */
     val pideSesion: Boolean = false,
     val solicitudes: List<Solicitud>? = null,
@@ -123,8 +133,26 @@ data class CartUiState(
      * Para recoger en persona no hay envío que sumar aunque quede una cotización vieja
      * de cuando la elección era otra.
      */
+    /**
+     * Lo que descuenta el código, en pesos.
+     *
+     * **Solo sobre los artículos.** El envío lo paga la tienda entero a la paquetería y
+     * recortarlo saldría de su bolsillo. Mismo cálculo que hace `crear-pago`, que es
+     * quien cobra: esto solo enseña la cifra.
+     */
+    val descuento: Double
+        get() = if (codigoPct > 0) {
+            // Redondeado, **igual que `crear-pago`**. Truncar aquí y redondear allí
+            // haría que la pantalla prometiera un centavo distinto del que se cobra, y
+            // un centavo de diferencia en un total es de las cosas que más desconfianza
+            // generan.
+            kotlin.math.round(cart.total * codigoPct) / 100.0
+        } else {
+            0.0
+        }
+
     val totalConEnvio: Double
-        get() = cart.total +
+        get() = cart.total - descuento +
             (if (entrega == MetodoEntrega.Domicilio) envioElegido?.precio ?: 0.0 else 0.0)
 
     /** El teléfono es obligatorio: es por donde sigue el trato. */
@@ -192,6 +220,7 @@ class CartViewModel(
     private val repository: OrdersRepository,
     private val shipping: ShippingRepository = ShippingRepository(),
     private val payments: PaymentsRepository = PaymentsRepository(),
+    private val codigos: CodigoRepository = CodigoRepository(),
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
     private val _uiState = MutableStateFlow(CartUiState(cart = CartStorage.load()))
@@ -347,6 +376,60 @@ class CartViewModel(
         )
     }
 
+    fun updateCodigo(valor: String) = _uiState.update {
+        // Se quita lo aplicado al tocar el campo: con un código puesto y otro a medio
+        // escribir, el total de arriba no se sabría cuál de los dos es.
+        it.copy(
+            codigo = valor.uppercase().take(24),
+            codigoError = null,
+            codigoAplicado = "",
+            codigoPct = 0,
+        )
+    }
+
+    /**
+     * Comprueba el código contra la Edge Function.
+     *
+     * Lo que vuelve es **para enseñar**: el descuento lo aplica `crear-pago`, que lo
+     * valida otra vez por su cuenta. Si esta respuesta se manipulara, el cobro saldría
+     * igual de bien.
+     */
+    fun aplicarCodigo() {
+        val estado = _uiState.value
+        val codigo = estado.codigo.trim()
+        if (codigo.isBlank() || estado.validandoCodigo) return
+        _uiState.update { it.copy(validandoCodigo = true, codigoError = null) }
+
+        scope.launch {
+            when (val resultado = codigos.validar(codigo)) {
+                is CodigoResult.Vale -> _uiState.update {
+                    it.copy(
+                        validandoCodigo = false,
+                        codigo = resultado.codigo,
+                        codigoAplicado = resultado.codigo,
+                        codigoPct = resultado.pct,
+                        codigoError = null,
+                    )
+                }
+                is CodigoResult.NoVale -> _uiState.update {
+                    it.copy(
+                        validandoCodigo = false,
+                        codigoAplicado = "",
+                        codigoPct = 0,
+                        codigoError = resultado.motivo,
+                    )
+                }
+                CodigoResult.SinSesion -> _uiState.update {
+                    it.copy(validandoCodigo = false, pideSesion = true)
+                }
+            }
+        }
+    }
+
+    fun quitarCodigo() = _uiState.update {
+        it.copy(codigo = "", codigoAplicado = "", codigoPct = 0, codigoError = null)
+    }
+
     /** Se vuelve del acuse al carrito, o se descarta el aviso de sesión. */
     fun reset() = _uiState.update {
         it.copy(
@@ -459,6 +542,8 @@ class CartViewModel(
                 // guardado: la tienda no lo necesita y lo que no se manda no se filtra.
                 direccion = sobreDireccion.takeIf { estado.entrega == MetodoEntrega.Domicilio },
                 envio = estado.envioElegido.takeIf { estado.entrega == MetodoEntrega.Domicilio },
+                // Solo el código: el descuento lo calcula y lo aplica `crear-pago`.
+                codigo = estado.codigoAplicado.ifBlank { null },
             )
             when (resultado) {
                 is EnvioResult.Enviada -> {
@@ -475,6 +560,12 @@ class CartViewModel(
                             // La casilla vuelve a su sitio: es por solicitud, no por
                             // sesión, y la siguiente tiene que confirmarse igual.
                             confirmado = false,
+                            // El código se va con la solicitud: queda atado a ella y
+                            // no debe arrastrarse al siguiente carrito.
+                            codigo = "",
+                            codigoAplicado = "",
+                            codigoPct = 0,
+                            codigoError = null,
                             // El acuse solo cuando nos quedamos. Si vamos a Mercado
                             // Pago, enseñar «solicitud enviada» un instante antes de
                             // que la página se vaya es un parpadeo que no informa de

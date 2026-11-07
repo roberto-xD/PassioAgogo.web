@@ -54,6 +54,8 @@ class OrdersRepository(
         entrega: MetodoEntrega = MetodoEntrega.Domicilio,
         direccion: SobreDireccion? = null,
         envio: OpcionEnvio? = null,
+        /** El código de la ruleta. Solo el código: el descuento lo aplica crear-pago. */
+        codigo: String? = null,
     ): EnvioResult {
         if (!SupabaseConfig.isConfigured) {
             return EnvioResult.Fallo("El envío de solicitudes aún no está configurado.")
@@ -85,6 +87,7 @@ class OrdersRepository(
             envioDescripcion = if (conColumna) envio?.descripcion else null,
             envioCosto = if (conColumna) envio?.precio else null,
             envioEntrega = if (conColumna) envio?.entrega else null,
+            codigoDescuento = if (conColumna) codigo else null,
             dirVersion = direccion?.version,
             dirContenido = direccion?.contenido,
             dirIv = direccion?.iv,
@@ -211,6 +214,7 @@ private fun faltaLaColumna(raw: String): Boolean {
         "envio_costo" in m || "envio_entrega" in m ||
         "pago_estado" in m || "pago_total" in m ||
         "pago_metodo" in m || "pago_referencia" in m ||
+        "codigo_descuento" in m ||
         "pago_marca" in m || "pago_ultimos4" in m
     return nombra &&
         ("does not exist" in m || "no existe" in m || "pgrst204" in m || "schema cache" in m)

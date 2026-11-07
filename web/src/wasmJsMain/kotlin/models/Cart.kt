@@ -77,6 +77,10 @@ data class NuevaSolicitudDto(
     @SerialName("envio_costo") val envioCosto: Double? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("envio_entrega") val envioEntrega: String? = null,
+    // El código de la ruleta (43_codigo_descuento). Se manda el código y nada más: el
+    // porcentaje y el importe los pone `crear-pago` tras volver a validarlo.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("codigo_descuento") val codigoDescuento: String? = null,
     // La dirección va copiada, no referenciada: si el cliente se muda después, el
     // pedido viejo tiene que conservar adónde se envió de verdad. Se copia el sobre
     // tal cual, así que enviar no necesita la clave.
