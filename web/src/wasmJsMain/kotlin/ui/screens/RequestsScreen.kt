@@ -233,6 +233,7 @@ private fun Pago(solicitud: Solicitud, pagando: Boolean, onPagar: () -> Unit) {
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier
                     .clip(MaterialTheme.shapes.extraSmall)
+                    .weight(1f)
                     .clickable { copiado = copyToClipboard(solicitud.pagoReferencia) }
                     .padding(vertical = PassionTheme.spacing.s1),
             )
