@@ -138,9 +138,17 @@ class OrdersRepository(
         }
     }
 
+    /**
+     * Inserta la cabecera y devuelve lo justo: el id y el folio.
+     *
+     * Pide esas dos columnas y no `select()` a secas, que significa `*`. Con permisos
+     * por columna —que es como se protege el margen de la tienda— pedir todas las
+     * columnas devuelve 403 aunque solo se vayan a leer dos. Y son dos: el id para
+     * cobrar, el folio para enseñarlo.
+     */
     private suspend fun insertarCabecera(fila: NuevaSolicitudDto): SolicitudDto =
         supabase.from(SupabaseConfig.ORDER_REQUESTS_TABLE)
-            .insert(fila) { select() }
+            .insert(fila) { select(Columns.raw("id, folio")) }
             .decodeSingle()
 
     /** Las solicitudes de quien tiene la sesión abierta, de la más reciente a la más vieja. */

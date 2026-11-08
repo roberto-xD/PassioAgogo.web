@@ -81,22 +81,10 @@ commit;
 --    and grantee = 'authenticated'
 --    and privilege_type = 'SELECT';
 --
--- Si devuelve algo, hay que quitarlo y conceder solo lo que el cliente necesita:
---
--- revoke select on order_requests from authenticated;
--- grant select (id, folio, estado, total_estimado, created_at, motivo_rechazo,
---               metodo_entrega, necesita_recoleccion,
---               envio_paqueteria, envio_servicio, envio_descripcion, envio_costo,
---               envio_entrega,
---               guia_numero, guia_rastreo_url, guia_paqueteria, guia_servicio,
---               pago_estado, pago_total, pago_orden_id, pago_referencia, pago_metodo,
---               pago_marca, pago_ultimos4, pago_actualizado_en,
---               dir_version, dir_contenido, dir_iv, dir_dk_usuario, dir_iv_usuario,
---               dir_salt_usuario, dir_kdf_iteraciones, dir_dk_admin, dir_admin_key_id)
---    on order_requests to authenticated;
---
--- (Sin pago_neto, pago_comision ni pago_liberacion, que son de la tienda. Y sin
--- guia_url, que es el PDF de la etiqueta.)
+-- Si devuelve algo, hay que quitarlo Y conceder por columnas en el mismo paso:
+-- la lista completa está en 47_grants_order_requests.sql. Correr el `revoke` solo
+-- deja al cliente sin poder leer ni su propio folio, porque columnas como `id`,
+-- `estado` o `created_at` nunca se concedieron por columna: las cubría ese permiso.
 
 -- Para ver qué deja de verdad cada medio de pago:
 --
