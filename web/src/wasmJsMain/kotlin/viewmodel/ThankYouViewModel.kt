@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import models.Acuse
-import models.Recomendado
 import network.AcuseRepository
 import network.AddressCrypto
 import network.Direccion
@@ -40,8 +39,12 @@ data class ThankYouUiState(
     val empaque: String = "",
     /** Lo que se leerá en el estado de cuenta de la tarjeta. */
     val statement: String = "",
-    /** Productos sugeridos al final. Vacío oculta la sección. */
-    val recomendados: List<Recomendado> = emptyList(),
+    /**
+     * Los SKU sugeridos, en el orden configurado. Quien pinta la pantalla los resuelve
+     * contra el catálogo: así las fichas son **las mismas** del catálogo y se abren en
+     * el mismo diálogo, en vez de una card parecida que lleva a otra parte.
+     */
+    val recomendadosSkus: List<String> = emptyList(),
     val error: String? = null,
 )
 
@@ -156,12 +159,10 @@ class ThankYouViewModel(
 
         val skus = ajustes["acuse_recomendados"].orEmpty()
             .split(",")
-            .map { it.trim() }
+            .map { it.trim().uppercase() }
             .filter { it.isNotBlank() }
-        if (skus.isEmpty()) return
-
-        val sugeridos = repository.recomendados(skus)
-        _uiState.update { it.copy(recomendados = sugeridos) }
+            .distinct()
+        _uiState.update { it.copy(recomendadosSkus = skus) }
     }
 
     /**

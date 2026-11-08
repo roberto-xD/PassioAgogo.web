@@ -497,12 +497,17 @@ fun App() {
                                 routeState.value = Route(Screen.Account, id = SECCION_HISTORIAL)
                             },
                             onGoToLogin = { navigate(Screen.Login) },
-                            onAbrirProducto = { producto ->
-                                routeState.value = Route(
-                                    screen = Screen.Section,
-                                    id = producto.seccion,
-                                    subId = producto.slug,
-                                )
+                            onAddToCart = { producto, variante ->
+                                cartViewModel.add(producto, variante)
+                            },
+                            // Los SKU configurados, resueltos contra el catálogo y en
+                            // el orden en que se escribieron. Resolver aquí y no en el
+                            // repositorio es lo que permite que las fichas sean las
+                            // mismas del catálogo y se abran en su mismo diálogo.
+                            recomendados = thankYouState.recomendadosSkus.mapNotNull { sku ->
+                                catalogState.catalogoCompleto.firstOrNull { producto ->
+                                    producto.variants.any { it.sku.equals(sku, true) }
+                                }
                             },
                         )
                         Screen.Terms -> TermsScreen()

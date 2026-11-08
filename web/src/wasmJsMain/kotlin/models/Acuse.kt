@@ -58,23 +58,6 @@ data class Acuse(
 }
 
 /**
- * Un producto que se sugiere al final del acuse.
- *
- * Se eligen a mano, por SKU, en `site_settings.acuse_recomendados`. Son pocos y cambian
- * poco: un motor de recomendaciones para esto sería construir una máquina para mover
- * una silla.
- */
-data class Recomendado(
-    val nombre: String,
-    val categoria: String,
-    val precio: Double,
-    val imagen: String,
-    /** Para abrir su ficha: `#/seccion/<seccion>/<slug>`. */
-    val slug: String,
-    val seccion: String,
-)
-
-/**
  * Un renglón del pedido.
  *
  * El nombre se trae pero la pantalla lo enseña plegado, detrás de un «Ver detalle». Es
@@ -146,19 +129,3 @@ data class VarianteAcuseDto(
 @Serializable
 data class ProductoAcuseDto(val nombre: String? = null)
 
-/** Un producto del catálogo, para la sección de sugerencias. */
-@Serializable
-data class ProductoRecomendadoDto(
-    val nombre: String? = null,
-    val imagenes: List<String> = emptyList(),
-    val activo: Boolean? = null,
-    @SerialName("categories") val categoria: ProductoAcuseDto? = null,
-    @SerialName("product_variants") val variantes: List<VarianteRecomendadaDto> = emptyList(),
-)
-
-@Serializable
-data class VarianteRecomendadaDto(
-    val sku: String? = null,
-    @SerialName("precio_venta") val precioVenta: Double? = null,
-    val activo: Boolean? = null,
-)

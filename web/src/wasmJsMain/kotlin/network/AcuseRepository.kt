@@ -8,8 +8,6 @@ import models.Acuse
 import models.AcuseDto
 import models.ArticuloAcuse
 import models.MetodoEntrega
-import models.ProductoRecomendadoDto
-import models.Recomendado
 import models.SiteSettingDto
 
 /** Lo que se encontró, o por qué no. */
@@ -114,59 +112,6 @@ class AcuseRepository(
             .decodeList<SiteSettingDto>()
             .associate { it.clave to it.valor }
     }.getOrElse { emptyMap() }
-
-    /**
-     * Los productos sugeridos, en el orden en que se escribieron los SKUs.
-     *
-     * El orden lo pone quien los eligió, así que se respeta: la base devuelve lo que le
-     * parece y aquí se vuelve a ordenar. Un SKU que ya no exista o esté dado de baja
-     * simplemente no sale; no se avisa de nada, porque a quien acaba de comprar no le
-     * importa que la tienda tenga una lista desactualizada.
-     */
-    suspend fun recomendados(skus: List<String>): List<Recomendado> {
-        val buscados = skus.map { it.trim() }.filter { it.isNotBlank() }.distinct()
-        if (buscados.isEmpty()) return emptyList()
-
-        val filas = runCatching {
-            supabase.from(SupabaseConfig.PRODUCTS_TABLE)
-                .select(
-                    columns = Columns.raw(
-                        "nombre, imagenes, activo, categories(nombre), " +
-                            "product_variants(sku, precio_venta, activo)"
-                    )
-                ) {
-                    filter { eq("activo", true) }
-                }
-                .decodeList<ProductoRecomendadoDto>()
-        }.getOrNull().orEmpty()
-
-        // Se indexa por SKU para poder respetar el orden pedido sin recorrer la lista
-        // entera por cada uno.
-        val porSku = mutableMapOf<String, Recomendado>()
-        for (producto in filas) {
-            val categoria = producto.categoria?.nombre.orEmpty()
-            val imagen = producto.imagenes.firstOrNull { it.isNotBlank() }
-                ?.let(SupabaseConfig::publicImageUrl)
-                .orEmpty()
-
-            for (variante in producto.variantes) {
-                val sku = variante.sku?.trim().orEmpty()
-                if (sku.isBlank() || variante.activo != true) continue
-                if (sku !in buscados || sku in porSku) continue
-
-                porSku[sku] = Recomendado(
-                    nombre = producto.nombre.orEmpty(),
-                    categoria = categoria,
-                    precio = variante.precioVenta ?: 0.0,
-                    imagen = imagen,
-                    slug = slugify(producto.nombre.orEmpty()),
-                    seccion = slugify(categoria),
-                )
-            }
-        }
-
-        return buscados.mapNotNull { porSku[it] }
-    }
 
     private fun aAcuse(dto: AcuseDto): Acuse? {
         val id = dto.id ?: return null

@@ -30,6 +30,15 @@ data class CatalogUiState(
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val products: List<PGDataCard> = emptyList(),
+    /**
+     * Todo el catálogo visible, sin filtro de sección, categoría ni búsqueda.
+     *
+     * [products] es lo que se está mirando ahora; esto es lo que existe. Lo usa quien
+     * necesita encontrar un producto concreto sin depender de dónde esté parada la
+     * persona — las sugerencias del acuse buscan por SKU, y un producto de lencería no
+     * puede dejar de existir porque el catálogo esté filtrado.
+     */
+    val catalogoCompleto: List<PGDataCard> = emptyList(),
     /** Categorías raíz con productos. */
     val categories: List<CategoryOption> = emptyList(),
     /** Hijas directas de [selectedCategoryId] que tienen productos. */
@@ -89,6 +98,7 @@ class CatalogViewModel(
                                 isLoading = false,
                                 errorMessage = null,
                                 products = visibleCards(null, null, ""),
+                                catalogoCompleto = todoElCatalogo(),
                                 categories = rootCategoryOptions(),
                                 subcategories = emptyList(),
                                 selectedCategoryId = null,
@@ -226,6 +236,14 @@ class CatalogViewModel(
 
         return buildCatalogCards(bundle.copy(products = products))
     }
+
+    /**
+     * El catálogo entero, con la misma visibilidad pública que el filtrado: disponible
+     * o por encargo. Sin acotar por sección ni por categoría.
+     */
+    private fun todoElCatalogo(): List<PGDataCard> = buildCatalogCards(
+        bundle.copy(products = bundle.products.filter { it.activo || it.sobrePedido }),
+    )
 
     /** Las categorías raíz con pantalla propia, en el orden en que se leen. */
     private fun sectionOptions(): List<CatalogSection> = bundle.categoryRefs

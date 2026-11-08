@@ -1,6 +1,8 @@
 package ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -51,10 +53,13 @@ import coil3.compose.AsyncImage
 import models.Acuse
 import models.EstadoPago
 import models.MetodoEntrega
-import models.Recomendado
 import models.esPagoConTarjeta
 import models.etiquetaDePago
 import models.formatPrice
+import ui.ProductCard
+import ui.components.ProductDetailDialog
+import ui.pgmodels.PGDataCard
+import ui.pgmodels.PGVariant
 import network.WhatsAppConfig
 import ui.PassionIconos
 import ui.components.ContentScreen
@@ -86,7 +91,10 @@ fun ThankYouScreen(
     onGoToCatalog: () -> Unit,
     onGoToRequests: () -> Unit,
     onGoToLogin: () -> Unit = {},
-    onAbrirProducto: (Recomendado) -> Unit = {},
+    /** Añadir desde una sugerencia: el mismo gesto que en el catálogo. */
+    onAddToCart: (PGDataCard, PGVariant?) -> Unit = { _, _ -> },
+    /** Los sugeridos ya resueltos contra el catálogo, en su orden. */
+    recomendados: List<PGDataCard> = emptyList(),
 ) {
     // Sin encabezado cuando hay acuse: el titular propio ya lo es. En los demás casos
     // —cargando, o un error— sí hace falta algo arriba que diga dónde estás.
@@ -115,7 +123,8 @@ fun ThankYouScreen(
                 onAlternarDetalle = onAlternarDetalle,
                 onGoToCatalog = onGoToCatalog,
                 onGoToRequests = onGoToRequests,
-                onAbrirProducto = onAbrirProducto,
+                onAddToCart = onAddToCart,
+                recomendados = recomendados,
             )
         }
     }
@@ -128,7 +137,8 @@ private fun Contenido(
     onAlternarDetalle: () -> Unit,
     onGoToCatalog: () -> Unit,
     onGoToRequests: () -> Unit,
-    onAbrirProducto: (Recomendado) -> Unit,
+    onAddToCart: (PGDataCard, PGVariant?) -> Unit,
+    recomendados: List<PGDataCard>,
 ) {
     Encabezado(acuse, state.esperandoPago)
     Spacer(Modifier.height(PassionTheme.spacing.s6))
@@ -161,9 +171,9 @@ private fun Contenido(
             }
         }
     }
-    if (state.recomendados.isNotEmpty()) {
+    if (recomendados.isNotEmpty()) {
         Spacer(Modifier.height(PassionTheme.spacing.s6))
-        Recomendados(state.recomendados, onAbrirProducto)
+        Recomendados(recomendados, onAddToCart)
     }
 }
 
@@ -212,69 +222,58 @@ private fun TarjetaResumen(
  * entró y qué pasa ahora. Ponerle más productos delante de eso sería contarle lo que
  * nos interesa a nosotros antes que lo que le interesa a ella.
  *
+ * Las fichas son **las mismas del catálogo** y se abren en el mismo diálogo. Antes
+ * eran una card propia que navegaba a la sección del producto, y eso se rompía: casi
+ * ninguna categoría tiene sección propia, así que se llegaba a «esa sección ya no
+ * existe». Y aunque funcionara, sacar a alguien de su acuse para enseñarle otra
+ * pantalla es perderle el hilo de la compra que acaba de hacer.
+ *
  * Se eligen a mano, por SKU, desde `site_settings.acuse_recomendados`.
  */
 @Composable
 private fun Recomendados(
-    productos: List<Recomendado>,
-    onAbrir: (Recomendado) -> Unit,
+    productos: List<PGDataCard>,
+    onAddToCart: (PGDataCard, PGVariant?) -> Unit,
 ) {
+    var abierto by remember { mutableStateOf<PGDataCard?>(null) }
+
     Text(
         text = "Combina bien con tu compra",
         color = PassionTheme.semantics.onBackgroundStrong,
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(bottom = PassionTheme.spacing.s2),
+        modifier = Modifier.padding(bottom = PassionTheme.spacing.s3),
     )
 
-    productos.forEach { producto ->
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = PassionTheme.spacing.s2)
-                .clip(MaterialTheme.shapes.medium)
-                .clickable { onAbrir(producto) }
-                .background(PassionTheme.semantics.overlayWeak)
-                .padding(PassionTheme.spacing.s3),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (producto.imagen.isNotBlank()) {
-                AsyncImage(
-                    model = producto.imagen,
-                    contentDescription = producto.nombre,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(MaterialTheme.shapes.small),
-                )
-                Spacer(Modifier.width(PassionTheme.spacing.s3))
+    // En fila que se desplaza, no en rejilla: son tres o cuatro y van al final de una
+    // página ya larga. Una rejilla la estiraría otra pantalla entera.
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s4),
+    ) {
+        productos.forEach { producto ->
+            Box(modifier = Modifier.width(ANCHO_SUGERENCIA)) {
+                ProductCard(producto, onClick = { abierto = producto })
             }
-
-            Column(modifier = Modifier.weight(1f)) {
-                if (producto.categoria.isNotBlank()) {
-                    Text(
-                        text = producto.categoria,
-                        color = PassionTheme.semantics.onBackgroundSubtle,
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                }
-                Text(
-                    text = producto.nombre,
-                    color = PassionTheme.semantics.onBackgroundStrong,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-
-            Text(
-                text = formatPrice(producto.precio),
-                color = PassionTheme.semantics.onBackgroundStrong,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(start = PassionTheme.spacing.s2),
-            )
         }
     }
+
+    abierto?.let { producto ->
+        ProductDetailDialog(
+            product = producto,
+            onDismiss = { abierto = null },
+            onAddToCart = { p, v ->
+                onAddToCart(p, v)
+                abierto = null
+            },
+        )
+    }
 }
+
+/** Lo mismo que mide una columna de la rejilla del catálogo. */
+private val ANCHO_SUGERENCIA = 220.dp
 
 /**
  * El titular, que cambia con el estado del pago.
