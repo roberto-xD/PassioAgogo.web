@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,11 +45,13 @@ import network.Direccion
 import network.WhatsAppConfig
 import ui.Chip
 import ui.components.BottomSheet
+import ui.components.ButtonVariant
 import ui.components.ContentScreen
 import ui.components.DataCard
 import ui.components.DataLine
 import ui.components.FormField
 import ui.components.Paragraph
+import ui.components.PassionButton
 import ui.components.openInNewTab
 import ui.components.SectionTitle
 import ui.theme.PassionTheme
@@ -89,6 +92,7 @@ private const val AVISO_TIEMPOS =
  * promoción vigente de ese día y la convierte en pedido. Decirlo en la pantalla evita
  * que alguien se crea que ya compró.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CartScreen(
     state: CartUiState,
@@ -99,7 +103,6 @@ fun CartScreen(
     onEmailChange: (String) -> Unit,
     onNotasChange: (String) -> Unit,
     onEntregaChange: (MetodoEntrega) -> Unit,
-    onConfirmadoChange: (Boolean) -> Unit,
     onCotizarEnvio: (String) -> Unit = {},
     onElegirEnvio: (OpcionEnvio) -> Unit = {},
     onCodigoChange: (String) -> Unit = {},
@@ -245,21 +248,23 @@ fun CartScreen(
 
         // La casilla solo existe donde hay un camino que explicar. A domicilio el
         // carrito termina en «Pagar» y no hay nada que acordar aparte.
-        if (state.requiereConfirmacion) {
-            Spacer(Modifier.height(PassionTheme.spacing.s4))
-            Confirmacion(marcado = state.confirmado, onMarcar = onConfirmadoChange)
+        Spacer(Modifier.height(PassionTheme.spacing.s4))
+        if (state.entregaPersonal) {
+            Confirmacion()
+        } else {
+            Text(
+                text = "Serás redirigido a Mercado Pago para realizar tu pago de forma segura.",
+                color = PassionTheme.semantics.onBackgroundMuted,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+            )
         }
 
         Spacer(Modifier.height(PassionTheme.spacing.s4))
         val trabajando = state.isSubmitting || state.pagando != null
-        Button(
-            onClick = { onSubmit(true) },
-            enabled = state.puedePagar,
-            shape = MaterialTheme.shapes.extraLarge,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = when {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s3), verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s3)) {
+            PassionButton(
+                texto = when {
                     trabajando -> "Abriendo el pago…"
                     // Para recoger en persona el pago es una opción entre dos, así que
                     // el botón dice las dos cosas que hace. A domicilio es el único
@@ -267,38 +272,17 @@ fun CartScreen(
                     state.entrega == MetodoEntrega.Personal -> "Enviar solicitud y pagar"
                     else -> "Pagar ${formatPrice(state.totalConEnvio)}"
                 },
-                style = MaterialTheme.typography.labelLarge,
+                onClick = { onSubmit(true) },
+                enabled = state.puedePagar,
             )
-        }
-
-        if (state.entrega == MetodoEntrega.Personal) {
-            Button(
-                onClick = { onSubmit(false) },
-                enabled = state.puedeSeguirPorWhatsApp,
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = PassionTheme.spacing.s2),
-            ) {
-                Text(
-                    text = if (state.isSubmitting) "Enviando…" else "Continuar por WhatsApp",
-                    style = MaterialTheme.typography.labelLarge,
+            if (state.entrega == MetodoEntrega.Personal) {
+                PassionButton(
+                    texto = if (state.isSubmitting) "Enviando…" else "Continuar por WhatsApp",
+                    onClick = { onSubmit(false) },
+                    enabled = state.puedeSeguirPorWhatsApp,
+                    variante = ButtonVariant.Secundario
                 )
             }
-        } else {
-            // Decir a dónde lleva el botón antes de pulsarlo. Salir del sitio a una
-            // pasarela sin aviso se parece demasiado a lo que hace un fraude.
-            Text(
-                text = "Serás redirigido a Mercado Pago para realizar tu pago de forma " +
-                    "segura.",
-                color = PassionTheme.semantics.onBackgroundMuted,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
-            )
         }
 
         state.errorPago?.let { Aviso(texto = it, esError = true) }
@@ -330,8 +314,6 @@ private fun queFalta(state: CartUiState): String? = when {
     state.entrega == MetodoEntrega.Domicilio && state.envioElegido == null ->
         "Elige una opción de envío para continuar."
     // Solo estorba al camino de WhatsApp: el de pagar no la necesita.
-    state.requiereConfirmacion && !state.confirmado ->
-        "Marca la casilla para continuar por WhatsApp."
     else -> null
 }
 
@@ -748,20 +730,15 @@ private fun FilaEnvio(opcion: OpcionEnvio, elegida: Boolean, onClick: () -> Unit
     }
 }
 
-/** La casilla que habilita el envío. */
 @Composable
-private fun Confirmacion(marcado: Boolean, onMarcar: (Boolean) -> Unit) {
+private fun Confirmacion() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            // Toda la fila es pulsable, no solo el cuadrito: en un teléfono acertarle a
-            // la casilla sola es una lotería.
-            .clickable { onMarcar(!marcado) }
             .padding(vertical = PassionTheme.spacing.s1),
         verticalAlignment = Alignment.Top,
     ) {
-        Checkbox(checked = marcado, onCheckedChange = onMarcar)
         Text(
             text = "Al dar click en «Continuar por WhatsApp» el proceso de compra " +
                 "continúa vía mensaje directo en WhatsApp, donde se le dará seguimiento " +
@@ -890,6 +867,7 @@ private fun Paso(signo: String, onClick: () -> Unit) {
  * dice que si algo falta se devuelve el dinero. Lo que no se hace es empujar: quien
  * prefiera esperar al WhatsApp tiene el mismo cobro esperándole en su historial.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Acuse(
     folio: Long,
@@ -923,16 +901,12 @@ private fun Acuse(
             modifier = Modifier.padding(top = PassionTheme.spacing.s2),
         )
         Text(
-            text = "La revisamos y te contactamos para confirmar disponibilidad, precio " +
-                "del día y entrega.",
+            text = "Nos contactamos para coordinar la entrega y el pago.",
             color = PassionTheme.semantics.onBackgroundMuted,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = PassionTheme.spacing.s3),
         )
 
-        // Aquí se llega desde «Continuar por WhatsApp», así que lo primero es WhatsApp.
-        // Un botón que promete una conversación y luego deja a la persona buscando el
-        // número no ha cumplido nada.
         if (WhatsAppConfig.isConfigured) {
             Button(
                 onClick = { openInNewTab(WhatsAppConfig.enlaceParaPedido(folio)) },
@@ -942,55 +916,39 @@ private fun Acuse(
                 Text("Abrir WhatsApp", style = MaterialTheme.typography.labelLarge)
             }
         }
-
-        // Pagar ya, para quien cambie de idea y quiera cerrarlo sin esperar el mensaje.
-        if (total > 0.0) {
-            Button(
-                onClick = onPagar,
-                enabled = !pagando,
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
-            ) {
-                Text(
-                    text = if (pagando) "Abriendo…" else "Pagar ${formatPrice(total)} ahora",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
-            errorPago?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = PassionTheme.spacing.s2),
-                )
-            }
-        }
-
-        Button(
-            onClick = onGoToRequests,
-            shape = MaterialTheme.shapes.extraLarge,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-            modifier = Modifier.padding(top = PassionTheme.spacing.s5),
+        Text(
+            text = "También puedes",
+            color = PassionTheme.semantics.onBackgroundMuted,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s3),
+        )
+        FlowRow(
+            modifier = Modifier.padding(top = PassionTheme.spacing.s3),
+            horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s3),
+            verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s3)
         ) {
-            Text("Ver mis solicitudes", style = MaterialTheme.typography.labelLarge)
-        }
-        Button(
-            onClick = onGoToCatalog,
-            shape = MaterialTheme.shapes.extraLarge,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-            modifier = Modifier.padding(top = PassionTheme.spacing.s2),
-        ) {
-            Text("Seguir viendo", style = MaterialTheme.typography.labelLarge)
+            // Pagar ya, para quien cambie de idea y quiera cerrarlo sin esperar el mensaje.
+            if (total > 0.0) {
+                PassionButton(
+                    texto = if (pagando) "Abriendo…" else "Pagar ${formatPrice(total)} ahora",
+                    onClick = onPagar,
+                    enabled = !pagando,
+                    variante = ButtonVariant.Acento
+                )
+                errorPago?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+                    )
+                }
+            }
+            PassionButton(
+                texto = "Seguir viendo",
+                onClick = onGoToCatalog,
+                variante = ButtonVariant.Secundario
+            )
         }
     }
 }

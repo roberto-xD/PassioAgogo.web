@@ -469,7 +469,6 @@ fun App() {
                             onEmailChange = cartViewModel::updateEmail,
                             onNotasChange = cartViewModel::updateNotas,
                             onEntregaChange = cartViewModel::setEntrega,
-                            onConfirmadoChange = cartViewModel::setConfirmado,
                             onCotizarEnvio = cartViewModel::cotizarEnvio,
                             onElegirEnvio = cartViewModel::elegirEnvio,
                             onCodigoChange = cartViewModel::updateCodigo,

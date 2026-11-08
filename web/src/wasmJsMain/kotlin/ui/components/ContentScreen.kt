@@ -14,7 +14,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.serialization.json.JsonNull.content
 import ui.theme.PassionTheme
 
 /**
@@ -25,7 +27,7 @@ import ui.theme.PassionTheme
  * y el de arriba no aporta nada.
  */
 @Composable
-fun ContentScreen(title: String, content: @Composable ColumnScope.() -> Unit) {
+fun ContentScreen(title: String, maxWidth: Dp = 760.dp, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -34,7 +36,7 @@ fun ContentScreen(title: String, content: @Composable ColumnScope.() -> Unit) {
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = 760.dp)
+                .widthIn(max = maxWidth)
                 .fillMaxWidth()
                 .padding(
                     horizontal = PassionTheme.spacing.s6,

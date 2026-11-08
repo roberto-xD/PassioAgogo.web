@@ -46,12 +46,6 @@ data class CartUiState(
     val notas: String = "",
     val entrega: MetodoEntrega = MetodoEntrega.Domicilio,
     /**
-     * La casilla de «entiendo cómo sigue esto». Sin marcarla no se puede enviar: lo que
-     * dice —que el trato continúa por WhatsApp y que ahí se paga— es la única parte del
-     * proceso que la web no puede enseñar por sí misma.
-     */
-    val confirmado: Boolean = false,
-    /**
      * Qué datos trajo la cuenta. Lo que vino de ahí se enseña en texto; lo que no, se pide.
      *
      * Son banderas y no «¿está vacío el campo?» porque eso cambiaría de respuesta en
@@ -204,10 +198,9 @@ data class CartUiState(
      * a domicilio no se pide ninguna casilla; exigirla aquí y no allí sería arbitrario.
      */
     val puedeSeguirPorWhatsApp: Boolean
-        get() = datosListos && entrega == MetodoEntrega.Personal && confirmado
+        get() = datosListos && entrega == MetodoEntrega.Personal
 
-    /** La casilla solo pinta donde hay un camino que explicar. */
-    val requiereConfirmacion: Boolean
+    val entregaPersonal: Boolean
         get() = entrega == MetodoEntrega.Personal
 }
 
@@ -308,8 +301,6 @@ class CartViewModel(
     fun setEntrega(v: MetodoEntrega) = _uiState.update {
         olvidarCotizacion(it).copy(entrega = v, errorMessage = null)
     }
-
-    fun setConfirmado(v: Boolean) = _uiState.update { it.copy(confirmado = v) }
 
     fun setAutenticado(v: Boolean) = _uiState.update { it.copy(autenticado = v) }
 
@@ -570,9 +561,6 @@ class CartViewModel(
                             isSubmitting = false,
                             cart = Cart(),
                             notas = "",
-                            // La casilla vuelve a su sitio: es por solicitud, no por
-                            // sesión, y la siguiente tiene que confirmarse igual.
-                            confirmado = false,
                             // El código se va con la solicitud: queda atado a ella y
                             // no debe arrastrarse al siguiente carrito.
                             codigo = "",

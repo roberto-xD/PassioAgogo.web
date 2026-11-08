@@ -41,8 +41,8 @@ data class Cart(val items: List<CartItem> = emptyList()) {
  * algo aquí no cambia lo que ya está guardado en `order_requests`.
  */
 enum class MetodoEntrega(val clave: String, val etiqueta: String) {
-    Domicilio("domicilio", "Envío a domicilio"),
-    Personal("personal", "Recoger personalmente"),
+    Domicilio("domicilio", "A domicilio"),
+    Personal("personal", "Personalmente"),
 }
 
 /**

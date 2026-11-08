@@ -22,6 +22,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,8 +32,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,28 +56,29 @@ import models.esPagoConTarjeta
 import models.etiquetaDePago
 import models.formatPrice
 import network.WhatsAppConfig
+import ui.PassionIconos
 import ui.components.ContentScreen
 import ui.components.Paragraph
+import ui.components.PasoPedido
+import ui.components.PassionButton
+import ui.components.TarjetaPasos
+import ui.components.ButtonVariant
 import ui.components.copyToClipboard
 import ui.components.openInNewTab
 import ui.theme.PassionTheme
+import ui.theme.tonos
 import viewmodel.ThankYouUiState
 
 /**
  * El acuse al volver de pagar.
  *
- * Dos cosas la separan de un «gracias por tu compra» cualquiera.
- *
- * La primera es que **al cargar no sabemos si el pago entró**. La URL de regreso dice
- * `status=approved` y no significa nada: la escribe quien quiera. Lo que vale lo escribe
- * el webhook, que llega por su cuenta. Así que hay un estado intermedio honesto —
- * «estamos confirmando» — en vez de felicitar por un cobro que quizá se rechazó.
- *
- * La segunda es la discreción. El detalle de lo comprado empieza **plegado**: esta
+ * El detalle de lo comprado empieza **plegado**: esta
  * pantalla se abre sola al volver de Mercado Pago, en el navegador de alguien que puede
  * no estar solo. Es el mismo criterio por el que la guía declara «Artículos de higiene
  * personal» y el cargo sale como `PAG`.
  */
+private val TWO_COLUMN_MIN_WIDTH = 560.dp
+
 @Composable
 fun ThankYouScreen(
     state: ThankYouUiState,
@@ -88,7 +90,7 @@ fun ThankYouScreen(
 ) {
     // Sin encabezado cuando hay acuse: el titular propio ya lo es. En los demás casos
     // —cargando, o un error— sí hace falta algo arriba que diga dónde estás.
-    ContentScreen(title = if (state.acuse != null) "" else "Gracias por tu compra") {
+    ContentScreen(title = if (state.acuse != null) "" else "Gracias por tu compra", maxWidth = 1200.dp) {
         when {
             state.cargando -> Paragraph("Cargando tu pedido…")
             state.error != null -> {
@@ -129,60 +131,80 @@ private fun Contenido(
     onAbrirProducto: (Recomendado) -> Unit,
 ) {
     Encabezado(acuse, state.esperandoPago)
-
-    Spacer(Modifier.height(PassionTheme.spacing.s4))
-    Importes(acuse, state.detalleAbierto, onAlternarDetalle)
-
-    Spacer(Modifier.height(PassionTheme.spacing.s4))
-    Pago(acuse, state.esperandoPago, state.statement)
-
-    Spacer(Modifier.height(PassionTheme.spacing.s4))
-    Entrega(acuse, state)
-
-    // El empaque discreto va justo después de la dirección, que es donde la pregunta
-    // aparece sola: acabas de ver a dónde llega el paquete y lo siguiente que te
-    // preguntas es qué va a ver quien te lo entregue.
-    if (state.empaque.isNotBlank()) {
-        Spacer(Modifier.height(PassionTheme.spacing.s4))
-        Tarjeta {
-            Titulo("Empaque discreto")
-            Text(
-                text = state.empaque,
-                color = PassionTheme.semantics.onBackgroundMuted,
-                style = MaterialTheme.typography.bodySmall,
-            )
+    Spacer(Modifier.height(PassionTheme.spacing.s6))
+    Column(verticalArrangement = Arrangement.spacedBy(56.dp)){
+        BoxWithConstraints {
+            val dosColumnas = maxWidth >= TWO_COLUMN_MIN_WIDTH
+            if (dosColumnas) {
+                Row(horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s6)) {
+                    ColumnaDetalles(acuse, state, Modifier.weight(1f))
+                    TarjetaResumen(
+                        acuse = acuse,
+                        state = state,
+                        onAlternarDetalle = onAlternarDetalle,
+                        onGoToCatalog = onGoToCatalog,
+                        onGoToRequests = onGoToRequests,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s6)) {
+                    TarjetaResumen(
+                        acuse = acuse,
+                        state = state,
+                        onAlternarDetalle = onAlternarDetalle,
+                        onGoToCatalog = onGoToCatalog,
+                        onGoToRequests = onGoToRequests,
+                    )
+                    ColumnaDetalles(acuse, state)
+                }
+            }
         }
     }
-
-    Spacer(Modifier.height(PassionTheme.spacing.s4))
-    QueSigue(acuse)
-
-    Spacer(Modifier.height(PassionTheme.spacing.s5))
-    Button(onClick = onGoToRequests, shape = MaterialTheme.shapes.extraLarge) {
-        Text("Ver mis solicitudes", style = MaterialTheme.typography.labelLarge)
-    }
-    Button(
-        onClick = onGoToCatalog,
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
-        modifier = Modifier.padding(top = PassionTheme.spacing.s2),
-    ) {
-        Text("Seguir viendo", style = MaterialTheme.typography.labelLarge)
-    }
-
     if (state.recomendados.isNotEmpty()) {
         Spacer(Modifier.height(PassionTheme.spacing.s6))
         Recomendados(state.recomendados, onAbrirProducto)
     }
-
-    Spacer(Modifier.height(PassionTheme.spacing.s5))
-    Contacto(acuse)
-    Spacer(Modifier.height(PassionTheme.spacing.s6))
 }
 
+@Composable
+private fun ColumnaDetalles(
+    acuse: Acuse,
+    state: ThankYouUiState,
+    modifier: Modifier = Modifier
+){
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s4)) {
+        QueSigue(acuse)
+        // El empaque discreto va justo después de la dirección, que es donde la pregunta
+        // aparece sola: acabas de ver a dónde llega el paquete y lo siguiente que te
+        // preguntas es qué va a ver quien te lo entregue.
+        if (state.empaque.isNotBlank() && acuse.entrega == MetodoEntrega.Domicilio) {
+            TarjetaEmpaque()
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TarjetaResumen(
+    acuse: Acuse,
+    state: ThankYouUiState,
+    onAlternarDetalle: () -> Unit,
+    onGoToCatalog: () -> Unit,
+    onGoToRequests: () -> Unit,
+    modifier: Modifier = Modifier,
+){
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s4)) {
+        Importes(acuse, state.detalleAbierto, onAlternarDetalle)
+        Pago(acuse, state.esperandoPago, state.statement)
+        Entrega(acuse, state)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s3), verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s3)) {
+            PassionButton("Seguir viendo", onGoToCatalog)
+            PassionButton("Ver mis solicitudes", onGoToRequests, variante = ButtonVariant.Secundario)
+        }
+        Contacto(acuse)
+    }
+}
 /**
  * Lo que se sugiere al final.
  *
@@ -277,7 +299,7 @@ private fun Encabezado(acuse: Acuse, esperando: Boolean) {
         acuse.pago == EstadoPago.Pendiente -> "Pedido reservado" to (
             "Tu pedido está apartado" to
                 "El pago todavía no se ha confirmado. Si elegiste efectivo, se confirma " +
-                "cuando la tienda reporte el pago; suele tardar unos minutos."
+                "cuando la tienda reporte el pago."
             )
         acuse.pago == EstadoPago.Rechazado -> "Pago no completado" to (
             "El pago no se completó" to
@@ -365,7 +387,6 @@ private fun Encabezado(acuse: Acuse, esperando: Boolean) {
                 color = PassionTheme.semantics.onBackgroundMuted,
                 style = MaterialTheme.typography.bodySmall,
             )
-            DatoDelTitular("Total ", formatPrice(acuse.total))
         }
     }
 }
@@ -683,57 +704,39 @@ private fun Entrega(acuse: Acuse, state: ThankYouUiState) {
 /**
  * Los pasos siguientes, contados como ocurren de verdad.
  *
- * El trato sigue por WhatsApp y la guía aparece en el historial. No se promete ningún
- * correo: no mandamos ninguno. El único que llega es el comprobante de Mercado Pago, que
- * es suyo y no nuestro, así que tampoco se promete aquí.
+ * El trato sigue por WhatsApp y la guía aparece en el historial.
+ * No se promete ningún correo: no mandamos ninguno.
+ * El único que llega es el comprobante de Mercado Pago
  */
 @Composable
 private fun QueSigue(acuse: Acuse) {
-    Tarjeta {
-        Titulo("¿Qué sigue?")
-
-        val pasos = buildList {
-            if (acuse.pago != EstadoPago.Aprobado) {
-                add(
-                    "Completar el pago" to
-                        "Puedes hacerlo desde tu historial cuando quieras, o acordarlo " +
-                        "con nosotros por WhatsApp."
-                )
+    val pasos = buildList {
+        when(acuse.entrega){
+            MetodoEntrega.Domicilio ->{
+                when(acuse.pago){
+                    EstadoPago.Aprobado->add(PasoPedido("Preparamos tu paquete","Lo empacamos y entregamos a paquetería el próximo día hábil."))
+                    EstadoPago.Pendiente -> {
+                        add(PasoPedido("Completar el pago","Si elegiste efectivo, se confirma cuando la tienda reporte el pago."))
+                        add(PasoPedido("Preparamos tu paquete","Lo empacamos en cuanto se confirme el pago."))
+                    }
+                    else -> {
+                        add(PasoPedido("Completar el pago","Puedes hacerlo desde tu historial cuando quieras, o acordarlo con nosotros por WhatsApp."))
+                        add(PasoPedido("Preparamos tu paquete","Lo empacamos y entregamos a paquetería al siguiente día hábil."))
+                    }
+                }
+                add(PasoPedido("En camino","Tu número de guía aparecerá en el historial de solicitudes de tu cuenta, para que lo rastrees."))
+                add(PasoPedido("Entrega", "En el tiempo estimado por la paquetería."))
             }
-            add(
-                "Te escribimos" to
-                    "Confirmamos disponibilidad y la entrega por WhatsApp, al número " +
-                    "que nos diste."
-            )
-            // Sin repetir aquí lo del empaque: ya tiene su propia tarjeta arriba, y
-            // decirlo dos veces en la misma pantalla suena a insistir.
-            add("Preparamos tu paquete" to "En cuanto confirmemos, lo dejamos listo.")
-            if (acuse.entrega == MetodoEntrega.Domicilio) {
-                add(
-                    "Lo enviamos" to
-                        // Sin flecha: la tipografía del sitio no trae «→» y se pinta
-                        // como un cuadro vacío.
-                        "Tu número de guía aparecerá en esta misma página, en el " +
-                        "historial de solicitudes de tu cuenta, para que lo rastrees."
-                )
+            MetodoEntrega.Personal ->{
+                if(acuse.pago != EstadoPago.Pendiente && acuse.pago != EstadoPago.Aprobado)
+                    add(PasoPedido("Completar el pago","Puedes hacerlo desde tu historial antes de la entrega, o a contra entrega."))
+                add(PasoPedido("Te escribimos","Confirmamos disponibilidad y la entrega por WhatsApp, al número que nos diste."))
+                add(PasoPedido("En camino","Nos coordinamos para la entrega desde un día antes"))
+                add(PasoPedido("Entrega","Te esperamos en el lugar, ¿Surgió un imprevisto? Avisanos para reagendar sin costo"))
             }
-        }
-
-        pasos.forEachIndexed { i, (titulo, texto) ->
-            Text(
-                text = "${i + 1}. $titulo",
-                color = PassionTheme.semantics.onBackgroundStrong,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
-            )
-            Text(
-                text = texto,
-                color = PassionTheme.semantics.onBackgroundMuted,
-                style = MaterialTheme.typography.bodySmall,
-            )
         }
     }
+    TarjetaPasos(pasos)
 }
 
 @Composable
@@ -774,6 +777,35 @@ private fun Tarjeta(contenido: @Composable () -> Unit) {
 }
 
 @Composable
+private fun TarjetaEmpaque() {
+    val tonos = PassionTheme.tonos
+    val s = PassionTheme.spacing
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(tonos.marcaSuave, MaterialTheme.shapes.medium)
+            .padding(horizontal = 28.dp, vertical = s.s6),
+        horizontalArrangement = Arrangement.spacedBy(s.s4),
+    ) {
+        Box(
+            Modifier.size(s.s10).background(MaterialTheme.colorScheme.surface, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(PassionIconos.Paquete, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(s.s1)) {
+            Text("Empaque 100% discreto", style = MaterialTheme.typography.titleSmall, color = tonos.marcaProfunda)
+            Text(
+                "Tu paquete llega en una caja neutra, sin logotipos ni descripción del contenido. " +
+                        "En tu estado de cuenta aparecerá como “PAG Comercial”.",
+                style = MaterialTheme.typography.bodySmall,
+                color = tonos.textoSobreAviso,
+            )
+        }
+    }
+}
+
+@Composable
 private fun Titulo(texto: String) {
     Text(
         text = texto,
@@ -796,7 +828,7 @@ private fun FilaDato(etiqueta: String, valor: String) {
             text = etiqueta,
             color = PassionTheme.semantics.onBackgroundMuted,
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(end = PassionTheme.spacing.s3),
+            modifier = Modifier.padding(end = PassionTheme.spacing.s3).weight(1f),
         )
         Text(
             text = valor,
