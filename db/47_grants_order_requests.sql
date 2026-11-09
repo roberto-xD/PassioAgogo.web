@@ -49,21 +49,36 @@ grant select (
   dir_salt_usuario, dir_kdf_iteraciones, dir_dk_admin, dir_admin_key_id
 ) on order_requests to authenticated;
 
--- `envio_gratis` la añade 48_codigos.sql, y este script puede correrse antes que aquel.
--- Va aparte y condicionada por eso: metida en la lista de arriba, correr 47 en una base
--- sin 48 fallaría entero y dejaría el historial en 403 otra vez. Y hace falta que esté
--- aquí, porque el `revoke` del principio se lleva por delante lo que concedió 48: sin
--- esto, volver a correr 47 después de 48 le quitaría el permiso por detrás.
+-- Las columnas que conceden los scripts **posteriores** a este, una por una y solo si
+-- existen.
+--
+-- Están aquí por el `revoke` del principio: se lleva por delante lo que concedieron
+-- 48 y 49, así que volver a correr 47 después de ellos les quitaría el permiso por
+-- detrás y el historial volvería al 403. Y están condicionadas porque 47 también tiene
+-- que poder correrse **antes**: en la lista de arriba, una columna que todavía no
+-- existe haría fallar el script entero, que es justo el agujero que vino a tapar.
+--
+-- Al añadir una columna nueva que el cliente deba leer: a esta lista, no a la de
+-- arriba, si llega en un script con número mayor que 47.
 do $$
+declare
+  v_col text;
 begin
-  if exists (
-    select 1 from information_schema.columns
-     where table_schema = 'public'
-       and table_name = 'order_requests'
-       and column_name = 'envio_gratis'
-  ) then
-    execute 'grant select (envio_gratis) on order_requests to authenticated';
-  end if;
+  foreach v_col in array array[
+    'envio_gratis',  -- 48_codigos.sql: el envio lo cubrio un codigo
+    'order_id'       -- 49_envios_admin_rpc.sql: el pedido en que se convirtio
+  ] loop
+    if exists (
+      select 1 from information_schema.columns
+       where table_schema = 'public'
+         and table_name = 'order_requests'
+         and column_name = v_col
+    ) then
+      execute format(
+        'grant select (%I) on order_requests to authenticated', v_col
+      );
+    end if;
+  end loop;
 end $$;
 
 commit;
