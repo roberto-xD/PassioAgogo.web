@@ -22,6 +22,13 @@ data class Acuse(
     val envioDescripcion: String,
     /** La promesa de la paquetería con sus palabras: «2-4 días». */
     val envioEntrega: String,
+    /**
+     * El envío lo cubrió un código: no se cobró y la paquetería la escogió la tienda.
+     *
+     * Por eso va aparte de [envioCosto], que aquí vale cero: un cero a secas se leería
+     * como «todavía no se ha cotizado».
+     */
+    val envioGratis: Boolean = false,
     val pagoEstado: String,
     val pagoTotal: Double,
     val pagoMetodo: String,
@@ -85,6 +92,7 @@ data class AcuseDto(
     @SerialName("envio_costo") val envioCosto: Double? = null,
     @SerialName("envio_descripcion") val envioDescripcion: String? = null,
     @SerialName("envio_entrega") val envioEntrega: String? = null,
+    @SerialName("envio_gratis") val envioGratis: Boolean = false,
     @SerialName("pago_estado") val pagoEstado: String? = null,
     @SerialName("pago_total") val pagoTotal: Double? = null,
     @SerialName("pago_metodo") val pagoMetodo: String? = null,

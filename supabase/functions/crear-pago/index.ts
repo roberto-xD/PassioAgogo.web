@@ -172,65 +172,92 @@ interface FilaVariante {
 }
 
 /**
- * Cuánto descuenta el código de esta solicitud, en pesos sobre los artículos.
+ * Qué hace el código de esta solicitud: cuánto descuenta, si regala algo y si paga el
+ * envío.
  *
- * Valida de nuevo todo: que exista, que no esté canjeado, que no haya caducado y que
- * el premio sea de verdad un descuento. Lo que diga el navegador no entra aquí.
+ * Valida de nuevo todo —que exista, que esté activo, que le queden usos, que no haya
+ * caducado y que la compra llegue a su mínimo—. Lo que diga el navegador no entra
+ * aquí: del carrito solo llega el código.
  *
- * **No marca el código como canjeado.** Eso lo hace el webhook cuando el pago se
- * aprueba: quemarlo al abrir la orden le quitaría el premio a quien cierre la pestaña
- * sin pagar.
- *
- * Si algo no cuadra devuelve `error` en vez de cobrar sin descuento: quien escribió un
- * código espera que se le aplique, y cobrarle el precio entero en silencio es la peor
- * de las salidas.
+ * **No consume el uso.** Eso lo hace el webhook al aprobarse el pago: gastarlo al
+ * abrir la orden se lo quitaría a quien cierre la pestaña sin pagar.
  */
 async function descuentoDe(
   // deno-lint-ignore no-explicit-any
   supabase: any,
   codigo: string,
   totalArticulos: number,
-): Promise<{ monto: number; pct: number; regalo: string; error?: string }> {
-  if (!codigo) return { monto: 0, pct: 0, regalo: "" };
+): Promise<
+  {
+    monto: number;
+    pct: number;
+    regalo: string;
+    envioGratis: boolean;
+    error?: string;
+    /** El código no participa en esta compra: hay que desatarlo de la solicitud. */
+    suelta?: boolean;
+  }
+> {
+  const nada = { monto: 0, pct: 0, regalo: "", envioGratis: false };
+  if (!codigo) return nada;
 
   const { data } = await supabase
-    .from("wheel_spins")
-    .select("codigo, canjeado, expira_at, wheel_prizes(tipo, descuento_pct, detalle)")
+    .from("codigos")
+    .select(
+      "tipo, descuento_pct, regalo, minimo_compra, usos, usos_max, expira_at, activo",
+    )
     .eq("codigo", codigo)
     .maybeSingle();
 
-  const giro = data as
+  const fila = data as
     | {
-      canjeado: boolean;
+      tipo: string;
+      descuento_pct: number | null;
+      regalo: string | null;
+      minimo_compra: number | null;
+      usos: number;
+      usos_max: number;
       expira_at: string | null;
-      wheel_prizes:
-        | { tipo: string | null; descuento_pct: number | null; detalle: string | null }
-        | null;
+      activo: boolean;
     }
     | null;
 
-  const nada = { monto: 0, pct: 0, regalo: "" };
-  if (!giro) return { ...nada, error: "Ese código no existe." };
-  if (giro.canjeado) return { ...nada, error: "Ese código ya se usó." };
-  if (giro.expira_at && new Date(giro.expira_at).getTime() < Date.now()) {
+  if (!fila) return { ...nada, error: "Ese código no existe." };
+  if (!fila.activo) return { ...nada, error: "Ese código ya no está disponible." };
+  if (fila.usos >= fila.usos_max) return { ...nada, error: "Ese código ya se usó." };
+  if (fila.expira_at && new Date(fila.expira_at).getTime() < Date.now()) {
     return { ...nada, error: "Ese código ya caducó." };
   }
 
-  const premio = giro.wheel_prizes;
-  const tipo = limpio(premio?.tipo);
-
-  // Un regalo no toca el importe: lo que hace es que la tienda meta un artículo más en
-  // la caja. Se guarda su descripción en la solicitud para que quien la prepare lo lea
-  // sin cruzar tablas.
-  if (tipo === "regalo") {
-    return { monto: 0, pct: 0, regalo: limpio(premio?.detalle) || codigo };
+  // El mínimo se mide sobre los artículos, nunca sobre el envío: si contara el envío,
+  // llegar al mínimo dependería de a qué distancia vive quien compra.
+  //
+  // Sin llegar al mínimo el código **no aplica, pero tampoco estorba**: el cobro sigue
+  // por el importe completo, que es el que el carrito venía enseñando en gris. Negarse
+  // a cobrar por un cupón que no aplica sería dejar a alguien sin poder pagar por
+  // haber escrito un código. Y se desata de la solicitud para que el webhook no lo
+  // gaste: un uso consumido sin haber dado nada es un código robado.
+  const minimo = Number(fila.minimo_compra ?? 0);
+  if (minimo > 0 && totalArticulos < minimo) {
+    return { ...nada, suelta: true };
   }
 
-  if (tipo !== "descuento") {
+  if (fila.tipo === "envio_gratis") {
+    return { monto: 0, pct: 0, regalo: "", envioGratis: true };
+  }
+  if (fila.tipo === "regalo") {
+    return {
+      monto: 0,
+      pct: 0,
+      regalo: limpio(fila.regalo) || codigo,
+      envioGratis: false,
+    };
+  }
+  if (fila.tipo !== "descuento") {
     return { ...nada, error: "Ese código no trae ningún premio que aplicar." };
   }
 
-  const pct = Number(premio?.descuento_pct ?? 0);
+  const pct = Number(fila.descuento_pct ?? 0);
   if (!(pct >= 1 && pct <= 100)) {
     return { ...nada, error: "Ese código no trae ningún premio que aplicar." };
   }
@@ -238,7 +265,7 @@ async function descuentoDe(
   // Se redondea el descuento, no el total: así el importe cobrado y el guardado salen
   // del mismo número y no se separan por un centavo.
   const monto = Math.round(totalArticulos * pct) / 100;
-  return { monto, pct, regalo: "" };
+  return { monto, pct, regalo: "", envioGratis: false };
 }
 
 /**
@@ -490,7 +517,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
   //
   // Y **no se descuenta**: lo paga la tienda entero a la paquetería, así que recortarlo
   // saldría del bolsillo de la tienda sin que el cliente lo note.
-  const envio = Math.max(0, Number(solicitud.envio_costo ?? 0));
+  // Con envío gratis no se cobra envío, dijera lo que dijera la cotización. El
+  // paquete se manda igual y lo que cueste la guía lo absorbe la tienda; queda
+  // registrado en `guia_costo` al generarla.
+  //
+  // Un código de envío gratis en una entrega en persona no cubre nada —no hay envío—,
+  // así que no se marca: la fila diría «el envío fue promocional» de un pedido que se
+  // recoge a mano, y eso es lo que luego se lee para saber qué absorbió la tienda.
+  const envioGratis = descuento.envioGratis && solicitud.metodo_entrega !== "personal";
+  const envio = envioGratis ? 0 : Math.max(0, Number(solicitud.envio_costo ?? 0));
   const total = Math.round((totalArticulos - descuento.monto + envio) * 100) / 100;
 
   if (total < MINIMO) {
@@ -686,6 +721,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       descuento_pct: descuento.pct || null,
       descuento_monto: descuento.monto || null,
       regalo: descuento.regalo || null,
+      envio_gratis: envioGratis,
+      // El código venía puesto pero no llegó a su mínimo: se desata para que el
+      // webhook no gaste un uso que no dio nada, y para que el índice único lo deje
+      // libre para el siguiente carrito.
+      ...(descuento.suelta ? { codigo_descuento: null } : {}),
     } as never)
     .eq("id", solicitud.id);
 

@@ -105,6 +105,18 @@ data class CartUiState(
     val codigoPct: Int = 0,
     /** Con un premio de regalo, qué se gana. Vacío si el código descuenta. */
     val codigoRegalo: String = "",
+    /** `descuento`, `regalo` o `envio_gratis`. */
+    val codigoTipo: String = "",
+    /**
+     * El código sirve pero el carrito no llega a su mínimo.
+     *
+     * Se queda puesto, en gris, y se reactiva solo al subir: quitarlo obligaría a
+     * volver a teclearlo después de añadir un artículo.
+     */
+    val codigoEsperandoMinimo: Boolean = false,
+    val codigoFaltan: Double = 0.0,
+    /** El «a partir de $X» del código puesto. Cero si no tiene mínimo. */
+    val codigoMinimo: Double = 0.0,
     val codigoError: String? = null,
     /** Se intentó enviar sin sesión: hay que pedir acceso sin perder el carrito. */
     val pideSesion: Boolean = false,
@@ -120,15 +132,21 @@ data class CartUiState(
     val unidades: Int get() = cart.unidades
 
     /**
-     * Lo que va a pagar: artículos más el envío elegido.
+     * El envío va gratis: código de envío gratis puesto y con su mínimo cumplido.
      *
-     * Vive aquí y no en la pantalla porque ahora lo necesitan dos sitios —los totales
-     * del carrito y el acuse—, y dos sumas iguales escritas aparte acaban siendo dos
-     * sumas distintas.
+     * Mientras falte para el mínimo **no** aplica, así que la lista de paqueterías
+     * sigue a la vista: quien se quede corto tiene que poder elegir y pagar su envío.
      *
-     * Para recoger en persona no hay envío que sumar aunque quede una cotización vieja
-     * de cuando la elección era otra.
+     * Lleva dentro el método de entrega a propósito. Un código de envío gratis puesto
+     * en una entrega personal no cubre nada —no hay envío—, y sin esta condición el
+     * carrito enseñaría un renglón «Envío · Gratis» en un pedido que se recoge a mano.
      */
+    val envioGratis: Boolean
+        get() = codigoTipo == "envio_gratis" &&
+            codigoAplicado.isNotBlank() &&
+            !codigoEsperandoMinimo &&
+            entrega == MetodoEntrega.Domicilio
+
     /**
      * Lo que descuenta el código, en pesos.
      *
@@ -137,7 +155,7 @@ data class CartUiState(
      * quien cobra: esto solo enseña la cifra.
      */
     val descuento: Double
-        get() = if (codigoPct > 0) {
+        get() = if (codigoPct > 0 && !codigoEsperandoMinimo) {
             // Redondeado, **igual que `crear-pago`**. Truncar aquí y redondear allí
             // haría que la pantalla prometiera un centavo distinto del que se cobra, y
             // un centavo de diferencia en un total es de las cosas que más desconfianza
@@ -147,9 +165,23 @@ data class CartUiState(
             0.0
         }
 
+    /**
+     * Lo que va a pagar: artículos, menos el descuento, más el envío.
+     *
+     * Vive aquí y no en la pantalla porque lo necesitan dos sitios —los totales del
+     * carrito y el acuse—, y dos sumas iguales escritas aparte acaban siendo dos sumas
+     * distintas.
+     *
+     * Para recoger en persona no hay envío que sumar aunque quede una cotización vieja
+     * de cuando la elección era otra. Con envío gratis tampoco, aunque siga elegida
+     * una paquetería de antes de poner el código.
+     */
     val totalConEnvio: Double
-        get() = cart.total - descuento +
-            (if (entrega == MetodoEntrega.Domicilio) envioElegido?.precio ?: 0.0 else 0.0)
+        get() = cart.total - descuento + when {
+            entrega != MetodoEntrega.Domicilio -> 0.0
+            envioGratis -> 0.0
+            else -> envioElegido?.precio ?: 0.0
+        }
 
     /** El teléfono es obligatorio: es por donde sigue el trato. */
     val telefonoCompleto: Boolean
@@ -185,8 +217,11 @@ data class CartUiState(
      * dentro y cobraríamos de menos. Para recoger en persona no hay envío que elegir.
      */
     val puedePagar: Boolean
-        get() = datosListos &&
-            (entrega == MetodoEntrega.Personal || envioElegido != null)
+        get() = datosListos && (
+            entrega == MetodoEntrega.Personal ||
+                envioGratis ||
+                envioElegido != null
+            )
 
     /**
      * ¿Se puede seguir por WhatsApp?
@@ -376,8 +411,12 @@ class CartViewModel(
             codigo = valor.uppercase().take(24),
             codigoError = null,
             codigoAplicado = "",
+            codigoTipo = "",
             codigoPct = 0,
             codigoRegalo = "",
+            codigoEsperandoMinimo = false,
+            codigoFaltan = 0.0,
+            codigoMinimo = 0.0,
         )
     }
 
@@ -392,19 +431,25 @@ class CartViewModel(
         val estado = _uiState.value
         val codigo = estado.codigo.trim()
         if (codigo.isBlank() || estado.validandoCodigo) return
+        comprobar(codigo, estado.cart.items)
+    }
+
+    private fun comprobar(codigo: String, items: List<CartItem>) {
         _uiState.update { it.copy(validandoCodigo = true, codigoError = null) }
 
         scope.launch {
-            when (val resultado = codigos.validar(codigo)) {
+            when (val resultado = codigos.validar(codigo, items)) {
                 is CodigoResult.Vale -> _uiState.update {
                     it.copy(
                         validandoCodigo = false,
                         codigo = resultado.codigo,
                         codigoAplicado = resultado.codigo,
+                        codigoTipo = resultado.tipo,
                         codigoPct = resultado.pct,
-                        // Con descuento no hay regalo y al revés: el validador manda
-                        // uno u otro, nunca los dos.
-                        codigoRegalo = if (resultado.pct > 0) "" else resultado.detalle,
+                        codigoRegalo = if (resultado.tipo == "regalo") resultado.detalle else "",
+                        codigoEsperandoMinimo = resultado.esperandoMinimo,
+                        codigoFaltan = resultado.faltan,
+                        codigoMinimo = resultado.minimo,
                         codigoError = null,
                     )
                 }
@@ -412,8 +457,12 @@ class CartViewModel(
                     it.copy(
                         validandoCodigo = false,
                         codigoAplicado = "",
+                        codigoTipo = "",
                         codigoPct = 0,
                         codigoRegalo = "",
+                        codigoEsperandoMinimo = false,
+                        codigoFaltan = 0.0,
+                        codigoMinimo = 0.0,
                         codigoError = resultado.motivo,
                     )
                 }
@@ -428,8 +477,12 @@ class CartViewModel(
         it.copy(
             codigo = "",
             codigoAplicado = "",
+            codigoTipo = "",
             codigoPct = 0,
             codigoRegalo = "",
+            codigoEsperandoMinimo = false,
+            codigoFaltan = 0.0,
+            codigoMinimo = 0.0,
             codigoError = null,
         )
     }
@@ -545,9 +598,24 @@ class CartViewModel(
                 // Para recoger en persona no se manda el domicilio, aunque esté
                 // guardado: la tienda no lo necesita y lo que no se manda no se filtra.
                 direccion = sobreDireccion.takeIf { estado.entrega == MetodoEntrega.Domicilio },
-                envio = estado.envioElegido.takeIf { estado.entrega == MetodoEntrega.Domicilio },
+                // Con envío gratis no viaja paquetería. Puede quedar una elegida de
+                // antes de poner el código, y mandarla diría que el cliente escogió
+                // esa: `generar-guia` la trataría como su decisión y no dejaría
+                // cambiarla, cuando aquí la elección es de la tienda, que es quien
+                // paga. La columna `envio_gratis` la escribe `crear-pago` tras validar
+                // el código por su cuenta; desde el navegador no se escribe.
+                envio = estado.envioElegido.takeIf {
+                    estado.entrega == MetodoEntrega.Domicilio && !estado.envioGratis
+                },
                 // Solo el código: el descuento lo calcula y lo aplica `crear-pago`.
-                codigo = estado.codigoAplicado.ifBlank { null },
+                //
+                // Un código en gris —puesto pero sin llegar a su mínimo— no viaja. No
+                // está aplicado, el total que se enseña no lo cuenta, y atarlo a esta
+                // solicitud se lo quitaría de en medio: el índice único de
+                // `codigo_descuento` no deja usarlo en otro carrito mientras siga ahí.
+                codigo = estado.codigoAplicado
+                    .takeIf { !estado.codigoEsperandoMinimo }
+                    ?.ifBlank { null },
             )
             when (resultado) {
                 is EnvioResult.Enviada -> {
@@ -565,8 +633,12 @@ class CartViewModel(
                             // no debe arrastrarse al siguiente carrito.
                             codigo = "",
                             codigoAplicado = "",
+                            codigoTipo = "",
                             codigoPct = 0,
                             codigoRegalo = "",
+                            codigoEsperandoMinimo = false,
+                            codigoFaltan = 0.0,
+                            codigoMinimo = 0.0,
                             codigoError = null,
                             // El acuse solo cuando nos quedamos. Si vamos a Mercado
                             // Pago, enseñar «solicitud enviada» un instante antes de
@@ -611,5 +683,27 @@ class CartViewModel(
             // Cambió lo que va dentro de la caja, así que lo cotizado dejó de valer.
             olvidarCotizacion(estado).copy(cart = nuevo, errorMessage = null)
         }
+        // Y el mínimo de un código puede haber dejado de cumplirse —o haberse
+        // cumplido—. Se vuelve a preguntar porque quien decide es el servidor: aquí no
+        // se sabe cuánto pedía ese código.
+        revalidarCodigo()
+    }
+
+    /**
+     * Vuelve a comprobar el código aplicado tras cambiar el carrito.
+     *
+     * Es lo que hace que un código de envío gratis se encienda solo al pasar del
+     * mínimo y se apague al bajar, sin que haya que volver a escribirlo.
+     *
+     * Solo molesta al servidor cuando puede cambiar la respuesta: con un código puesto
+     * y con mínimo. Uno sin mínimo contesta lo mismo con un artículo que con diez, y
+     * preguntarlo en cada clic del «+» serían diez llamadas para nada.
+     */
+    private fun revalidarCodigo() {
+        val estado = _uiState.value
+        if (estado.codigoAplicado.isBlank() || estado.validandoCodigo) return
+        if (estado.codigoMinimo <= 0.0) return
+        if (estado.cart.items.isEmpty()) return
+        comprobar(estado.codigoAplicado, estado.cart.items)
     }
 }

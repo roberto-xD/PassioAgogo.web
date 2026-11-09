@@ -543,7 +543,11 @@ private fun Importes(acuse: Acuse, detalleAbierto: Boolean, onAlternar: () -> Un
         }
 
         FilaDato("Artículos", formatPrice(acuse.totalArticulos))
-        if (acuse.tieneEnvio) {
+        // Un cero en el renglón del envío se leería como «falta por cotizar». Si lo
+        // cubrió un código, se dice.
+        if (acuse.envioGratis) {
+            FilaDato(etiqueta = "Envío", valor = "Gratis")
+        } else if (acuse.tieneEnvio) {
             FilaDato(
                 etiqueta = "Envío" + acuse.envioDescripcion.takeIf { it.isNotBlank() }
                     ?.let { " · $it" }.orEmpty(),

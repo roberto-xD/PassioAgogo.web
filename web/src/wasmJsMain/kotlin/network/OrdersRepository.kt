@@ -161,12 +161,14 @@ class OrdersRepository(
         // con un 400 y el historial se quedaría en blanco: se va quitando de atrás hacia
         // adelante hasta dar con lo que la base sí tiene. Peor es una pantalla vacía que
         // una sin el número de guía.
-        return leerSolicitudes(conGuia = true, conPago = true)
-            ?: leerSolicitudes(conGuia = true, conPago = false)
-            ?: leerSolicitudes(conGuia = false, conPago = false)
+        return leerSolicitudes(conGratis = true, conGuia = true, conPago = true)
+            ?: leerSolicitudes(conGratis = false, conGuia = true, conPago = true)
+            ?: leerSolicitudes(conGratis = false, conGuia = true, conPago = false)
+            ?: leerSolicitudes(conGratis = false, conGuia = false, conPago = false)
     }
 
     private suspend fun leerSolicitudes(
+        conGratis: Boolean,
         conGuia: Boolean,
         conPago: Boolean,
     ): List<Solicitud>? = runCatching {
@@ -174,6 +176,9 @@ class OrdersRepository(
             append("id, folio, estado, total_estimado, created_at, motivo_rechazo, ")
             if (conGuia) append("guia_numero, guia_rastreo_url, guia_paqueteria, ")
             if (conGuia) append("envio_costo, envio_descripcion, ")
+            // 48_codigos.sql, en su propio escalón: pedirla junto a las del pago dejaría
+            // sin estado de cobro a una base donde ese script todavía no se ha corrido.
+            if (conGratis) append("envio_gratis, ")
             if (conPago) append("pago_estado, pago_total, pago_metodo, pago_referencia, ")
             if (conPago) append("pago_marca, pago_ultimos4, ")
             append("order_request_items(cantidad, precio_estimado)")
@@ -200,6 +205,7 @@ class OrdersRepository(
                     guiaPaqueteria = dto.guiaPaqueteria.orEmpty(),
                     envioCosto = dto.envioCosto ?: 0.0,
                     envioDescripcion = dto.envioDescripcion.orEmpty(),
+                    envioGratis = dto.envioGratis,
                     pagoEstado = dto.pagoEstado.orEmpty(),
                     pagoTotal = dto.pagoTotal ?: 0.0,
                     pagoMetodo = dto.pagoMetodo.orEmpty(),
@@ -222,7 +228,7 @@ private fun faltaLaColumna(raw: String): Boolean {
         "envio_costo" in m || "envio_entrega" in m ||
         "pago_estado" in m || "pago_total" in m ||
         "pago_metodo" in m || "pago_referencia" in m ||
-        "codigo_descuento" in m ||
+        "codigo_descuento" in m || "envio_gratis" in m ||
         "pago_marca" in m || "pago_ultimos4" in m
     return nombra &&
         ("does not exist" in m || "no existe" in m || "pgrst204" in m || "schema cache" in m)

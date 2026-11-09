@@ -187,12 +187,20 @@ fun CartScreen(
                 )
                 // Debajo de la tarjeta de la dirección, porque es de su código postal de
                 // donde sale el precio: puesto antes no tendría a dónde cotizar.
-                OpcionesDeEnvio(
-                    state = state,
-                    cp = direccion.direccion.cp,
-                    onCotizar = onCotizarEnvio,
-                    onElegir = onElegirEnvio,
-                )
+                //
+                // Con envío gratis no hay nada que cotizar ni que elegir: la paquetería
+                // la pone la tienda, que es quien paga la guía. Enseñar la lista sería
+                // pedir una decisión que no cambia nada.
+                if (state.envioGratis) {
+                    EnvioGratis()
+                } else {
+                    OpcionesDeEnvio(
+                        state = state,
+                        cp = direccion.direccion.cp,
+                        onCotizar = onCotizarEnvio,
+                        onElegir = onElegirEnvio,
+                    )
+                }
             }
             MetodoEntrega.Personal -> DataCard(
                 titulo = "Entrega en persona",
@@ -311,7 +319,9 @@ private fun queFalta(state: CartUiState): String? = when {
     !state.telefonoCompleto -> "Falta tu teléfono de contacto."
     state.faltaDireccion -> "Falta guardar la dirección de envío."
     // Sin envío elegido el total no lleva el envío dentro, así que no se puede cobrar.
-    state.entrega == MetodoEntrega.Domicilio && state.envioElegido == null ->
+    // Con envío gratis sí lo lleva: vale cero.
+    state.entrega == MetodoEntrega.Domicilio && !state.envioGratis &&
+        state.envioElegido == null ->
         "Elige una opción de envío para continuar."
     // Solo estorba al camino de WhatsApp: el de pagar no la necesita.
     else -> null
@@ -451,7 +461,7 @@ private fun Totales(state: CartUiState) {
     // El desglose aparece en cuanto hay algo que desglosar: un envío elegido o un
     // descuento. Con un total a secas, una cifra menor que la suma de los artículos
     // parece un error.
-    val hayDesglose = state.envioElegido != null || state.descuento > 0.0
+    val hayDesglose = state.envioElegido != null || state.descuento > 0.0 || state.envioGratis
     if (hayDesglose) {
         RenglonTotal("Productos", formatPrice(state.cart.total), fuerte = false)
         if (state.descuento > 0.0) {
@@ -461,7 +471,12 @@ private fun Totales(state: CartUiState) {
                 fuerte = false,
             )
         }
-        if (state.envioElegido != null) {
+        // El envío gratis manda sobre lo que hubiera cotizado: puede quedar una
+        // paquetería elegida de antes de poner el código, y cobrarla sería cobrar lo
+        // que el código dice que no se cobra.
+        if (state.envioGratis) {
+            RenglonTotal(etiqueta = "Envío", valor = "Gratis", fuerte = false)
+        } else if (state.envioElegido != null) {
             RenglonTotal(
                 etiqueta = "Envío · ${state.envioElegido.titulo}",
                 valor = formatPrice(envio),
@@ -500,11 +515,24 @@ private fun CodigoDescuento(
         FormField(
             value = state.codigo,
             onValueChange = onCambiar,
-            label = "Código de la ruleta",
+            label = "Tu código",
             // Puesto no se edita: para cambiarlo se quita, y así no hay un momento en
             // que el total de arriba no corresponda a lo que dice el campo.
             enabled = !aplicado && !state.validandoCodigo,
             supportingText = when {
+                // Sirve, pero el carrito todavía no llega a su mínimo. Se queda puesto
+                // y se dice cuánto falta: quitarlo obligaría a teclearlo otra vez
+                // después de añadir un artículo.
+                aplicado && state.codigoEsperandoMinimo ->
+                    "Todavía no aplica: te faltan " +
+                        "${formatPrice(state.codigoFaltan)} en productos. Se activa " +
+                        "solo al llegar."
+                // Un código de envío gratis en una entrega en persona no cubre nada.
+                // Más vale decirlo que dejar que lo descubra al no ver ningún cambio.
+                aplicado && state.codigoTipo == "envio_gratis" && state.entregaPersonal ->
+                    "Este código cubre el envío, y en entrega personal no hay envío."
+                aplicado && state.codigoTipo == "envio_gratis" ->
+                    "Aplicado: envío gratis. Nosotros elegimos la paquetería."
                 // Un regalo no descuenta: lo que cambia es lo que llega en la caja, y
                 // decir «0 % de descuento» sonaría a que el código no sirvió.
                 aplicado && state.codigoRegalo.isNotBlank() ->
@@ -542,8 +570,10 @@ private fun CodigoDescuento(
     }
 
     // El descuento no toca el envío, y vale decirlo antes de que lo note en el total.
-    // Con un regalo no aplica: no hay nada que descontar.
-    if (aplicado && state.codigoRegalo.isBlank()) {
+    // Solo donde hay un porcentaje que aplicar: con un regalo no hay nada que
+    // descontar, con envío gratis el envío es justo lo que cubre, y mientras falte
+    // para el mínimo todavía no descuenta nada.
+    if (aplicado && state.codigoPct > 0 && !state.codigoEsperandoMinimo) {
         Text(
             text = "El descuento aplica a los productos; el envío se cobra completo.",
             color = PassionTheme.semantics.onBackgroundSubtle,
@@ -580,6 +610,28 @@ private fun RenglonTotal(etiqueta: String, valor: String, fuerte: Boolean) {
             else MaterialTheme.typography.bodyMedium,
             fontWeight = if (fuerte) FontWeight.Bold else FontWeight.Normal,
             modifier = Modifier.padding(start = PassionTheme.spacing.s3),
+        )
+    }
+}
+
+/**
+ * El envío lo cubre un código: ni se cotiza ni se elige.
+ *
+ * Ocupa el sitio de la lista de paqueterías porque es la respuesta a la misma pregunta
+ * —«¿cómo llega y cuánto cuesta?»—, y deja claro quién escoge: la tienda, que es quien
+ * paga la guía. Se dice aquí y no al pagar, que es donde descubrirlo ya sería tarde.
+ */
+@Composable
+private fun EnvioGratis() {
+    Spacer(Modifier.height(PassionTheme.spacing.s3))
+    DataCard(titulo = "Envío gratis", modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Tu código cubre el envío, así que no hay paquetería que elegir: " +
+                "nosotros la escogemos y te damos el número de guía en cuanto el " +
+                "paquete salga.",
+            color = PassionTheme.semantics.onBackgroundMuted,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s2),
         )
     }
 }

@@ -76,14 +76,16 @@ async function hashIp(ip: string): Promise<string> {
     .join("");
 }
 
-interface FilaGiro {
+interface FilaCodigo {
   codigo: string;
-  rotulo: string;
-  canjeado: boolean;
+  tipo: string;
+  descuento_pct: number | null;
+  regalo: string | null;
+  minimo_compra: number | null;
+  usos: number;
+  usos_max: number;
   expira_at: string | null;
-  wheel_prizes:
-    | { tipo: string | null; descuento_pct: number | null; detalle: string | null }
-    | null;
+  activo: boolean;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -111,7 +113,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const usuario = sesion?.user;
   if (!usuario) return json({ error: "Necesitas una sesión." }, 401, origin);
 
-  let cuerpo: { codigo?: unknown };
+  let cuerpo: { codigo?: unknown; items?: unknown };
   try {
     cuerpo = await req.json();
   } catch (_e) {
@@ -132,7 +134,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const freno = await demasiados(supabase, usuario.id, ipHash);
   if (freno) return json({ valido: false, motivo: freno }, 429, origin);
 
-  const resultado = await revisar(supabase, codigo);
+  // El subtotal se suma **aquí**, de los precios de la base, no de lo que diga el
+  // navegador: es lo que decide si se alcanza el mínimo. Da igual que esto sea solo
+  // para enseñar —`crear-pago` lo vuelve a sumar— pero mentirle a la pantalla sobre
+  // si un código aplica es prometer algo que luego se cae al pagar.
+  const subtotal = await subtotalDe(supabase, cuerpo.items);
+
+  const resultado = await revisar(supabase, codigo, subtotal);
   await anotar(supabase, usuario.id, ipHash, resultado.valido);
 
   return json(resultado, 200, origin);
@@ -141,13 +149,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
 interface Veredicto {
   valido: boolean;
   motivo?: string;
-  /** `descuento` o `regalo`. Decide qué enseña la pantalla. */
+  /** `descuento`, `regalo` o `envio_gratis`. Decide qué enseña la pantalla. */
   tipo?: string;
-  /** Solo con `descuento`. Con un regalo es cero: no descuenta nada. */
+  /** Solo con `descuento`. Con los demás es cero. */
   pct?: number;
-  rotulo?: string;
   /** Con un regalo, qué se gana. Es lo que se lee al preparar la caja. */
   detalle?: string;
+  /**
+   * El código existe y sirve, pero la compra todavía no llega a su mínimo.
+   *
+   * Se devuelve **válido** a propósito: el código se queda puesto, en gris, y se
+   * reactiva solo si añade más. Rechazarlo le haría volver a teclearlo.
+   */
+  esperandoMinimo?: boolean;
+  minimo?: number;
+  /** Lo que falta para llegar. Para decirlo con una cifra y no con un «no llegas». */
+  faltan?: number;
 }
 
 /**
@@ -157,68 +174,104 @@ interface Veredicto {
  * información, pero lo que se regala es la existencia de códigos **que ya no sirven**:
  * los que sí valen contestan «válido» de todas formas. Y a quien se equivoca al
  * teclear, decirle qué pasó le ahorra reintentar a ciegas.
+ *
+ * Con un mínimo de compra sin alcanzar devuelve **válido igualmente**, marcado con
+ * `esperandoMinimo`: el código se queda puesto en gris y se activa solo cuando el
+ * carrito sube. Rechazarlo obligaría a volver a teclearlo tras añadir un artículo.
  */
 async function revisar(
   // deno-lint-ignore no-explicit-any
   supabase: any,
   codigo: string,
+  subtotal: number,
 ): Promise<Veredicto> {
   const { data } = await supabase
-    .from("wheel_spins")
+    .from("codigos")
     .select(
-      "codigo, rotulo, canjeado, expira_at, " +
-        "wheel_prizes(tipo, descuento_pct, detalle)",
+      "codigo, tipo, descuento_pct, regalo, minimo_compra, usos, usos_max, " +
+        "expira_at, activo",
     )
     .eq("codigo", codigo)
     .maybeSingle();
 
-  const giro = data as FilaGiro | null;
-  if (!giro) return { valido: false, motivo: "Ese código no existe." };
-  if (giro.canjeado) return { valido: false, motivo: "Ese código ya se usó." };
+  const fila = data as FilaCodigo | null;
+  if (!fila) return { valido: false, motivo: "Ese código no existe." };
 
-  if (giro.expira_at && new Date(giro.expira_at).getTime() < Date.now()) {
-    return { valido: false, motivo: "Ese código ya caducó." };
-  }
+  // Apagado se trata como inexistente: se corta una campaña y no hay que explicarle a
+  // nadie por qué el código que le pasaron «existe pero no».
+  if (!fila.activo) return { valido: false, motivo: "Ese código ya no está disponible." };
 
-  const premio = giro.wheel_prizes;
-  const tipo = texto(premio?.tipo);
-
-  // Un premio de consolación no tiene nada que aplicar. Se le dice sin rodeos, que no
-  // es culpa suya haber escrito un código real.
-  if (tipo !== "descuento" && tipo !== "regalo") {
-    return { valido: false, motivo: "Ese código no trae ningún premio que aplicar." };
-  }
-
-  // Un regalo no descuenta: lo que hace es que la tienda meta algo más en la caja. Se
-  // aplica igual, porque si no se aplica, nadie se entera de que hay que meterlo.
-  if (tipo === "regalo") {
+  if (fila.usos >= fila.usos_max) {
     return {
-      valido: true,
-      tipo,
-      pct: 0,
-      rotulo: giro.rotulo,
-      detalle: texto(premio?.detalle) || giro.rotulo,
+      valido: false,
+      motivo: fila.usos_max === 1
+        ? "Ese código ya se usó."
+        : "Ese código ya llegó a su límite de usos.",
     };
   }
 
-  const pct = Number(premio?.descuento_pct ?? 0);
-  if (!(pct >= 1 && pct <= 100)) {
+  if (fila.expira_at && new Date(fila.expira_at).getTime() < Date.now()) {
+    return { valido: false, motivo: "Ese código ya caducó." };
+  }
+
+  const minimo = Number(fila.minimo_compra ?? 0);
+  const faltan = Math.round((minimo - subtotal) * 100) / 100;
+  const esperandoMinimo = minimo > 0 && faltan > 0;
+
+  const base: Veredicto = {
+    valido: true,
+    tipo: fila.tipo,
+    pct: fila.tipo === "descuento" ? Number(fila.descuento_pct ?? 0) : 0,
+    detalle: texto(fila.regalo),
+    ...(minimo > 0 ? { minimo } : {}),
+    ...(esperandoMinimo ? { esperandoMinimo: true, faltan } : {}),
+  };
+
+  if (fila.tipo === "descuento" && !(base.pct! >= 1 && base.pct! <= 100)) {
     return { valido: false, motivo: "Ese código no trae ningún premio que aplicar." };
   }
+  return base;
+}
 
-  // Un código vale una vez: si ya está puesto en otra solicitud, está apartado. Lo
-  // impide igualmente el índice único al cobrar, pero decirlo aquí evita que lo
-  // descubra al pulsar «Pagar».
-  const { data: usado } = await supabase
-    .from("order_requests")
-    .select("id")
-    .eq("codigo_descuento", codigo)
-    .maybeSingle();
-  if (usado) {
-    return { valido: false, motivo: "Ese código ya está aplicado en otro pedido." };
+/**
+ * Lo que suman los artículos del carrito, con los precios de la base.
+ *
+ * Mismo criterio que en todas partes: el navegador dice qué variantes y cuántas, los
+ * precios los pone el servidor. Cero si no manda nada, que con un mínimo por delante
+ * significa «todavía no llegas».
+ */
+async function subtotalDe(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  items: unknown,
+): Promise<number> {
+  const crudos = Array.isArray(items) ? items : [];
+  if (crudos.length === 0 || crudos.length > 100) return 0;
+
+  const porVariante = new Map<string, number>();
+  for (const it of crudos) {
+    const id = texto((it as { variantId?: unknown })?.variantId);
+    const cantidad = Math.floor(Number((it as { cantidad?: unknown })?.cantidad ?? 0));
+    if (!id || !(cantidad >= 1 && cantidad <= 99)) continue;
+    porVariante.set(id, (porVariante.get(id) ?? 0) + cantidad);
   }
+  if (porVariante.size === 0) return 0;
 
-  return { valido: true, tipo, pct, rotulo: giro.rotulo };
+  try {
+    const { data } = await supabase
+      .from("product_variants")
+      .select("id, precio_venta")
+      .in("id", [...porVariante.keys()]);
+
+    let total = 0;
+    for (const v of (data ?? []) as Array<{ id: string; precio_venta: number | null }>) {
+      total += Number(v.precio_venta ?? 0) * (porVariante.get(v.id) ?? 0);
+    }
+    return Math.round(total * 100) / 100;
+  } catch (e) {
+    console.error("no se pudo sumar el carrito", String(e));
+    return 0;
+  }
 }
 
 /** ¿Se ha pasado probando? Devuelve el motivo, o `null`. Nunca lanza. */

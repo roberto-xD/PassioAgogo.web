@@ -518,14 +518,19 @@ function ultimos4De(datos: any): string {
 }
 
 /**
- * Marca el código como canjeado. Nunca lanza.
+ * Consume un uso del código. Nunca lanza.
  *
- * Si falla, el cobro ya está hecho y el pedido en orden: lo único que queda es un
- * código que podría usarse otra vez. Tirar el aviso entero por eso sería dejar sin
- * registrar un pago para proteger un descuento.
+ * Suma uno a `codigos.usos` en vez de marcar un booleano, porque ahora un código puede
+ * valer para muchos: los de campaña se comparten y tienen tope. Se incrementa con una
+ * condición sobre el propio tope —`usos < usos_max`— para que dos pagos aprobados a la
+ * vez no lo pasen de largo.
  *
- * Solo marca el que todavía no lo estaba (`eq("canjeado", false)`), para que un aviso
- * repetido no reescriba la fecha del canje original.
+ * Y se marca también `wheel_spins.canjeado`, que es lo que sigue mirando la gestión de
+ * la ruleta: mientras existan las dos tablas, tienen que contar lo mismo.
+ *
+ * Si falla, el cobro ya está hecho y el pedido en orden; lo único que queda es un uso
+ * sin descontar. Tirar el aviso entero por eso sería dejar sin registrar un pago para
+ * proteger un descuento.
  */
 async function quemarCodigo(
   // deno-lint-ignore no-explicit-any
@@ -533,14 +538,10 @@ async function quemarCodigo(
   codigo: string,
 ): Promise<void> {
   try {
-    const { error } = await supabase
-      .from("wheel_spins")
-      .update({ canjeado: true, canjeado_at: new Date().toISOString() } as never)
-      .eq("codigo", codigo)
-      .eq("canjeado", false);
-    if (error) console.error("no se pudo canjear el código", codigo, error.message);
+    const { error } = await supabase.rpc("consumir_codigo", { p_codigo: codigo });
+    if (error) console.error("no se pudo consumir el código", codigo, error.message);
   } catch (e) {
-    console.error("no se pudo canjear el código", codigo, String(e));
+    console.error("no se pudo consumir el código", codigo, String(e));
   }
 }
 

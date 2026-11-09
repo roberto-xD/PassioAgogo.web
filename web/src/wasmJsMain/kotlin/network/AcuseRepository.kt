@@ -55,21 +55,27 @@ class AcuseRepository(
         // rechaza la consulta entera con un 400. Se va quitando de atrás hacia adelante
         // en vez de dejar la pantalla en blanco — un acuse sin el nombre del artículo
         // sigue sirviendo; uno vacío, no.
-        val acuse = leerFila(solicitudId, conPago = true, conNombres = true)
-            ?: leerFila(solicitudId, conPago = false, conNombres = true)
-            ?: leerFila(solicitudId, conPago = false, conNombres = false)
+        val acuse = leerFila(solicitudId, conGratis = true, conPago = true, conNombres = true)
+            ?: leerFila(solicitudId, conGratis = false, conPago = true, conNombres = true)
+            ?: leerFila(solicitudId, conGratis = false, conPago = false, conNombres = true)
+            ?: leerFila(solicitudId, conGratis = false, conPago = false, conNombres = false)
 
         return acuse?.let(ResultadoAcuse::Encontrado) ?: ResultadoAcuse.NoEsta
     }
 
     private suspend fun leerFila(
         solicitudId: String,
+        conGratis: Boolean,
         conPago: Boolean,
         conNombres: Boolean,
     ): Acuse? = runCatching {
         val columnas = buildString {
             append("id, folio, estado, total_estimado, created_at, metodo_entrega, ")
             append("envio_costo, envio_descripcion, envio_entrega, ")
+            // 48_codigos.sql. Va en su propio escalón: metida con las del pago, una base
+            // sin ese script se quedaría también sin el estado del cobro, que es lo
+            // único que esta pantalla existe para contar.
+            if (conGratis) append("envio_gratis, ")
             if (conPago) {
                 append("pago_estado, pago_total, pago_metodo, pago_referencia, ")
                 append("pago_ultimos4, pago_marca, ")
@@ -167,6 +173,7 @@ class AcuseRepository(
             envioCosto = dto.envioCosto ?: 0.0,
             envioDescripcion = dto.envioDescripcion.orEmpty(),
             envioEntrega = dto.envioEntrega.orEmpty(),
+            envioGratis = dto.envioGratis,
             pagoEstado = dto.pagoEstado.orEmpty(),
             pagoTotal = dto.pagoTotal ?: 0.0,
             pagoMetodo = dto.pagoMetodo.orEmpty(),

@@ -153,7 +153,13 @@ private fun Tarjeta(
         )
         // El total ya lleva el envío dentro, así que se dice cuánto es: una cifra que
         // no cuadra con la suma de los artículos invita a pensar que está mal.
-        if (solicitud.tieneEnvio) {
+        if (solicitud.envioGratis) {
+            Text(
+                text = "Envío gratis",
+                color = PassionTheme.semantics.onBackgroundSubtle,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        } else if (solicitud.tieneEnvio) {
             Text(
                 text = "Incluye envío" +
                     solicitud.envioDescripcion.takeIf { it.isNotBlank() }

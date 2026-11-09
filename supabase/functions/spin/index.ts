@@ -13,8 +13,19 @@
 // resultado ya está decidido, y la animación solo se encarga de frenar
 // en el sector que toca.
 //
-// Escribe con service_role, que ignora RLS. `wheel_spins` no tiene
-// política de INSERT, así que este es el único camino de entrada.
+// Escribe con service_role, que ignora RLS. Ni `wheel_spins` ni
+// `codigos` tienen política de INSERT para el cliente, así que este es
+// el único camino de entrada.
+//
+// Escribe en las dos: en `codigos` lo que se canjeará al pagar
+// (48_codigos.sql) y en `wheel_spins` el registro de quién giró. Eran
+// una sola tabla hasta que hubo códigos que no venían de ningún giro
+// —los de campaña— y giros que no dan código.
+//
+// Requiere 45_premio_tipo.sql y 48_codigos.sql: lee `tipo`,
+// `descuento_pct` y `minimo_compra` de `wheel_prizes`. Sin esos scripts
+// la consulta de premios falla y la ruleta contesta «sin-premios», que
+// es mejor que repartir códigos que nadie podría canjear.
 //
 // Secrets (Supabase → Edge Functions → Secrets):
 //   CONTACT_IP_SALT         sal para el hash del IP. Se comparte con la
@@ -90,7 +101,42 @@ type Premio = {
   detalle: string | null;
   peso: number;
   otorga_premio: boolean;
+  tipo?: string | null;
+  descuento_pct?: number | null;
+  minimo_compra?: number | null;
+  vigencia_dias?: number | null;
 };
+
+/**
+ * Qué se canjea con este premio, en los términos de `codigos`, o null si no se canjea.
+ *
+ * `codigos` es la tabla de lo que se canjea al pagar (48_codigos.sql); `wheel_spins`
+ * sigue siendo el registro de quién giró y cuándo. Esta función traduce un sector de la
+ * rueda a una fila de la primera.
+ *
+ * Devuelve null —y no una fila a medias— cuando el premio está mal configurado: un
+ * `descuento` sin porcentaje no descuenta nada y el check de coherencia de la tabla lo
+ * rechazaría. Mejor un giro sin código que un código que falla al canjearse.
+ */
+function premioCanjeable(premio: Premio): Record<string, unknown> | null {
+  const tipo = (premio.tipo ?? "descuento").trim();
+  const minimo = premio.minimo_compra ?? null;
+
+  if (tipo === "envio_gratis") {
+    return { tipo, descuento_pct: null, regalo: null, minimo_compra: minimo };
+  }
+  if (tipo === "regalo") {
+    const regalo = (premio.detalle ?? premio.rotulo ?? "").trim();
+    if (!regalo) return null;
+    return { tipo, descuento_pct: null, regalo, minimo_compra: minimo };
+  }
+  if (tipo === "descuento") {
+    const pct = Number(premio.descuento_pct ?? 0);
+    if (!(pct >= 1 && pct <= 100)) return null;
+    return { tipo, descuento_pct: pct, regalo: null, minimo_compra: minimo };
+  }
+  return null;
+}
 
 /**
  * Sorteo ponderado: se tira un número dentro de la suma de pesos y se avanza
@@ -164,7 +210,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const { data: premios, error: errorPremios } = await supabase
     .from("wheel_prizes")
-    .select("id, rotulo, detalle, peso, otorga_premio, vigencia_dias")
+    .select(
+      "id, rotulo, detalle, peso, otorga_premio, vigencia_dias, " +
+        "tipo, descuento_pct, minimo_compra",
+    )
     .eq("activo", true)
     .order("orden", { ascending: true });
 
@@ -173,16 +222,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ ok: false, error: "sin-premios" }, 503, origin);
   }
 
-  const ganador = sortear(premios as Premio[]);
+  // `as unknown` por medio: el cliente genérico de Supabase no sabe la forma de esta
+  // consulta y la infiere como un error de cadena, así que un cast directo no compila.
+  const ganador = sortear(premios as unknown as Premio[]);
   if (!ganador) {
     return json({ ok: false, error: "sin-premios" }, 503, origin);
   }
 
-  // Reintento por si el código colisiona con uno ya emitido. Con 31^6
-  // combinaciones es improbable, pero la columna es única y una colisión
-  // devolvería un error feo en lugar de un premio.
+  // El código emitido. Queda vacío cuando el sector no otorga nada: la web solo lo
+  // enseña con premio, así que un giro sin premio no necesita ninguno.
   let codigo = "";
-  // La caducidad se graba **en el giro**, no se deduce del premio al canjear. Si
+  // La caducidad se graba **en el código**, no se deduce del premio al canjear. Si
   // mañana acortas la vigencia, los códigos ya emitidos conservan la que se les
   // prometió: no se le cambia el plazo a nadie a toro pasado. Sin vigencia, nulo, que
   // es «no caduca».
@@ -191,27 +241,59 @@ Deno.serve(async (req: Request): Promise<Response> => {
     ? new Date(Date.now() + dias * 86_400_000).toISOString()
     : null;
 
-  let guardado = false;
-  for (let intento = 0; intento < 5 && !guardado; intento++) {
-    codigo = nuevoCodigo();
-    const { error } = await supabase.from("wheel_spins").insert({
-      codigo,
-      prize_id: ganador.id,
-      rotulo: ganador.rotulo,
-      otorga_premio: ganador.otorga_premio,
-      ip_hash: ipHash,
-      expira_at: expiraAt,
-    });
-    if (!error) guardado = true;
-    else if (!error.message.includes("duplicate")) {
-      console.error("Error al guardar el giro:", error.message);
-      return json({ ok: false, error: "error-servidor" }, 500, origin);
-    }
+  // El código se emite **antes** de anotar el giro, y en este orden a propósito. Lo que
+  // hace que el premio valga algo es la fila de `codigos`: es la que se canjea al pagar.
+  // Si se anotara primero el giro y fallara el código, la persona se iría con un código
+  // que al teclearlo en el carrito contesta «no existe», y el enfriamiento por origen no
+  // la dejaría girar otra vez. Al revés, lo peor que pasa es perder una fila de
+  // `wheel_spins`, que es registro, no premio.
+  //
+  // Un premio que no otorga nada no emite código: no hay nada que canjear, y la web
+  // tampoco le enseña ninguno.
+  const canjeable = ganador.otorga_premio ? premioCanjeable(ganador as Premio) : null;
+  if (ganador.otorga_premio && !canjeable) {
+    // Un «descuento» sin porcentaje, un «regalo» sin detalle. Se registra y se sigue:
+    // el giro se anota igual, pero sin código, que es lo honesto cuando no hay premio
+    // que entregar.
+    console.error("Premio sin nada que canjear:", ganador.id, ganador.rotulo);
   }
 
-  if (!guardado) {
-    return json({ ok: false, error: "error-servidor" }, 500, origin);
+  if (canjeable) {
+    for (let intento = 0; intento < 5 && !codigo; intento++) {
+      const candidato = nuevoCodigo();
+      const { error } = await supabase.from("codigos").insert({
+        ...canjeable,
+        codigo: candidato,
+        usos_max: 1,
+        expira_at: expiraAt,
+        origen: "ruleta",
+        prize_id: ganador.id,
+      });
+      if (!error) codigo = candidato;
+      else if (!error.message.includes("duplicate")) {
+        console.error("Error al emitir el código:", error.message);
+        return json({ ok: false, error: "error-servidor" }, 500, origin);
+      }
+    }
+    // Cinco colisiones seguidas entre 31^6 combinaciones no es mala suerte, es otra
+    // cosa. Antes que entregar un premio sin código, se dice que falló.
+    if (!codigo) return json({ ok: false, error: "error-servidor" }, 500, origin);
   }
+
+  // El giro se anota siempre: es lo que sostiene el enfriamiento por origen y lo que
+  // dice qué sale de verdad en la rueda. Su columna `codigo` es única y obligatoria, así
+  // que un giro sin premio lleva uno propio que no canjea nada.
+  const { error: errorGiro } = await supabase.from("wheel_spins").insert({
+    codigo: codigo || nuevoCodigo(),
+    prize_id: ganador.id,
+    rotulo: ganador.rotulo,
+    otorga_premio: ganador.otorga_premio,
+    ip_hash: ipHash,
+    expira_at: expiraAt,
+  });
+  // No se aborta: el código ya está emitido y es válido. Perder el registro del giro
+  // cuesta una fila de estadística; negar el premio cuesta el premio.
+  if (errorGiro) console.error("Error al guardar el giro:", errorGiro.message);
 
   return json({
     ok: true,

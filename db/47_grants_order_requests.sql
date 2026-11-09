@@ -49,6 +49,23 @@ grant select (
   dir_salt_usuario, dir_kdf_iteraciones, dir_dk_admin, dir_admin_key_id
 ) on order_requests to authenticated;
 
+-- `envio_gratis` la añade 48_codigos.sql, y este script puede correrse antes que aquel.
+-- Va aparte y condicionada por eso: metida en la lista de arriba, correr 47 en una base
+-- sin 48 fallaría entero y dejaría el historial en 403 otra vez. Y hace falta que esté
+-- aquí, porque el `revoke` del principio se lleva por delante lo que concedió 48: sin
+-- esto, volver a correr 47 después de 48 le quitaría el permiso por detrás.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'order_requests'
+       and column_name = 'envio_gratis'
+  ) then
+    execute 'grant select (envio_gratis) on order_requests to authenticated';
+  end if;
+end $$;
+
 commit;
 
 -- ---------------------------------------------------------------------------

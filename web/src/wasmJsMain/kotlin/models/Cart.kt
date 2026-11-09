@@ -121,6 +121,8 @@ data class SolicitudDto(
     // `total_estimado`: ese lo calcula un trigger a partir de los artículos.
     @SerialName("envio_costo") val envioCosto: Double? = null,
     @SerialName("envio_descripcion") val envioDescripcion: String? = null,
+    // El envío promocional (48_codigos.sql).
+    @SerialName("envio_gratis") val envioGratis: Boolean = false,
     // El pago (39_pagos.sql). El cliente las lee y no las escribe: las pone el webhook
     // de Mercado Pago con service_role, después de comprobar la firma y de volver a
     // preguntarle a Mercado Pago cuánto se pagó.
@@ -151,6 +153,8 @@ data class Solicitud(
     val motivoRechazo: String,
     val envioCosto: Double = 0.0,
     val envioDescripcion: String = "",
+    /** El envío lo cubrió un código: no se cobró y la paquetería la escogió la tienda. */
+    val envioGratis: Boolean = false,
     /** Número de rastreo. Vacío mientras el pedido no se haya convertido en paquete. */
     val guiaNumero: String = "",
     val guiaRastreoUrl: String = "",
