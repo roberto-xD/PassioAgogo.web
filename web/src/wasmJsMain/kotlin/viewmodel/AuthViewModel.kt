@@ -3,6 +3,7 @@ package viewmodel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +16,16 @@ import network.AuthRepository
 
 /** Contraseña mínima admitida por Supabase Auth por defecto. */
 private const val MIN_PASSWORD = 6
+
+/**
+ * Cuántas veces se vuelve a preguntar por el perfil recién creado, y cada cuánto.
+ *
+ * Tres medios segundos: suficiente para una fila que crea un trigger, y poco como para
+ * que nadie note la espera. Más intentos no arreglarían nada que no esté roto de otra
+ * forma, y dejarían al botón de acceder girando sin explicación.
+ */
+private const val INTENTOS_PERFIL = 3
+private const val ESPERA_PERFIL_MS = 500L
 
 enum class AuthMode { SignIn, SignUp }
 
@@ -96,7 +107,12 @@ class AuthViewModel(
     private fun aplicarSesion(authenticated: Boolean) {
         val id = if (authenticated) repository.currentUserId() else ""
         _uiState.update {
-            val otraPersona = id != it.userId
+            // **Solo cuando antes había alguien.** Entrar o registrarse desde fuera no
+            // es un cambio de persona: no hay nada anterior que olvidar, y tratarlo
+            // como tal pisaba la sal que `prepararCifrado` acababa de derivar al
+            // registrarse —las dos cosas corren a la vez— y dejaba la cuenta recién
+            // creada sin poder cifrar su dirección.
+            val otraPersona = it.userId.isNotBlank() && id != it.userId
             it.copy(
                 isAuthenticated = authenticated,
                 userId = id,
@@ -260,16 +276,38 @@ class AuthViewModel(
     private suspend fun prepararCifrado(password: String) {
         if (password.isBlank()) return
 
-        val perfil = repository.loadProfile()
-        val sal = perfil?.kdfSalt?.takeIf { it.isNotBlank() }
+        // Al registrarse, la fila de `profiles` la crea la base y puede no estar lista
+        // en el instante en que la sesión ya lo está. Sin fila no hay dónde escribir la
+        // sal, y sin sal esta pestaña se queda sin clave: la dirección no se puede
+        // guardar hasta volver a entrar, que es el aviso raro que salía al crear una
+        // cuenta. Se reintenta en vez de rendirse al primer intento.
+        var perfil = repository.loadProfile()
+        var intento = 0
+        while (perfil == null && intento < INTENTOS_PERFIL) {
+            intento++
+            delay(ESPERA_PERFIL_MS)
+            perfil = repository.loadProfile()
+        }
+        if (perfil == null) {
+            println("PAG/cifrado: el perfil no apareció tras $intento intentos")
+            return
+        }
+
+        val sal = perfil.kdfSalt?.takeIf { it.isNotBlank() }
             ?: AddressCrypto.nuevaSal()?.also { nueva ->
                 // Si no se puede guardar, no se deriva con ella: una clave derivada de
                 // una sal que la próxima sesión no conocerá dejaría el sobre inabrible.
-                if (!addresses.guardarSal(nueva)) return
+                if (!addresses.guardarSal(nueva)) {
+                    println("PAG/cifrado: la sal no se pudo guardar en el perfil")
+                    return
+                }
             }
             ?: return
 
-        AddressCrypto.derivarYRecordar(password, sal)
+        if (!AddressCrypto.derivarYRecordar(password, sal)) {
+            println("PAG/cifrado: no se pudo derivar la clave")
+            return
+        }
         _uiState.update { it.copy(kdfSalt = sal) }
     }
 

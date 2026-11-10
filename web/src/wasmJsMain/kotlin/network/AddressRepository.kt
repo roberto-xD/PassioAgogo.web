@@ -10,6 +10,10 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
+/** Lo único que hace falta de vuelta al guardar la sal: que haya vuelto algo. */
+@Serializable
+private data class SalGuardadaDto(val id: String = "")
+
 /** La clave pública con la que se envuelve la copia de administración. */
 @Serializable
 data class ClaveAdminDto(
@@ -138,13 +142,22 @@ class AddressRepository(
         if (!SupabaseConfig.isConfigured) return false
         val userId = supabase.auth.currentUserOrNull()?.id ?: return false
         return runCatching {
+            // Se pide la fila de vuelta **a propósito**. Un `update` que no encuentra
+            // a quién actualizar no es un error: afecta a cero filas y contesta que
+            // todo bien. Dando eso por bueno se derivaba la clave con una sal que no
+            // se guardó en ninguna parte, y el sobre que se cifrara con ella no lo
+            // abriría nadie en la siguiente sesión —ni su dueño—. Esa pérdida no se
+            // nota el día que pasa; se nota cuando hace falta la dirección.
             supabase.from("profiles").update(
                 buildJsonObject { put("kdf_salt", sal) }
             ) {
+                select(Columns.raw("id"))
                 filter { eq("id", userId) }
-            }
-            true
-        }.getOrDefault(false)
+            }.decodeList<SalGuardadaDto>().isNotEmpty()
+        }.getOrElse { e ->
+            println("PAG/dirección: no se pudo guardar la sal — ${e.message}")
+            false
+        }
     }
 }
 
