@@ -22,6 +22,14 @@ data class AuthUiState(
     val isAuthenticated: Boolean = false,
     val profile: ProfileDto? = null,
     val accountEmail: String = "",
+    /**
+     * Quién tiene la sesión. Vacío si no hay ninguna.
+     *
+     * Lo mira el resto de la aplicación para saber **cuándo cambió la persona**, que
+     * no es lo mismo que saber si hay sesión: cerrar la de una cuenta y abrir la de
+     * otra deja el booleano donde estaba un instante antes y después.
+     */
+    val userId: String = "",
     val mode: AuthMode = AuthMode.SignIn,
     val email: String = "",
     val password: String = "",
@@ -67,15 +75,39 @@ class AuthViewModel(
         // tanto el inicio de sesión manual como la sesión recuperada.
         scope.launch {
             repository.isAuthenticated.collect { authenticated ->
-                _uiState.update {
-                    it.copy(
-                        isAuthenticated = authenticated,
-                        accountEmail = if (authenticated) repository.currentEmail() else "",
-                        profile = if (authenticated) it.profile else null,
-                    )
-                }
+                aplicarSesion(authenticated)
                 if (authenticated) refreshProfile()
             }
+        }
+    }
+
+    /**
+     * Deja el estado acorde con quién tiene la sesión ahora.
+     *
+     * Lo delicado es el cambio de persona en la misma pestaña. Los campos del perfil
+     * se rellenan con `ifBlank` —para no pisar lo que alguien esté escribiendo— y eso,
+     * sin limpiarlos aquí, hace que los de la cuenta anterior sobrevivan a la nueva.
+     *
+     * `kdfSalt` es el peor de todos: de él sale la clave con la que se abre y se
+     * guarda la dirección cifrada. Con la sal de otra cuenta, esta persona no abre su
+     * propia dirección, y la que guardara quedaría cerrada con una llave que no es la
+     * suya. Eso no se ve: se descubre semanas después, cuando ya no se puede leer.
+     */
+    private fun aplicarSesion(authenticated: Boolean) {
+        val id = if (authenticated) repository.currentUserId() else ""
+        _uiState.update {
+            val otraPersona = id != it.userId
+            it.copy(
+                isAuthenticated = authenticated,
+                userId = id,
+                accountEmail = if (authenticated) repository.currentEmail() else "",
+                profile = if (authenticated && !otraPersona) it.profile else null,
+                perfilNombre = if (otraPersona) "" else it.perfilNombre,
+                perfilTelefono = if (otraPersona) "" else it.perfilTelefono,
+                perfilMensaje = if (otraPersona) null else it.perfilMensaje,
+                perfilError = if (otraPersona) null else it.perfilError,
+                kdfSalt = if (otraPersona) "" else it.kdfSalt,
+            )
         }
     }
 
@@ -209,14 +241,12 @@ class AuthViewModel(
      */
     fun syncSession() {
         val hay = repository.hasSessionNow()
-        if (hay == _uiState.value.isAuthenticated) return
-        _uiState.update {
-            it.copy(
-                isAuthenticated = hay,
-                accountEmail = if (hay) repository.currentEmail() else "",
-                profile = if (hay) it.profile else null,
-            )
-        }
+        // Se compara también el id: una sesión sustituida por otra deja el booleano
+        // igual, y mirar solo eso daría por buena la pantalla de la cuenta anterior.
+        val id = if (hay) repository.currentUserId() else ""
+        val estado = _uiState.value
+        if (hay == estado.isAuthenticated && id == estado.userId) return
+        aplicarSesion(hay)
         if (hay) scope.launch { refreshProfile() }
     }
 

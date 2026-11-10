@@ -358,6 +358,36 @@ class CartViewModel(
 
     fun setAutenticado(v: Boolean) = _uiState.update { it.copy(autenticado = v) }
 
+    /** Quién tenía la sesión la última vez que se miró. Nulo: todavía no se ha mirado. */
+    private var ultimoUsuario: String? = null
+
+    /**
+     * Cambió quién tiene la sesión: hay que olvidar a la persona anterior.
+     *
+     * Nada de esto se limpiaba al cerrar sesión, y el resultado era que la cuenta
+     * siguiente heredaba lo de la anterior en la misma pestaña: su nombre, su
+     * teléfono, su historial de solicitudes, su código de la ruleta y —lo más grave—
+     * el sobre cifrado de su dirección, que se habría copiado tal cual a la solicitud
+     * de otra persona. `prefill` no lo tapaba porque rellena con `ifBlank`, y los
+     * campos no estaban en blanco: estaban llenos con los datos del anterior.
+     *
+     * **Entrar desde invitado no limpia nada.** Ese es el camino de quien arma un
+     * carrito, se topa con «necesitas una cuenta» y accede: vaciárselo justo entonces
+     * sería castigarle por haber hecho lo que se le pidió. Solo se limpia cuando la
+     * persona que había deja de ser la que hay.
+     */
+    fun sesionCambio(usuarioId: String) {
+        val anterior = ultimoUsuario
+        ultimoUsuario = usuarioId
+        // Primera noticia de la sesión —al cargar la página— o un invitado que entra.
+        if (anterior == null || anterior.isBlank()) return
+        if (anterior == usuarioId) return
+
+        CartStorage.clear()
+        sobreDireccion = null
+        _uiState.value = CartUiState(autenticado = usuarioId.isNotBlank())
+    }
+
     /**
      * Pide las opciones de envío para el código postal de la dirección guardada.
      *

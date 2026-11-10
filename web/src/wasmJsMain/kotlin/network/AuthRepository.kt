@@ -49,6 +49,17 @@ class AuthRepository(
         if (!SupabaseConfig.isConfigured) ""
         else supabase.auth.currentUserOrNull()?.email.orEmpty()
 
+    /**
+     * Quién tiene la sesión, por su identificador.
+     *
+     * Es lo que distingue una cuenta de otra cuando se usan las dos en la misma
+     * pestaña. El correo serviría casi siempre, pero puede venir vacío según cómo se
+     * haya creado la cuenta, y dos vacíos se parecen demasiado a la misma persona.
+     */
+    fun currentUserId(): String =
+        if (!SupabaseConfig.isConfigured) ""
+        else supabase.auth.currentUserOrNull()?.id.orEmpty()
+
     /** Devuelve un mensaje de error legible, o `null` si la operación fue correcta. */
     suspend fun signIn(email: String, password: String): String? = runAuth {
         supabase.auth.signInWith(Email) {

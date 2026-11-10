@@ -195,7 +195,11 @@ fun App() {
     LaunchedEffect(authState.isAuthenticated, authState.kdfSalt) {
         if (authState.isAuthenticated && authState.kdfSalt.isNotBlank()) {
             addressViewModel.cargar(authState.kdfSalt)
-        } else if (!authState.isAuthenticated) {
+        } else {
+            // También con sesión abierta y sin sal, que es el instante justo después
+            // de cambiar de cuenta: la sal de la anterior ya se tiró y la de esta no
+            // ha llegado. Antes ese hueco no limpiaba nada y dejaba a la vista la
+            // dirección de la persona que acababa de salir.
             addressViewModel.limpiar()
         }
     }
@@ -209,6 +213,16 @@ fun App() {
     // sin ella no hay dónde guardarla.
     LaunchedEffect(authState.isAuthenticated) {
         cartViewModel.setAutenticado(authState.isAuthenticated)
+    }
+
+    // Cambió la persona: el carrito olvida a la anterior.
+    //
+    // Va **antes** del prefill de más abajo a propósito. Los efectos se aplican en el
+    // orden en que están escritos, y si el relleno corriera primero no encontraría los
+    // campos en blanco —seguirían con los datos de la cuenta anterior— y los dejaría
+    // tal cual, que es exactamente el problema que esto viene a arreglar.
+    LaunchedEffect(authState.userId) {
+        cartViewModel.sesionCambio(authState.userId)
     }
 
     // Enviada la solicitud, el teléfono que se escribió al pedir se queda en el perfil
