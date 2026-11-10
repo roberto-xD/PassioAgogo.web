@@ -63,6 +63,17 @@ object WhatsAppConfig {
         enlace("Hola, quiero cancelar mi pedido #$folio")
 
     /**
+     * Seguimiento de una devolución ya pedida.
+     *
+     * Distinto de [enlaceParaCancelacion] porque la conversación es otra: quien ya
+     * canceló no viene a cancelar, viene a preguntar por su dinero. Abrir WhatsApp y
+     * encontrar escrito lo que uno no quería decir acaba en que lo borra y escribe
+     * «hola», y ahí se pierde el folio.
+     */
+    fun enlaceParaDevolucion(folio: Long): String =
+        enlace("Hola, cancelé mi pedido #$folio y quiero saber de mi devolución")
+
+    /**
      * Reclamación de un premio de la ruleta.
      *
      * El código va en el mensaje porque es lo que se verifica contra `wheel_spins` al

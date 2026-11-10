@@ -204,6 +204,27 @@ private fun Tarjeta(
             )
         }
 
+        // La canceló la tienda, no ella. Sin esta línea, su pedido aparece cancelado
+        // sin que nadie le haya dicho nada, que es la forma más rápida de que escriba
+        // enfadada y con razón.
+        if (solicitud.cancelada && solicitud.canceladaPor == "tienda") {
+            Text(
+                text = "Cancelamos este pedido desde la tienda" +
+                    if (solicitud.pago == EstadoPago.Reembolsado) {
+                        " y te devolvimos el pago."
+                    } else {
+                        "."
+                    },
+                color = PassionTheme.semantics.onBackgroundMuted,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+            )
+            EnlaceWhatsApp(
+                texto = "Preguntar por WhatsApp",
+                enlace = WhatsAppConfig.enlaceParaPedido(solicitud.folio),
+            )
+        }
+
         // Pedida y con el dinero todavía cobrado: lo único que importa aquí es qué
         // pasa ahora, y que no es una espera indefinida.
         if (solicitud.cancelacionPedida) {
@@ -214,7 +235,10 @@ private fun Tarjeta(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = PassionTheme.spacing.s2),
             )
-            EnlaceWhatsApp("Escribir por WhatsApp", solicitud.folio)
+            EnlaceWhatsApp(
+                texto = "Escribir por WhatsApp",
+                enlace = WhatsAppConfig.enlaceParaDevolucion(solicitud.folio),
+            )
         }
 
         Cancelacion(
@@ -283,7 +307,14 @@ private fun Cancelacion(
             if (aviso.estado == CancelacionEstado.Solicitada ||
                 aviso.estado == CancelacionEstado.ConGuia
             ) {
-                EnlaceWhatsApp("Escribir por WhatsApp", solicitud.folio)
+                EnlaceWhatsApp(
+                    texto = "Escribir por WhatsApp",
+                    enlace = if (aviso.estado == CancelacionEstado.Solicitada) {
+                        WhatsAppConfig.enlaceParaDevolucion(solicitud.folio)
+                    } else {
+                        WhatsAppConfig.enlaceParaCancelacion(solicitud.folio)
+                    },
+                )
             }
             Spacer(Modifier.height(PassionTheme.spacing.s3))
             PassionButton(texto = "Entendido", onClick = cerrar)
@@ -334,7 +365,10 @@ private fun Cancelacion(
                         "aquí ya no se puede cancelar. Escríbenos por WhatsApp con tu " +
                         "folio y lo vemos contigo."
                 )
-                EnlaceWhatsApp("Escribir por WhatsApp", solicitud.folio)
+                EnlaceWhatsApp(
+                    texto = "Escribir por WhatsApp",
+                    enlace = WhatsAppConfig.enlaceParaCancelacion(solicitud.folio),
+                )
                 Spacer(Modifier.height(PassionTheme.spacing.s3))
                 PassionButton(
                     texto = "Entendido",
@@ -365,9 +399,16 @@ private fun BotonesDeCancelacion(
     }
 }
 
-/** El enlace a la conversación, con el folio ya dentro del mensaje. */
+/**
+ * El enlace a la conversación, con el mensaje ya redactado.
+ *
+ * Recibe el enlace hecho y no el folio: el mensaje no es el mismo cuando alguien va a
+ * pedir una cancelación que cuando pregunta por una devolución que ya pidió. Quien
+ * abre WhatsApp y encuentra escrito lo que no quería decir, lo borra y escribe «hola»,
+ * y ahí se pierde el folio.
+ */
 @Composable
-private fun EnlaceWhatsApp(texto: String, folio: Long) {
+private fun EnlaceWhatsApp(texto: String, enlace: String) {
     if (!WhatsAppConfig.isConfigured) return
     Text(
         text = texto,
@@ -376,7 +417,7 @@ private fun EnlaceWhatsApp(texto: String, folio: Long) {
         modifier = Modifier
             .padding(top = PassionTheme.spacing.s2)
             .clip(MaterialTheme.shapes.extraSmall)
-            .clickable { openInNewTab(WhatsAppConfig.enlaceParaCancelacion(folio)) }
+            .clickable { openInNewTab(enlace) }
             .padding(vertical = PassionTheme.spacing.s1),
     )
 }
@@ -393,6 +434,13 @@ private fun EnlaceWhatsApp(texto: String, folio: Long) {
 @Composable
 private fun Pago(solicitud: Solicitud, pagando: Boolean, onPagar: () -> Unit) {
     val pago = solicitud.pago
+
+    // En una cancelada, «El pago no se completó» o «Sin pagar» son reproches por algo
+    // que ya no va a pasar: nadie va a pagar un pedido que canceló. Lo que sí se sigue
+    // diciendo es dónde está el dinero cuando lo hay —cobrado o devuelto—, que es
+    // justo lo que esa persona viene a mirar.
+    val hayDinero = pago == EstadoPago.Aprobado || pago == EstadoPago.Reembolsado
+    if (solicitud.cerrada && !hayDinero) return
 
     Text(
         text = when (pago) {
@@ -482,6 +530,9 @@ private fun Pago(solicitud: Solicitud, pagando: Boolean, onPagar: () -> Unit) {
 @Composable
 private fun Guia(solicitud: Solicitud) {
     if (!solicitud.tieneGuia) {
+        // Una cancelada no está pendiente de envío: no está pendiente de nada. Dejar
+        // ese renglón hace dudar de si la cancelación se registró.
+        if (solicitud.cerrada) return
         Text(
             text = "Pendiente de envío",
             color = PassionTheme.semantics.onBackgroundMuted,
