@@ -30,6 +30,7 @@ import ui.screens.DireccionSection
 import viewmodel.AddressUiState
 import viewmodel.AuthUiState
 import viewmodel.CartUiState
+import viewmodel.DesbloqueoUi
 
 /**
  * El tramo de ruta que abre «Mi cuenta» en el historial: `#/cuenta/historial`.
@@ -57,6 +58,9 @@ fun AccountScreen(
     onGoToCart: () -> Unit = {},
     /** Abre el cobro de una solicitud del historial. Recibe su id. */
     onPagar: (String) -> Unit = {},
+    /** Hay sesión y no hay clave de cifrado en esta pestaña. */
+    desbloqueo: DesbloqueoUi = DesbloqueoUi(),
+    onDesbloquear: (String) -> Unit = {},
     /** Pide cancelar una solicitud del historial: su id y el motivo, si lo escribió. */
     onCancelar: (String, String) -> Unit = { _, _ -> },
     /** El diálogo de cancelación se cerró y su aviso ya se leyó. */
@@ -98,6 +102,8 @@ fun AccountScreen(
             "Main" -> AccountMainContent(
                 authState = authState,
                 direccion = direccion,
+                desbloqueo = desbloqueo,
+                onDesbloquear = onDesbloquear,
                 onEditarDireccion = onEditarDireccion,
                 onGuardarDireccion = onGuardarDireccion,
                 onBorrarDireccion = onBorrarDireccion,
@@ -121,6 +127,8 @@ fun AccountScreen(
 fun AccountMainContent(
     authState: AuthUiState,
     direccion: AddressUiState = AddressUiState(),
+    desbloqueo: DesbloqueoUi = DesbloqueoUi(),
+    onDesbloquear: (String) -> Unit = {},
     onEditarDireccion: ((Direccion) -> Direccion) -> Unit = {},
     onGuardarDireccion: () -> Unit = {},
     onBorrarDireccion: () -> Unit = {},
@@ -194,6 +202,8 @@ fun AccountMainContent(
             onEditar = onEditarDireccion,
             onGuardar = onGuardarDireccion,
             onBorrar = onBorrarDireccion,
+            desbloqueo = desbloqueo,
+            onDesbloquear = onDesbloquear,
         )
     }
 

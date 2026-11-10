@@ -30,9 +30,11 @@ import androidx.compose.ui.unit.dp
 import network.Direccion
 import ui.components.FormField
 import ui.components.Paragraph
+import ui.components.PassionButton
 import ui.components.SectionTitle
 import ui.theme.PassionTheme
 import viewmodel.AddressUiState
+import viewmodel.DesbloqueoUi
 
 /**
  * Captura de la dirección, cifrada antes de salir del navegador.
@@ -50,11 +52,25 @@ fun DireccionSection(
     titulo: String? = "Dirección de envío",
     /** Borrar la dirección es cosa de «Mi cuenta»: en el carrito solo se captura. */
     conBorrar: Boolean = true,
+    /** Hay sesión pero no hay clave en esta pestaña: ver [Desbloqueo]. */
+    desbloqueo: DesbloqueoUi = DesbloqueoUi(),
+    onDesbloquear: (String) -> Unit = {},
 ) {
     titulo?.let { SectionTitle(it) }
 
     if (state.cargando) {
         Paragraph("Cargando…")
+        return
+    }
+
+    // Sesión abierta y sin clave en esta pestaña. Se le pide la contraseña **aquí**, no
+    // se le manda a cerrar sesión y volver a entrar para acabar escribiendo la misma.
+    //
+    // Y el formulario no se enseña debajo a propósito: sin clave no hay forma de
+    // guardar lo que escriba, y dejarle llenar siete campos para negarse al final es
+    // justo lo que esta pantalla hacía antes.
+    if (desbloqueo.haceFalta) {
+        Desbloqueo(desbloqueo, onDesbloquear)
         return
     }
 
@@ -304,4 +320,44 @@ private fun Aviso(texto: String) {
             fontWeight = FontWeight.Medium,
         )
     }
+}
+
+/**
+ * Pedir la contraseña para recuperar la clave de cifrado.
+ *
+ * La clave vive en `sessionStorage` y muere con la pestaña, mientras la sesión sigue
+ * viva en disco. Por eso esto aparece más de lo que parece: al abrir la tienda en una
+ * pestaña nueva, y al entrar por el enlace de confirmación del correo, donde la
+ * contraseña nunca llegó a pasar por aquí.
+ *
+ * Se explica por qué se pide. Un campo de contraseña que aparece solo, en mitad de una
+ * pantalla donde ya habías iniciado sesión, es exactamente lo que enseñamos a la gente
+ * a no rellenar.
+ */
+@Composable
+private fun Desbloqueo(estado: DesbloqueoUi, onDesbloquear: (String) -> Unit) {
+    var password by remember { mutableStateOf("") }
+
+    Paragraph(
+        "Tu dirección se guarda cifrada con una llave que sale de tu contraseña, y esa " +
+            "llave no se queda guardada en ningún sitio. Escríbela otra vez para " +
+            "abrirla en esta pestaña."
+    )
+
+    FormField(
+        value = password,
+        onValueChange = { password = it },
+        label = "Tu contraseña",
+        keyboardType = KeyboardType.Password,
+        isPassword = true,
+        enabled = !estado.trabajando,
+        supportingText = estado.error,
+    )
+
+    Spacer(Modifier.height(PassionTheme.spacing.s3))
+    PassionButton(
+        texto = if (estado.trabajando) "Comprobando…" else "Desbloquear mi dirección",
+        onClick = { onDesbloquear(password) },
+        enabled = !estado.trabajando && password.isNotBlank(),
+    )
 }

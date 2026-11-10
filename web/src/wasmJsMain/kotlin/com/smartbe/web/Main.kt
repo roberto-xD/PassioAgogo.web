@@ -192,7 +192,7 @@ fun App() {
 
     // La dirección se carga cuando ya se sabe la sal, que llega con el perfil. Sin sal
     // no se puede derivar nada, así que antes no habría con qué abrir el sobre.
-    LaunchedEffect(authState.isAuthenticated, authState.kdfSalt) {
+    LaunchedEffect(authState.isAuthenticated, authState.kdfSalt, authState.claveLista) {
         if (authState.isAuthenticated && authState.kdfSalt.isNotBlank()) {
             addressViewModel.cargar(authState.kdfSalt)
         } else {
@@ -468,6 +468,8 @@ fun App() {
                             onGoToCatalog = { navigate(Screen.Catalog) },
                             onGoToCart = { navigate(Screen.Cart) },
                             onPagar = cartViewModel::pagar,
+                            desbloqueo = authState.desbloqueo,
+                            onDesbloquear = authViewModel::desbloquearCifrado,
                             onCancelar = cartViewModel::cancelar,
                             onCerrarAvisoCancelacion = cartViewModel::descartarAvisoCancelacion,
                             seccionInicial = routeState.value.id,
@@ -478,6 +480,8 @@ fun App() {
                         )
                         Screen.Cart -> CartScreen(
                             state = cartState,
+                            desbloqueo = authState.desbloqueo,
+                            onDesbloquear = authViewModel::desbloquearCifrado,
                             onSetCantidad = cartViewModel::setCantidad,
                             onRemove = cartViewModel::remove,
                             onNombreChange = cartViewModel::updateNombre,

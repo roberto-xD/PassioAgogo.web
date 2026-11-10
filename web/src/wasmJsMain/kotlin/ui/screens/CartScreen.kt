@@ -57,6 +57,7 @@ import ui.components.SectionTitle
 import ui.theme.PassionTheme
 import viewmodel.AddressUiState
 import viewmodel.CartUiState
+import viewmodel.DesbloqueoUi
 
 /** Lado de la miniatura de cada renglón. */
 private val MINIATURA = 64.dp
@@ -117,6 +118,9 @@ fun CartScreen(
     direccion: AddressUiState = AddressUiState(),
     onEditarDireccion: ((Direccion) -> Direccion) -> Unit = {},
     onGuardarDireccion: () -> Unit = {},
+    /** Hay sesión y no hay clave de cifrado en esta pestaña. */
+    desbloqueo: DesbloqueoUi = DesbloqueoUi(),
+    onDesbloquear: (String) -> Unit = {},
 ) {
     ContentScreen(title = "Mi solicitud") {
         // Acuse: ocupa la pantalla entera porque es el final del camino, y mezclarlo con
@@ -184,6 +188,8 @@ fun CartScreen(
                     direccion = direccion,
                     onEditarDireccion = onEditarDireccion,
                     onGuardarDireccion = onGuardarDireccion,
+                    desbloqueo = desbloqueo,
+                    onDesbloquear = onDesbloquear,
                 )
                 // Debajo de la tarjeta de la dirección, porque es de su código postal de
                 // donde sale el precio: puesto antes no tendría a dónde cotizar.
@@ -393,6 +399,8 @@ private fun EntregaDomicilio(
     direccion: AddressUiState,
     onEditarDireccion: ((Direccion) -> Direccion) -> Unit,
     onGuardarDireccion: () -> Unit,
+    desbloqueo: DesbloqueoUi = DesbloqueoUi(),
+    onDesbloquear: (String) -> Unit = {},
 ) {
     var editando by remember { mutableStateOf(false) }
     val guardada = direccion.hayGuardada && !direccion.bloqueada
@@ -432,6 +440,8 @@ private fun EntregaDomicilio(
                 onBorrar = {},
                 titulo = null,
                 conBorrar = false,
+                desbloqueo = desbloqueo,
+                onDesbloquear = onDesbloquear,
             )
         }
     }

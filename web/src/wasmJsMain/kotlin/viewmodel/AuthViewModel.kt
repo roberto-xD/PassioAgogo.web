@@ -39,6 +39,18 @@ private const val ESPERA_SESION_MS = 100L
 
 enum class AuthMode { SignIn, SignUp }
 
+/**
+ * Lo que una pantalla necesita saber del desbloqueo de la clave.
+ *
+ * Va junto y no en tres parámetros sueltos porque lo atraviesan dos pantallas —el
+ * carrito y «Mi cuenta»— y tres argumentos repetidos en cada escalón se desordenan.
+ */
+data class DesbloqueoUi(
+    val haceFalta: Boolean = false,
+    val trabajando: Boolean = false,
+    val error: String? = null,
+)
+
 data class AuthUiState(
     val isAuthenticated: Boolean = false,
     val profile: ProfileDto? = null,
@@ -69,7 +81,25 @@ data class AuthUiState(
      * que la misma contraseña en dos cuentas distintas no dé la misma clave.
      */
     val kdfSalt: String = "",
+    /**
+     * Esta pestaña tiene la clave con la que se abre y se cierra la dirección.
+     *
+     * Vive en `sessionStorage`, así que muere con la pestaña mientras la sesión sigue
+     * viva en disco. Una pestaña nueva, o entrar por el enlace de confirmación del
+     * correo —donde la contraseña nunca pasa por aquí—, dejan sesión sin clave.
+     */
+    val claveLista: Boolean = false,
+    val desbloqueando: Boolean = false,
+    val errorDesbloqueo: String? = null,
 ) {
+    /** Hay sesión pero no hay con qué cifrar: toca pedirle la contraseña otra vez. */
+    val desbloqueo: DesbloqueoUi
+        get() = DesbloqueoUi(
+            haceFalta = isAuthenticated && !claveLista,
+            trabajando = desbloqueando,
+            error = errorDesbloqueo,
+        )
+
     /** Hay algo distinto de lo guardado, y el nombre no quedó vacío. */
     val perfilModificado: Boolean
         get() = perfilNombre.trim().isNotEmpty() && (
@@ -133,6 +163,8 @@ class AuthViewModel(
                 perfilMensaje = if (otraPersona) null else it.perfilMensaje,
                 perfilError = if (otraPersona) null else it.perfilError,
                 kdfSalt = if (otraPersona) "" else it.kdfSalt,
+                claveLista = AddressCrypto.hayClave(),
+                errorDesbloqueo = if (otraPersona) null else it.errorDesbloqueo,
             )
         }
     }
@@ -206,6 +238,8 @@ class AuthViewModel(
                     nombre = "",
                     infoMessage = null,
                     kdfSalt = "",
+                    claveLista = false,
+                    errorDesbloqueo = null,
                 )
             }
         }
@@ -271,7 +305,12 @@ class AuthViewModel(
         // igual, y mirar solo eso daría por buena la pantalla de la cuenta anterior.
         val id = if (hay) repository.currentUserId() else ""
         val estado = _uiState.value
-        if (hay == estado.isAuthenticated && id == estado.userId) return
+        val clave = AddressCrypto.hayClave()
+        if (hay == estado.isAuthenticated && id == estado.userId) {
+            // La sesión no cambió, pero la clave puede haber aparecido o muerto.
+            if (clave != estado.claveLista) _uiState.update { it.copy(claveLista = clave) }
+            return
+        }
         aplicarSesion(hay)
         if (hay) scope.launch { refreshProfile() }
     }
@@ -337,7 +376,66 @@ class AuthViewModel(
             println("PAG/cifrado: no se pudo derivar la clave")
             return
         }
-        _uiState.update { it.copy(kdfSalt = sal) }
+        _uiState.update { it.copy(kdfSalt = sal, claveLista = true, errorDesbloqueo = null) }
+    }
+
+    /**
+     * Vuelve a derivar la clave sin salir de la pantalla.
+     *
+     * Para quien tiene la sesión abierta y no tiene clave: la pestaña es nueva, o entró
+     * por el enlace de confirmación del correo, donde la contraseña nunca pasó por aquí.
+     * La alternativa era mandarle a cerrar sesión y volver a entrar para acabar
+     * escribiendo la misma contraseña, un paso más lejos.
+     *
+     * **Se comprueba volviendo a entrar, y eso no es un rodeo.** Una contraseña
+     * equivocada derivaría una clave equivocada, y con ella se cifraría la dirección
+     * que escriba a continuación: quedaría guardada bajo una llave que no es la suya y
+     * no la abriría nunca más, ni él ni la tienda. Es más barato preguntarle a Supabase
+     * si la contraseña es la buena que descubrirlo cuando haga falta el domicilio.
+     */
+    fun desbloquearCifrado(password: String) {
+        if (password.isBlank() || _uiState.value.desbloqueando) return
+        _uiState.update { it.copy(desbloqueando = true, errorDesbloqueo = null) }
+
+        scope.launch {
+            val correo = repository.currentEmail()
+            if (correo.isBlank()) {
+                _uiState.update {
+                    it.copy(
+                        desbloqueando = false,
+                        errorDesbloqueo = "Vuelve a entrar para desbloquear tu dirección.",
+                    )
+                }
+                return@launch
+            }
+
+            val error = repository.signIn(correo, password)
+            if (error != null) {
+                _uiState.update {
+                    it.copy(
+                        desbloqueando = false,
+                        // El motivo de verdad no se enseña: de un «esa contraseña no es»
+                        // frente a un «no hay conexión» se aprende probando.
+                        errorDesbloqueo = "Esa contraseña no coincide. Inténtalo otra vez.",
+                    )
+                }
+                return@launch
+            }
+
+            prepararCifrado(password)
+            val lista = AddressCrypto.hayClave()
+            _uiState.update {
+                it.copy(
+                    desbloqueando = false,
+                    claveLista = lista,
+                    errorDesbloqueo = if (lista) {
+                        null
+                    } else {
+                        "No pudimos preparar tu clave. Inténtalo de nuevo."
+                    },
+                )
+            }
+        }
     }
 
     private suspend fun refreshProfile() {
