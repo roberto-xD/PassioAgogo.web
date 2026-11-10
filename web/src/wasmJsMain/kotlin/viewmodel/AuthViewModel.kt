@@ -27,6 +27,16 @@ private const val MIN_PASSWORD = 6
 private const val INTENTOS_PERFIL = 3
 private const val ESPERA_PERFIL_MS = 500L
 
+/**
+ * Cuánto se espera a que el SDK aplique la sesión recién creada, y cada cuánto se mira.
+ *
+ * Son tres segundos en trozos de cien milisegundos. La comprobación es local —no sale a
+ * la red— así que mirar a menudo no cuesta nada, y el que la sesión aparezca medio
+ * segundo tarde no debería costarle a nadie su dirección cifrada.
+ */
+private const val INTENTOS_SESION = 30
+private const val ESPERA_SESION_MS = 100L
+
 enum class AuthMode { SignIn, SignUp }
 
 data class AuthUiState(
@@ -276,11 +286,30 @@ class AuthViewModel(
     private suspend fun prepararCifrado(password: String) {
         if (password.isBlank()) return
 
-        // Al registrarse, la fila de `profiles` la crea la base y puede no estar lista
-        // en el instante en que la sesión ya lo está. Sin fila no hay dónde escribir la
-        // sal, y sin sal esta pestaña se queda sin clave: la dirección no se puede
-        // guardar hasta volver a entrar, que es el aviso raro que salía al crear una
-        // cuenta. Se reintenta en vez de rendirse al primer intento.
+        // Lo primero: esperar a que **haya sesión**.
+        //
+        // `signUpWith` vuelve antes de que el SDK haya aplicado la sesión que acaba de
+        // crear —en la consola se ve el «No session found» justo en medio—, y sin
+        // sesión no hay `auth.uid()`, así que leer o escribir el perfil contesta vacío.
+        // Esto era lo que dejaba la cuenta recién creada sin sal: no es que fallara el
+        // guardado, es que se intentaba un instante demasiado pronto.
+        //
+        // Se mira el estado local, sin red, así que preguntar a menudo no cuesta nada.
+        var esperas = 0
+        while (!repository.hasSessionNow() && esperas < INTENTOS_SESION) {
+            esperas++
+            delay(ESPERA_SESION_MS)
+        }
+        if (!repository.hasSessionNow()) {
+            // Camino normal cuando el proyecto exige confirmar el correo: el alta no
+            // abre sesión y la clave se derivará en el primer acceso de verdad.
+            println("PAG/cifrado: sin sesión tras el alta; la clave se preparará al entrar")
+            return
+        }
+
+        // Y después, la fila de `profiles`: la crea la base y puede no estar lista en
+        // el instante en que la sesión ya lo está. Sin fila no hay dónde escribir la
+        // sal. Se reintenta en vez de rendirse al primer intento.
         var perfil = repository.loadProfile()
         var intento = 0
         while (perfil == null && intento < INTENTOS_PERFIL) {
