@@ -57,6 +57,10 @@ fun AccountScreen(
     onGoToCart: () -> Unit = {},
     /** Abre el cobro de una solicitud del historial. Recibe su id. */
     onPagar: (String) -> Unit = {},
+    /** Pide cancelar una solicitud del historial: su id y el motivo, si lo escribió. */
+    onCancelar: (String, String) -> Unit = { _, _ -> },
+    /** El diálogo de cancelación se cerró y su aviso ya se leyó. */
+    onCerrarAvisoCancelacion: () -> Unit = {},
     /** Lo que venga en la ruta: `#/cuenta/<seccionInicial>`. Ver [SECCION_HISTORIAL]. */
     seccionInicial: String? = null,
 ) {
@@ -107,6 +111,8 @@ fun AccountScreen(
                 onGoToCart = onGoToCart,
                 onGoToCatalog = onGoToCatalog,
                 onPagar = onPagar,
+                onCancelar = onCancelar,
+                onCerrarAviso = onCerrarAvisoCancelacion,
             )
         }
     }

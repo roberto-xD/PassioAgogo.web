@@ -52,6 +52,17 @@ object WhatsAppConfig {
         enlace("Hola, tengo una duda sobre mi pedido #$folio")
 
     /**
+     * Cancelación de un pedido ya pagado o ya enviado.
+     *
+     * Va redactado como lo que es —una petición, no una queja— y con el folio dentro,
+     * porque quien atienda necesita poder abrir el pedido antes de contestar. Que la
+     * persona no tenga que explicar desde cero lo que la pantalla ya sabe es la mitad
+     * del trabajo de una conversación así.
+     */
+    fun enlaceParaCancelacion(folio: Long): String =
+        enlace("Hola, quiero cancelar mi pedido #$folio")
+
+    /**
      * Reclamación de un premio de la ruleta.
      *
      * El código va en el mensaje porque es lo que se verifica contra `wheel_spins` al

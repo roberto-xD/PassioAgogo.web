@@ -123,6 +123,10 @@ data class SolicitudDto(
     @SerialName("envio_descripcion") val envioDescripcion: String? = null,
     // El envío promocional (48_codigos.sql).
     @SerialName("envio_gratis") val envioGratis: Boolean = false,
+    // La cancelación (51_cancelacion.sql).
+    @SerialName("cancelada_at") val canceladaAt: String? = null,
+    @SerialName("cancelacion_solicitada_at") val cancelacionSolicitadaAt: String? = null,
+    @SerialName("cancelada_por") val canceladaPor: String? = null,
     // El pago (39_pagos.sql). El cliente las lee y no las escribe: las pone el webhook
     // de Mercado Pago con service_role, después de comprobar la firma y de volver a
     // preguntarle a Mercado Pago cuánto se pagó.
@@ -169,6 +173,12 @@ data class Solicitud(
     /** Los cuatro últimos de la tarjeta. Vacío si no pagó con una. */
     val pagoUltimos4: String = "",
     val pagoReferencia: String = "",
+    /** Cancelada del todo (51_cancelacion). Vacío si sigue viva. */
+    val canceladaAt: String = "",
+    /** Pedida para cancelar, con el dinero todavía cobrado. */
+    val cancelacionSolicitadaAt: String = "",
+    /** `cliente` o `tienda`. Vacío si no está cancelada. */
+    val canceladaPor: String = "",
 ) {
     val tieneGuia: Boolean get() = guiaNumero.isNotBlank()
     val tieneEnvio: Boolean get() = envioCosto > 0.0
@@ -187,6 +197,9 @@ data class Solicitud(
         get() = pago != EstadoPago.Aprobado &&
             pago != EstadoPago.Reembolsado &&
             estado != "rechazada" &&
+            // Una cancelada no se cobra. Sin esto, el botón seguiría ahí: lo que la
+            // cancelación cambia son columnas propias, no `estado`.
+            !cerrada &&
             total > 0.0
 
     /**
@@ -197,6 +210,43 @@ data class Solicitud(
      */
     val total: Double get() = totalArticulos + envioCosto
 
+    /** Está cancelada y cerrada: sin pago de por medio, o con el dinero ya devuelto. */
+    val cancelada: Boolean get() = canceladaAt.isNotBlank()
+
+    /**
+     * El cliente la pidió cancelar y el dinero sigue cobrado.
+     *
+     * Es un estado distinto de [cancelada] a propósito. Decirle «Cancelada» a alguien
+     * que todavía tiene el cargo en la tarjeta es lo más alarmante que esta pantalla
+     * puede enseñar: pasa a cancelada cuando la devolución sale.
+     */
+    val cancelacionPedida: Boolean get() = cancelacionSolicitadaAt.isNotBlank()
+
+    /** Terminada para quien la envió: ni se paga, ni se cancela otra vez. */
+    val cerrada: Boolean get() = cancelada || cancelacionPedida
+
+    /**
+     * Qué le pasa si pulsa «Cancelar esta solicitud».
+     *
+     * Lo decide la base al llamarla —es quien ve el pago y la guía—, pero la pantalla
+     * necesita saberlo **antes** para redactar el diálogo: preguntar «¿seguro?» sin
+     * decir qué va a pasar es pedir un sí a ciegas.
+     */
+    val caminoDeCancelacion: CaminoCancelacion get() = when {
+        tieneGuia -> CaminoCancelacion.ConGuia
+        pago == EstadoPago.Aprobado -> CaminoCancelacion.Pagada
+        else -> CaminoCancelacion.SinPagar
+    }
+
+    /**
+     * ¿Tiene sentido ofrecerle cancelar?
+     *
+     * Con guía también, aunque no se pueda: es justo quien más necesita que alguien le
+     * diga qué hacer, y el diálogo lo lleva a WhatsApp. Lo que no se ofrece es cancelar
+     * lo ya cancelado ni lo que la tienda no pudo atender.
+     */
+    val puedeCancelar: Boolean get() = !cerrada && estado != "rechazada"
+
     /** Cómo se le cuenta el estado a quien la envió, no cómo se llama en la base. */
     val estadoLegible: String get() = when (estado) {
         "enviada" -> "En revisión"
@@ -205,6 +255,14 @@ data class Solicitud(
         else -> estado
     }
 }
+
+/**
+ * Los tres caminos de una cancelación, que son tres conversaciones distintas.
+ *
+ * No es lo mismo soltar un carrito que nadie ha cobrado que pedir que te devuelvan el
+ * dinero, ni eso que avisar de que el paquete ya salió.
+ */
+enum class CaminoCancelacion { SinPagar, Pagada, ConGuia }
 
 /**
  * En qué va el cobro.

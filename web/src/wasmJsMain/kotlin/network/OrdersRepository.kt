@@ -3,8 +3,12 @@ package network
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import models.CartItem
 import models.MetodoEntrega
 import models.NuevaSolicitudDto
@@ -13,6 +17,44 @@ import models.formatPrice
 import models.NuevoItemDto
 import models.Solicitud
 import models.SolicitudDto
+
+/** Lo que contestó `fn_cancelar_solicitud` (51_cancelacion.sql). */
+@Serializable
+private data class RespuestaCancelacion(
+    val resultado: String = "",
+    val mensaje: String? = null,
+)
+
+/**
+ * Qué pasó al pedir la cancelación.
+ *
+ * Son los mismos nombres que devuelve la función, y no un booleano, porque la pantalla
+ * tiene que decir cosas distintas: «ya está» no es lo mismo que «te escribimos por
+ * WhatsApp» ni que «esto ya salió».
+ */
+enum class CancelacionEstado(val clave: String) {
+    /** Cancelada del todo: no había pago de por medio. */
+    Cancelada("cancelada"),
+    /** Pagada: queda pedida y la devolución la hace la tienda. */
+    Solicitada("solicitada"),
+    /** Tiene guía: desde aquí no se cancela. */
+    ConGuia("con_guia"),
+    YaCancelada("ya_cancelada"),
+    NoEncontrada("no_encontrada"),
+    /** La función contestó algo que esta versión no conoce. */
+    Desconocido("");
+
+    companion object {
+        fun desde(clave: String?): CancelacionEstado =
+            entries.firstOrNull { it.clave == clave?.trim() } ?: Desconocido
+    }
+}
+
+sealed interface CancelacionResult {
+    data class Hecho(val resultado: CancelacionEstado, val mensaje: String) : CancelacionResult
+    data class Fallo(val mensaje: String) : CancelacionResult
+    data object SinSesion : CancelacionResult
+}
 
 /** Se envió, o hay un motivo que contarle a la persona. */
 sealed interface EnvioResult {
@@ -151,6 +193,46 @@ class OrdersRepository(
             .insert(fila) { select(Columns.raw("id, folio")) }
             .decodeSingle()
 
+    /**
+     * Pide cancelar una solicitud.
+     *
+     * **Quien decide es la base**, no esta pantalla: `fn_cancelar_solicitud` mira el
+     * pago y la guía dentro de la misma sentencia que escribe. Aquí se manda el id y
+     * se enseña lo que conteste. Lo que la pantalla creía saber del estado puede
+     * haber envejecido mientras el diálogo estaba abierto —un webhook que aprueba el
+     * pago tarda segundos—, y lo que vale es lo que la base vea al escribir.
+     */
+    suspend fun cancelar(solicitudId: String, motivo: String = ""): CancelacionResult {
+        if (!SupabaseConfig.isConfigured) {
+            return CancelacionResult.Fallo("La cancelación aún no está configurada.")
+        }
+        supabase.auth.currentUserOrNull() ?: return CancelacionResult.SinSesion
+
+        return runCatching {
+            val filas = supabase.postgrest
+                .rpc(
+                    function = "fn_cancelar_solicitud",
+                    parameters = buildJsonObject {
+                        put("p_id", solicitudId)
+                        put("p_motivo", motivo.trim().take(300))
+                    },
+                )
+                .decodeList<RespuestaCancelacion>()
+
+            val fila = filas.firstOrNull()
+                ?: return@runCatching CancelacionResult.Fallo(
+                    "No pudimos cancelar la solicitud. Inténtalo de nuevo."
+                )
+
+            CancelacionResult.Hecho(
+                resultado = CancelacionEstado.desde(fila.resultado),
+                mensaje = fila.mensaje.orEmpty(),
+            )
+        }.getOrElse {
+            CancelacionResult.Fallo(mensajeDeCancelacion(it.message.orEmpty()))
+        }
+    }
+
     /** Las solicitudes de quien tiene la sesión abierta, de la más reciente a la más vieja. */
     suspend fun misSolicitudes(): List<Solicitud>? {
         if (!SupabaseConfig.isConfigured) return emptyList()
@@ -161,13 +243,15 @@ class OrdersRepository(
         // con un 400 y el historial se quedaría en blanco: se va quitando de atrás hacia
         // adelante hasta dar con lo que la base sí tiene. Peor es una pantalla vacía que
         // una sin el número de guía.
-        return leerSolicitudes(conGratis = true, conGuia = true, conPago = true)
-            ?: leerSolicitudes(conGratis = false, conGuia = true, conPago = true)
-            ?: leerSolicitudes(conGratis = false, conGuia = true, conPago = false)
-            ?: leerSolicitudes(conGratis = false, conGuia = false, conPago = false)
+        return leerSolicitudes(conCancelacion = true, conGratis = true, conGuia = true, conPago = true)
+            ?: leerSolicitudes(conCancelacion = false, conGratis = true, conGuia = true, conPago = true)
+            ?: leerSolicitudes(conCancelacion = false, conGratis = false, conGuia = true, conPago = true)
+            ?: leerSolicitudes(conCancelacion = false, conGratis = false, conGuia = true, conPago = false)
+            ?: leerSolicitudes(conCancelacion = false, conGratis = false, conGuia = false, conPago = false)
     }
 
     private suspend fun leerSolicitudes(
+        conCancelacion: Boolean,
         conGratis: Boolean,
         conGuia: Boolean,
         conPago: Boolean,
@@ -179,6 +263,11 @@ class OrdersRepository(
             // 48_codigos.sql, en su propio escalón: pedirla junto a las del pago dejaría
             // sin estado de cobro a una base donde ese script todavía no se ha corrido.
             if (conGratis) append("envio_gratis, ")
+            // 51_cancelacion.sql, por lo mismo y en el escalón de más arriba: es lo
+            // último que llegó, así que es lo primero que se suelta.
+            if (conCancelacion) {
+                append("cancelada_at, cancelacion_solicitada_at, cancelada_por, ")
+            }
             if (conPago) append("pago_estado, pago_total, pago_metodo, pago_referencia, ")
             if (conPago) append("pago_marca, pago_ultimos4, ")
             append("order_request_items(cantidad, precio_estimado)")
@@ -212,6 +301,9 @@ class OrdersRepository(
                     pagoMarca = dto.pagoMarca.orEmpty(),
                     pagoUltimos4 = dto.pagoUltimos4.orEmpty(),
                     pagoReferencia = dto.pagoReferencia.orEmpty(),
+                    canceladaAt = dto.canceladaAt.orEmpty(),
+                    cancelacionSolicitadaAt = dto.cancelacionSolicitadaAt.orEmpty(),
+                    canceladaPor = dto.canceladaPor.orEmpty(),
                 )
             }
     }.getOrNull()
@@ -229,9 +321,25 @@ private fun faltaLaColumna(raw: String): Boolean {
         "pago_estado" in m || "pago_total" in m ||
         "pago_metodo" in m || "pago_referencia" in m ||
         "codigo_descuento" in m || "envio_gratis" in m ||
+        "cancelada_at" in m || "cancelacion_solicitada_at" in m ||
+        "cancelada_por" in m ||
         "pago_marca" in m || "pago_ultimos4" in m
     return nombra &&
         ("does not exist" in m || "no existe" in m || "pgrst204" in m || "schema cache" in m)
+}
+
+private fun mensajeDeCancelacion(raw: String): String {
+    val m = raw.lowercase()
+    return when {
+        // La función no existe todavía: 51_cancelacion.sql sin correr.
+        "could not find the function" in m || "pgrst202" in m || "does not exist" in m ->
+            "La cancelación todavía no está disponible. Escríbenos por WhatsApp."
+        "necesitas una sesion" in m || "42501" in m ->
+            "Vuelve a iniciar sesión para cancelar tu solicitud."
+        "failed to fetch" in m || "network" in m ->
+            "No se pudo conectar. Revisa tu conexión e inténtalo de nuevo."
+        else -> "No pudimos cancelar la solicitud. Inténtalo de nuevo."
+    }
 }
 
 private fun mensajeDeError(raw: String): String {

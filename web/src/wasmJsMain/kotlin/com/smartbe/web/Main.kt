@@ -454,6 +454,8 @@ fun App() {
                             onGoToCatalog = { navigate(Screen.Catalog) },
                             onGoToCart = { navigate(Screen.Cart) },
                             onPagar = cartViewModel::pagar,
+                            onCancelar = cartViewModel::cancelar,
+                            onCerrarAvisoCancelacion = cartViewModel::descartarAvisoCancelacion,
                             seccionInicial = routeState.value.id,
                             direccion = addressState,
                             onEditarDireccion = addressViewModel::editar,

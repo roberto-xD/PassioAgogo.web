@@ -163,6 +163,8 @@ interface FilaSolicitud {
   pago_orden_id: string | null;
   pago_total: number | null;
   codigo_descuento: string | null;
+  cancelada_at: string | null;
+  cancelacion_solicitada_at: string | null;
   order_request_items: Renglon[] | null;
 }
 
@@ -407,6 +409,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       "id, folio, created_by, cliente_nombre, cliente_email, total_estimado, " +
         "envio_costo, envio_descripcion, metodo_entrega, " +
         "pago_estado, pago_orden_id, pago_total, codigo_descuento, " +
+        "cancelada_at, cancelacion_solicitada_at, " +
         "order_request_items(variant_id, cantidad)",
     )
     .eq("id", solicitudId)
@@ -432,6 +435,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // más cuesta deshacer.
   if (solicitud.pago_estado === "aprobado") {
     return json({ error: "Esta solicitud ya está pagada." }, 409, origin);
+  }
+
+  // Cancelada. La cancelación (51) **no toca `estado`** —vive en columnas propias—, así
+  // que sin esta comprobación una solicitud cancelada seguiría siendo cobrable: el
+  // botón de pagar desaparece de la pantalla, pero la Edge Function no es la pantalla y
+  // la URL de cobro se puede volver a pedir.
+  if (solicitud.cancelada_at || solicitud.cancelacion_solicitada_at) {
+    return json({ error: "Esta solicitud está cancelada." }, 409, origin);
   }
 
   // ---- el monto ----

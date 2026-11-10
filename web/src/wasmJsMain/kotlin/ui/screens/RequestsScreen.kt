@@ -21,14 +21,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import models.CaminoCancelacion
 import models.EstadoPago
 import models.Solicitud
 import models.etiquetaDePago
 import models.formatPrice
+import network.CancelacionEstado
+import network.WhatsAppConfig
+import ui.components.BottomSheet
+import ui.components.ButtonVariant
 import ui.components.Paragraph
+import ui.components.PassionButton
 import ui.components.copyToClipboard
 import ui.components.openInNewTab
 import ui.theme.PassionTheme
+import viewmodel.AvisoCancelacion
 import viewmodel.CartUiState
 
 /**
@@ -48,6 +55,8 @@ fun AccountHistoryContent(
     onGoToCatalog: () -> Unit,
     onGoToCart: () -> Unit = {},
     onPagar: (String) -> Unit = {},
+    onCancelar: (String, String) -> Unit = { _, _ -> },
+    onCerrarAviso: () -> Unit = {},
 ) {
     Spacer(Modifier.height(PassionTheme.spacing.s2))
     val solicitudes = state.solicitudes
@@ -101,6 +110,12 @@ fun AccountHistoryContent(
                     solicitud = it,
                     pagando = state.pagando == it.id,
                     onPagar = { onPagar(it.id) },
+                    cancelando = state.cancelando == it.id,
+                    // El aviso es de una tarjeta, no de la pantalla: sin comprobar el
+                    // id, cancelar la de arriba contestaría también en la de abajo.
+                    aviso = state.avisoCancelacion?.takeIf { a -> a.solicitudId == it.id },
+                    onCancelar = { motivo -> onCancelar(it.id, motivo) },
+                    onCerrarAviso = onCerrarAviso,
                 )
             }
         }
@@ -112,6 +127,10 @@ private fun Tarjeta(
     solicitud: Solicitud,
     pagando: Boolean = false,
     onPagar: () -> Unit = {},
+    cancelando: Boolean = false,
+    aviso: AvisoCancelacion? = null,
+    onCancelar: (String) -> Unit = {},
+    onCerrarAviso: () -> Unit = {},
 ) {
     val forma = MaterialTheme.shapes.medium
 
@@ -184,7 +203,182 @@ private fun Tarjeta(
                 modifier = Modifier.padding(top = PassionTheme.spacing.s2),
             )
         }
+
+        // Pedida y con el dinero todavía cobrado: lo único que importa aquí es qué
+        // pasa ahora, y que no es una espera indefinida.
+        if (solicitud.cancelacionPedida) {
+            Text(
+                text = "Registramos tu cancelación. Te escribimos por WhatsApp para " +
+                    "devolverte el dinero.",
+                color = PassionTheme.semantics.onBackgroundMuted,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+            )
+            EnlaceWhatsApp("Escribir por WhatsApp", solicitud.folio)
+        }
+
+        Cancelacion(
+            solicitud = solicitud,
+            cancelando = cancelando,
+            aviso = aviso,
+            onCancelar = onCancelar,
+            onCerrarAviso = onCerrarAviso,
+        )
     }
+}
+
+/**
+ * «Cancelar esta solicitud», y la hoja que explica qué significa eso aquí.
+ *
+ * El enlace va al final de la tarjeta y en tono apagado a propósito: es una salida, no
+ * una invitación. Lo que no hace es esconderse —quien quiere cancelar y no encuentra
+ * cómo acaba escribiendo igual, pero enfadado.
+ */
+@Composable
+private fun Cancelacion(
+    solicitud: Solicitud,
+    cancelando: Boolean,
+    aviso: AvisoCancelacion?,
+    onCancelar: (String) -> Unit,
+    onCerrarAviso: () -> Unit,
+) {
+    if (!solicitud.puedeCancelar) return
+
+    var abierto by remember(solicitud.id) { mutableStateOf(false) }
+
+    Text(
+        text = "Cancelar esta solicitud",
+        color = PassionTheme.semantics.onBackgroundSubtle,
+        style = MaterialTheme.typography.labelMedium,
+        modifier = Modifier
+            .padding(top = PassionTheme.spacing.s3)
+            .clip(MaterialTheme.shapes.extraSmall)
+            .clickable { abierto = true }
+            .padding(vertical = PassionTheme.spacing.s1),
+    )
+
+    if (!abierto) return
+
+    val cerrar = {
+        abierto = false
+        onCerrarAviso()
+    }
+
+    BottomSheet(
+        title = when (solicitud.caminoDeCancelacion) {
+            CaminoCancelacion.ConGuia -> "Tu pedido ya salió"
+            CaminoCancelacion.Pagada -> "Cancelar y recuperar tu dinero"
+            CaminoCancelacion.SinPagar -> "Cancelar esta solicitud"
+        },
+        onDismiss = cerrar,
+        // Son tres párrafos como mucho: a pantalla completa se leería como una hoja a
+        // medio cargar.
+        altoFijo = false,
+    ) {
+        // Ya contestó la base. Lo que dijo manda sobre lo que esta tarjeta creía: entre
+        // abrir la hoja y confirmar pueden haber pasado cosas —un webhook que aprueba
+        // el pago tarda segundos—, y el texto de abajo se escribió con lo de antes.
+        if (aviso != null) {
+            Paragraph(aviso.mensaje)
+            if (aviso.estado == CancelacionEstado.Solicitada ||
+                aviso.estado == CancelacionEstado.ConGuia
+            ) {
+                EnlaceWhatsApp("Escribir por WhatsApp", solicitud.folio)
+            }
+            Spacer(Modifier.height(PassionTheme.spacing.s3))
+            PassionButton(texto = "Entendido", onClick = cerrar)
+            return@BottomSheet
+        }
+
+        when (solicitud.caminoDeCancelacion) {
+            // Nada cobrado: no hay nada que deshacer y no hace falta dramatizarlo.
+            // Que se vaya sabiendo que puede volver vale más que retenerlo hoy.
+            CaminoCancelacion.SinPagar -> {
+                Paragraph(
+                    "Todavía no has pagado, así que no hay nada que devolver. " +
+                        "Cancelamos esta solicitud y tus artículos siguen en el " +
+                        "catálogo para cuando te animes."
+                )
+                // Una ficha de OXXO sigue siendo cobrable aunque la solicitud se
+                // cancele: la caja no sabe nada de esto. Más vale decirlo aquí que
+                // devolver el dinero después.
+                if (solicitud.pago == EstadoPago.Pendiente) {
+                    Paragraph(
+                        "Si tienes una ficha de pago pendiente, no la pagues: " +
+                            "después de cancelar tendríamos que devolverte el dinero."
+                    )
+                }
+                Spacer(Modifier.height(PassionTheme.spacing.s3))
+                BotonesDeCancelacion(cancelando, onCancelar = { onCancelar("") }, cerrar)
+            }
+
+            // Pagada y sin guía: lo que se pide aquí es parar el pedido. El dinero lo
+            // devuelve una persona, y eso se dice tal cual en vez de prometer un
+            // automatismo que no existe.
+            CaminoCancelacion.Pagada -> {
+                Paragraph(
+                    "Ya recibimos tu pago, así que dejamos de preparar tu pedido y " +
+                        "te escribimos por WhatsApp para devolverte el dinero. La " +
+                        "devolución la hacemos a mano, por el mismo medio con el " +
+                        "que pagaste."
+                )
+                Spacer(Modifier.height(PassionTheme.spacing.s3))
+                BotonesDeCancelacion(cancelando, onCancelar = { onCancelar("") }, cerrar)
+            }
+
+            // Con guía no se cancela desde aquí, y el botón no aparece: un «Sí,
+            // cancelar» que no cancela es peor que no ofrecerlo.
+            CaminoCancelacion.ConGuia -> {
+                Paragraph(
+                    "Tu pedido ya tiene guía y puede estar en camino, así que desde " +
+                        "aquí ya no se puede cancelar. Escríbenos por WhatsApp con tu " +
+                        "folio y lo vemos contigo."
+                )
+                EnlaceWhatsApp("Escribir por WhatsApp", solicitud.folio)
+                Spacer(Modifier.height(PassionTheme.spacing.s3))
+                PassionButton(
+                    texto = "Entendido",
+                    onClick = cerrar,
+                    variante = ButtonVariant.Secundario,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BotonesDeCancelacion(
+    cancelando: Boolean,
+    onCancelar: () -> Unit,
+    onCerrar: () -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s3)) {
+        // «Mejor no» primero y en primario: de las dos salidas, la que deshace es la
+        // que se pulsa por error.
+        PassionButton(texto = "Mejor no", onClick = onCerrar, enabled = !cancelando)
+        PassionButton(
+            texto = if (cancelando) "Cancelando…" else "Sí, cancelar",
+            onClick = onCancelar,
+            variante = ButtonVariant.Secundario,
+            enabled = !cancelando,
+        )
+    }
+}
+
+/** El enlace a la conversación, con el folio ya dentro del mensaje. */
+@Composable
+private fun EnlaceWhatsApp(texto: String, folio: Long) {
+    if (!WhatsAppConfig.isConfigured) return
+    Text(
+        text = texto,
+        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.labelMedium,
+        modifier = Modifier
+            .padding(top = PassionTheme.spacing.s2)
+            .clip(MaterialTheme.shapes.extraSmall)
+            .clickable { openInNewTab(WhatsAppConfig.enlaceParaCancelacion(folio)) }
+            .padding(vertical = PassionTheme.spacing.s1),
+    )
 }
 
 /**
@@ -341,28 +535,47 @@ private fun Guia(solicitud: Solicitud) {
     }
 }
 
+/**
+ * El distintivo de la esquina, solo cuando hay algo fuera de lo normal que decir.
+ *
+ * Antes enseñaba `estado` siempre: «En revisión» y «Atendida». Dejó de ser verdad en
+ * cuanto el pedido pasó a tener pasos propios —pagado, con guía, en camino—, porque
+ * `estado` no es el avance del pedido sino la cola de administración: una solicitud
+ * pagada y con guía seguía diciendo «En revisión», que es exactamente lo contrario de
+ * lo que la persona estaba viendo debajo.
+ *
+ * Lo que de verdad pasa se cuenta ahí abajo, renglón a renglón, y no necesita rótulo.
+ * Aquí quedan las dos cosas que **no** son avance sino excepción: lo cancelado y lo
+ * que no se pudo atender. Sin esto, una solicitud cancelada se ve igual que una viva.
+ */
 @Composable
 private fun Distintivo(solicitud: Solicitud) {
-    val semantics = PassionTheme.semantics
-    val fondo = when (solicitud.estado) {
-        "atendida" -> MaterialTheme.colorScheme.primaryContainer
-        "rechazada" -> MaterialTheme.colorScheme.errorContainer
-        else -> semantics.overlayWeak
+    val rotulo = when {
+        solicitud.cancelada -> "Cancelada"
+        solicitud.cancelacionPedida -> "Cancelación pedida"
+        solicitud.estado == "rechazada" -> "No pudimos atenderla"
+        else -> return
     }
-    val texto = when (solicitud.estado) {
-        "atendida" -> MaterialTheme.colorScheme.onPrimaryContainer
-        "rechazada" -> MaterialTheme.colorScheme.onErrorContainer
-        else -> semantics.onBackgroundMuted
-    }
+    val error = solicitud.estado == "rechazada"
 
     Text(
-        text = solicitud.estadoLegible,
-        color = texto,
+        text = rotulo,
+        color = if (error) {
+            MaterialTheme.colorScheme.onErrorContainer
+        } else {
+            PassionTheme.semantics.onBackgroundMuted
+        },
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier
             .clip(MaterialTheme.shapes.extraLarge)
-            .background(fondo)
+            .background(
+                if (error) {
+                    MaterialTheme.colorScheme.errorContainer
+                } else {
+                    PassionTheme.semantics.overlayWeak
+                }
+            )
             .padding(
                 horizontal = PassionTheme.spacing.s3,
                 vertical = PassionTheme.spacing.s1,

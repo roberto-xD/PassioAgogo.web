@@ -13,6 +13,8 @@ import models.CartItem
 import models.MetodoEntrega
 import models.OpcionEnvio
 import models.Solicitud
+import network.CancelacionEstado
+import network.CancelacionResult
 import network.CartStorage
 import network.CodigoRepository
 import network.CodigoResult
@@ -36,6 +38,19 @@ private const val MAX_POR_RENGLON = 99
  * se escribió. Si cambia la regla, cambia en los dos sitios a la vez.
  */
 internal const val DIGITOS_TELEFONO = 10
+
+/**
+ * El desenlace del último intento de cancelación, para el diálogo.
+ *
+ * Lleva el id de la solicitud porque el historial tiene varias tarjetas y el aviso es
+ * de una: sin él, cancelar la de arriba contestaría también en la de abajo.
+ */
+data class AvisoCancelacion(
+    val solicitudId: String,
+    val estado: CancelacionEstado,
+    val mensaje: String,
+    val esError: Boolean = false,
+)
 
 data class CartUiState(
     val cart: Cart = Cart(),
@@ -122,6 +137,10 @@ data class CartUiState(
     val pideSesion: Boolean = false,
     val solicitudes: List<Solicitud>? = null,
     val cargandoSolicitudes: Boolean = false,
+    /** Qué solicitud se está cancelando. Para apagar solo su botón, no todos. */
+    val cancelando: String? = null,
+    /** Lo que hay que contarle del último intento de cancelación. */
+    val avisoCancelacion: AvisoCancelacion? = null,
     /**
      * Cuántas veces se ha añadido algo. No es el número de artículos: es un contador
      * que solo sube, para que la pantalla sepa que hubo un añadido nuevo aunque el
@@ -664,6 +683,68 @@ class CartViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Pide cancelar una solicitud.
+     *
+     * No decide nada: manda el id y enseña lo que conteste la base, que es quien mira
+     * el pago y la guía en la misma sentencia que escribe. Si la pantalla creía que
+     * estaba sin pagar y entretanto llegó el aviso del cobro, lo que vale es lo que la
+     * base vea al escribir, no lo que esta tarjeta tuviera dibujado.
+     */
+    fun cancelar(solicitudId: String, motivo: String = "") {
+        if (solicitudId.isBlank() || _uiState.value.cancelando != null) return
+        _uiState.update { it.copy(cancelando = solicitudId, avisoCancelacion = null) }
+
+        scope.launch {
+            when (val resultado = repository.cancelar(solicitudId, motivo)) {
+                is CancelacionResult.Hecho -> {
+                    _uiState.update {
+                        it.copy(
+                            cancelando = null,
+                            avisoCancelacion = AvisoCancelacion(
+                                solicitudId = solicitudId,
+                                estado = resultado.resultado,
+                                mensaje = resultado.mensaje,
+                            ),
+                        )
+                    }
+                    // La tarjeta tiene que reflejar lo que acaba de pasar. Se relee en
+                    // vez de retocarla aquí: lo que vale es lo que quedó escrito, y
+                    // adivinarlo en el cliente es cómo se separan las dos versiones.
+                    if (resultado.resultado == CancelacionEstado.Cancelada ||
+                        resultado.resultado == CancelacionEstado.Solicitada ||
+                        resultado.resultado == CancelacionEstado.YaCancelada
+                    ) {
+                        recargarSolicitudes()
+                    }
+                }
+                is CancelacionResult.Fallo -> _uiState.update {
+                    it.copy(
+                        cancelando = null,
+                        avisoCancelacion = AvisoCancelacion(
+                            solicitudId = solicitudId,
+                            estado = CancelacionEstado.Desconocido,
+                            mensaje = resultado.mensaje,
+                            esError = true,
+                        ),
+                    )
+                }
+                CancelacionResult.SinSesion -> _uiState.update {
+                    it.copy(cancelando = null, pideSesion = true)
+                }
+            }
+        }
+    }
+
+    /** El diálogo se cerró: el aviso ya se leyó y no tiene que reaparecer. */
+    fun descartarAvisoCancelacion() = _uiState.update { it.copy(avisoCancelacion = null) }
+
+    /** Vuelve a leer el historial aunque ya se esté leyendo otra cosa. */
+    private suspend fun recargarSolicitudes() {
+        val lista = repository.misSolicitudes()
+        _uiState.update { it.copy(cargandoSolicitudes = false, solicitudes = lista) }
     }
 
     fun loadSolicitudes() {
