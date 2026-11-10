@@ -123,8 +123,7 @@ class AuthViewModel(
                     state.mode == AuthMode.SignUp -> it.copy(
                         isSubmitting = false,
                         password = "",
-                        infoMessage = "Cuenta creada. Si tu proyecto requiere confirmación, " +
-                            "revisa tu correo antes de iniciar sesión.",
+                        infoMessage = "Cuenta creada. Revisa tu correo antes de iniciar sesión.",
                         mode = AuthMode.SignIn,
                     )
                     else -> it.copy(isSubmitting = false, password = "")

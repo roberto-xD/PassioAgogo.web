@@ -74,38 +74,56 @@ fun ProductCard(product: PGDataCard, onClick: () -> Unit = {}) {
 
                 // Va sobre la imagen y no en la fila del precio, donde chocaría con el
                 // badge de OFERTA cuando un artículo por encargo está en promoción.
-                if (product.sobrePedido) {
-                    Text(
-                        text = "SOBRE PEDIDO",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(PassionTheme.spacing.s2)
-                            .clip(MaterialTheme.shapes.extraLarge)
-                            .background(MaterialTheme.colorScheme.secondaryContainer)
-                            .padding(
-                                horizontal = PassionTheme.spacing.s2,
-                                vertical = PassionTheme.spacing.s1,
-                            ),
-                    )
+                when{
+                    product.sobrePedido -> {
+                        Text(
+                            text = "SOBRE PEDIDO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(PassionTheme.spacing.s2)
+                                .clip(MaterialTheme.shapes.extraLarge)
+                                .background(MaterialTheme.colorScheme.secondaryContainer)
+                                .padding(
+                                    horizontal = PassionTheme.spacing.s2,
+                                    vertical = PassionTheme.spacing.s1,
+                                ),
+                        )
+                    }
+                    product.hasOffert -> {
+                        Text(
+                            text = "OFERTA",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = semantics.onOffer,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(PassionTheme.spacing.s2)
+                                .clip(MaterialTheme.shapes.extraLarge)
+                                .background(semantics.offer)
+                                .padding(
+                                    horizontal = PassionTheme.spacing.s2,
+                                    vertical = PassionTheme.spacing.s1,
+                                ),
+                        )
+                    }
                 }
             }
 
-            // Nombre y resumen ocupan siempre las mismas líneas, tengan el texto que
-            // tengan: `minLines` reserva el alto aunque sobre espacio o el texto falte, y
-            // `maxLines` lo recorta con puntos suspensivos si se pasa. Entre las dos,
-            // todas las tarjetas de la cuadrícula miden exactamente lo mismo. Dejar que
-            // cada tarjeta creciera con su contenido es lo que desalineaba las filas.
-            Text(
-                text = product.productTittle,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                minLines = TITLE_LINES,
-                maxLines = TITLE_LINES,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = PassionTheme.spacing.s3),
-            )
+                // Nombre y resumen ocupan siempre las mismas líneas, tengan el texto que
+                // tengan: `minLines` reserva el alto aunque sobre espacio o el texto falte, y
+                // `maxLines` lo recorta con puntos suspensivos si se pasa. Entre las dos,
+                // todas las tarjetas de la cuadrícula miden exactamente lo mismo. Dejar que
+                // cada tarjeta creciera con su contenido es lo que desalineaba las filas.
+                Text(
+                    text = product.productTittle,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    minLines = TITLE_LINES,
+                    maxLines = TITLE_LINES,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = PassionTheme.spacing.s3),
+                )
 
             // Se pinta aunque venga vacío: el hueco tiene que quedarse igual, así que no
             // puede haber un `if` que lo quite de la composición.
@@ -143,18 +161,6 @@ fun ProductCard(product: PGDataCard, onClick: () -> Unit = {}) {
                             modifier = Modifier.padding(start = PassionTheme.spacing.s1),
                         )
                     }
-                    Text(
-                        text = "OFERTA",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = semantics.onOffer,
-                        modifier = Modifier
-                            .clip(MaterialTheme.shapes.extraLarge)
-                            .background(semantics.offer)
-                            .padding(
-                                horizontal = PassionTheme.spacing.s2,
-                                vertical = PassionTheme.spacing.s1,
-                            ),
-                    )
                 } else {
                     // Sin precio no se pinta nada, pero el texto sigue midiendo: así la
                     // fila conserva su alto y las tarjetas de la cuadrícula no se

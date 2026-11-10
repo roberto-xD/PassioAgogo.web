@@ -53,7 +53,7 @@ private fun FilaPaso(indice: Int, paso: PasoPedido, hecho: Boolean, ultimo: Bool
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    if (hecho) "✓" else "${indice + 1}",
+                    if (hecho) "Ok" else "${indice + 1}",
                     style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
                     color = if (hecho) cs.onPrimary else cs.primary,
                 )
