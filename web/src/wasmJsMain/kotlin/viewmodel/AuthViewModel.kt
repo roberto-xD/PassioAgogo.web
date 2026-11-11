@@ -395,6 +395,16 @@ class AuthViewModel(
      */
     fun desbloquearCifrado(password: String) {
         if (password.isBlank() || _uiState.value.desbloqueando) return
+
+        // Sin `crypto.subtle` no hay nada que intentar, y comprobar la contraseña
+        // primero sería hacerle teclearla para nada.
+        if (!AddressCrypto.hayCripto()) {
+            _uiState.update {
+                it.copy(errorDesbloqueo = "Tu navegador no deja cifrar en una conexión sin HTTPS. Abre la tienda en su dirección de siempre y vuelve a intentarlo.")
+            }
+            return
+        }
+
         _uiState.update { it.copy(desbloqueando = true, errorDesbloqueo = null) }
 
         scope.launch {

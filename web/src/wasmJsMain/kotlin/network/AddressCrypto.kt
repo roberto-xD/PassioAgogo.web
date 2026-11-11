@@ -116,6 +116,20 @@ object AddressCrypto {
     fun hayClave(): Boolean = !leerSesion(CLAVE_SESION).isNullOrBlank()
 
     /**
+     * ¿El navegador nos deja cifrar aquí?
+     *
+     * `crypto.subtle` **solo existe en contextos seguros**: HTTPS, `localhost` o
+     * `127.0.0.1`. Abierta por `http://` en la IP de la red local —probando desde el
+     * teléfono contra el servidor de desarrollo de la máquina— el navegador lo deja sin
+     * definir y todo lo de aquí falla.
+     *
+     * Se comprueba aparte para poder decirlo con esas palabras. Sin esto, el fallo
+     * aparecía como «no pudimos preparar tu clave, inténtalo de nuevo», que invita a
+     * repetir algo que no va a salir nunca por mucho que se insista.
+     */
+    fun hayCripto(): Boolean = tieneSubtle()
+
+    /**
      * Cierra el sobre.
      *
      * @param adminPublica clave pública de `crypto_keys`, en base64 (SPKI).
@@ -286,6 +300,17 @@ private fun descifrarJs(
             }
         })();
     })(contenido, iv, dkUsuario, ivUsuario, kekB64)"""
+)
+
+/** Ver [AddressCrypto.hayCripto]. */
+private fun tieneSubtle(): Boolean = js(
+    """(function () {
+        try {
+            return typeof crypto !== 'undefined' &&
+                !!crypto.subtle &&
+                typeof crypto.subtle.importKey === 'function';
+        } catch (e) { return false; }
+    })()"""
 )
 
 // ------------------------------------------------------------

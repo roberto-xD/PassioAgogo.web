@@ -190,6 +190,10 @@ class AddressViewModel(
         val estado = _uiState.value
         if (!estado.puedeGuardar) return
 
+        if (!AddressCrypto.hayCripto()) {
+            _uiState.update { it.copy(error = "Tu navegador no deja cifrar en una conexión sin HTTPS. Abre la tienda en su dirección de siempre y vuelve a intentarlo.") }
+            return
+        }
         if (!AddressCrypto.hayClave()) {
             _uiState.update {
                 it.copy(error = "Vuelve a entrar para poder guardar tu dirección cifrada.")
