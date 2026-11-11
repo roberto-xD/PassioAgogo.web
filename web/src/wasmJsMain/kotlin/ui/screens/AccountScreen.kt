@@ -158,7 +158,11 @@ fun AccountMainContent(
             onValueChange = onTelefonoChange,
             label = "Teléfono",
             keyboardType = KeyboardType.Phone,
-            supportingText = "Lo usamos para cerrar tus pedidos. Puedes dejarlo vacío.",
+            // Decía que se podía dejar vacío y no es verdad: todo el trato va por
+            // WhatsApp, así que sin teléfono no hay por dónde seguir un pedido. El
+            // carrito ya lo exige para enviar; decir aquí lo contrario era mandar a
+            // la gente a descubrirlo al final.
+            supportingText = "Por aquí seguimos tu pedido por WhatsApp.",
         )
 
         // El aviso va antes del botón: después quedaría debajo del siguiente bloque

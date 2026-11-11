@@ -31,6 +31,16 @@ fun FormField(
     keyboardType: KeyboardType = KeyboardType.Text,
     isPassword: Boolean = false,
     /**
+     * Dejar que el teclado corrija lo que se escribe. **Apagado por omisión.**
+     *
+     * En el navegador móvil, la corrección automática y la barra de sugerencias
+     * rompen el campo: al terminar una palabra se borra sola. Es un fallo conocido de
+     * Compose en web (CMP-8585), no nuestro, y lo único que está en nuestra mano es no
+     * pedirle al teclado que corrija. Aquí además se pierde poco: esto son nombres,
+     * calles, colonias y códigos, justo lo que un corrector estropea aunque funcione.
+     */
+    autoCorregir: Boolean = false,
+    /**
      * Apagado se sigue leyendo, pero no se escribe.
      *
      * Para datos que los pone el sistema y no la persona —la ciudad que resuelve el
@@ -48,7 +58,10 @@ fun FormField(
         supportingText = supportingText?.let { { Text(it) } },
         visualTransformation =
             if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = keyboardType,
+            autoCorrect = autoCorregir,
+        ),
         shape = MaterialTheme.shapes.small,
         // Material apaga los campos al 38 % de opacidad, que es para lo que no se puede
         // usar todavía. Aquí es al revés: el dato está puesto y es correcto, solo que

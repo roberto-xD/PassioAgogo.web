@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -155,6 +156,11 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
+        // Sin corrección automática, por lo mismo que los demás campos: en el
+        // navegador móvil la barra de sugerencias se come lo escrito (CMP-8585). Y
+        // buscando en un catálogo estorba igual, que los nombres de producto no
+        // están en el diccionario de nadie.
+        keyboardOptions = KeyboardOptions(autoCorrect = false),
         placeholder = { Text("Buscar productos…") },
         trailingIcon = {
             if (query.isNotEmpty()) {
