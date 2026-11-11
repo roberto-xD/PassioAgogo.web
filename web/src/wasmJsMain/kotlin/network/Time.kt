@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+
 package network
 
 /** Timestamp ISO-8601 actual del navegador, para filtros de vigencia en PostgREST. */

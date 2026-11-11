@@ -60,7 +60,7 @@ fun FormField(
             if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(
             keyboardType = keyboardType,
-            autoCorrect = autoCorregir,
+            autoCorrectEnabled = autoCorregir,
         ),
         shape = MaterialTheme.shapes.small,
         // Material apaga los campos al 38 % de opacidad, que es para lo que no se puede

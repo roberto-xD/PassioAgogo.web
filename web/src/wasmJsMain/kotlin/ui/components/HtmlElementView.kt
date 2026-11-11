@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+
 package ui.components
 
 import androidx.compose.foundation.layout.Box

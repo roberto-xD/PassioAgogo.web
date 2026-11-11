@@ -1,14 +1,21 @@
 [versions]
-kotlin = "2.1.20"
-compose-multiplatform = "1.7.3"
-# supabase-kt 3.1.4 está construido con Kotlin 2.1.20 (igual que este proyecto) y
-# Ktor 3.1.2. Versiones más nuevas de supabase-kt usan Kotlin 2.2.x, cuyos klibs no
-# puede leer el compilador 2.1.20 (falla con "Symbol for Any not found").
-ktor = "3.1.2"
+# Estas cinco se mueven juntas o no se mueven.
+#
+# El compilador de Kotlin solo lee klibs de su versión o anteriores: con uno viejo y
+# dependencias nuevas falla con «Symbol for Any not found», que no dice nada de lo que
+# pasa de verdad. Por eso subir Compose arrastra a Kotlin, y Kotlin arrastra a
+# supabase-kt, a Ktor y a Coil.
+#
+# Se subió para traer el arreglo de CMP-8585: en el navegador móvil, la barra de
+# sugerencias del teclado —Samsung y SwiftKey, que comparten motor— se comía lo
+# escrito en cualquier campo de texto. Está verificado como arreglado en 1.9.0-beta02.
+kotlin = "2.4.21"
+compose-multiplatform = "1.12.2"
+ktor = "3.6.1"
 coroutines = "1.8.0"
 serialization = "1.7.3"
-coil3 = "3.0.4"
-supabase = "3.1.4"
+coil3 = "3.6.3"
+supabase = "3.9.0"
 
 [libraries]
 # Engine de Ktor (lo usa Coil para descargar imágenes; supabase-kt trae su propio cliente).

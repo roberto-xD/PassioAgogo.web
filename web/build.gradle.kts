@@ -1,4 +1,4 @@
-import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -10,9 +10,13 @@ plugins {
 kotlin {
     // Compose para Web se ejecuta sobre el target wasmJs (Skia/skiko). El target
     // js(IR) no carga el runtime de skiko de forma fiable, por eso se usa wasmJs.
+    //
+    // La anotación no desapareció al subir de versión: se mudó de paquete, de
+    // `...gradle.targets.js.dsl` a `...gradle`. Y `moduleName` pasó a ser
+    // `outputModuleName`, que es una Property y se asigna con `set`.
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        moduleName = "agogo"
+        outputModuleName.set("agogo")
         browser {
             commonWebpackConfig {
                 outputFileName = "agogo.js"
