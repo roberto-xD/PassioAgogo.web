@@ -70,7 +70,7 @@ class AcuseRepository(
         conNombres: Boolean,
     ): Acuse? = runCatching {
         val columnas = buildString {
-            append("id, folio, estado, total_estimado, created_at, metodo_entrega, ")
+            append("id, codigo_pedido, estado, total_estimado, created_at, metodo_entrega, ")
             append("envio_costo, envio_descripcion, envio_entrega, ")
             // 48_codigos.sql. Va en su propio escalón: metida con las del pago, una base
             // sin ese script se quedaría también sin el estado del cobro, que es lo
@@ -161,7 +161,7 @@ class AcuseRepository(
 
         return Acuse(
             id = id,
-            folio = dto.folio ?: 0L,
+            codigoPedido = dto.codigoPedido.orEmpty(),
             fecha = dto.createdAt.orEmpty().substringBefore('T'),
             estado = dto.estado.orEmpty(),
             entrega = if (dto.metodoEntrega == MetodoEntrega.Personal.clave) {

@@ -46,23 +46,24 @@ object WhatsAppConfig {
     /**
      * Duda sobre un pedido concreto, desde el acuse o el historial.
      *
-     * Lleva el folio porque es lo que permite atender sin preguntar primero «¿cuál de
-     * tus pedidos?». Va el folio y no el identificador interno: es el número que la
-     * persona ve en su pantalla.
+     * Lleva el código porque es lo que permite atender sin preguntar primero «¿cuál de
+     * tus pedidos?». Va el código y no el folio ni el identificador interno: es lo que
+     * la persona tiene en su pantalla, y con lo que administración puede buscarlo
+     * (`fn_envios_admin(p_codigo := ...)`).
      */
-    fun enlaceParaPedido(folio: Long): String =
-        enlace("Hola, tengo una duda sobre mi pedido #$folio")
+    fun enlaceParaPedido(codigo: String): String =
+        enlace("Hola, tengo una duda sobre mi pedido $codigo")
 
     /**
      * Cancelación de un pedido ya pagado o ya enviado.
      *
-     * Va redactado como lo que es —una petición, no una queja— y con el folio dentro,
+     * Va redactado como lo que es —una petición, no una queja— y con el código dentro,
      * porque quien atienda necesita poder abrir el pedido antes de contestar. Que la
      * persona no tenga que explicar desde cero lo que la pantalla ya sabe es la mitad
      * del trabajo de una conversación así.
      */
-    fun enlaceParaCancelacion(folio: Long): String =
-        enlace("Hola, quiero cancelar mi pedido #$folio")
+    fun enlaceParaCancelacion(codigo: String): String =
+        enlace("Hola, quiero cancelar mi pedido $codigo")
 
     /**
      * Seguimiento de una devolución ya pedida.
@@ -70,10 +71,10 @@ object WhatsAppConfig {
      * Distinto de [enlaceParaCancelacion] porque la conversación es otra: quien ya
      * canceló no viene a cancelar, viene a preguntar por su dinero. Abrir WhatsApp y
      * encontrar escrito lo que uno no quería decir acaba en que lo borra y escribe
-     * «hola», y ahí se pierde el folio.
+     * «hola», y ahí se pierde el código.
      */
-    fun enlaceParaDevolucion(folio: Long): String =
-        enlace("Hola, cancelé mi pedido #$folio y quiero saber de mi devolución")
+    fun enlaceParaDevolucion(codigo: String): String =
+        enlace("Hola, cancelé mi pedido $codigo y quiero saber de mi devolución")
 
     /**
      * Reclamación de un premio de la ruleta.

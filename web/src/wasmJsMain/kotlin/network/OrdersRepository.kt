@@ -59,10 +59,10 @@ sealed interface CancelacionResult {
 /** Se envió, o hay un motivo que contarle a la persona. */
 sealed interface EnvioResult {
     /**
-     * El [id] va además del folio porque es lo que necesita el cobro: `crear-pago`
-     * identifica la solicitud por su id, no por el número que se le enseña a la persona.
+     * El [id] va además del código porque es lo que necesita el cobro: `crear-pago`
+     * identifica la solicitud por su id, no por lo que se le enseña a la persona.
      */
-    data class Enviada(val folio: Long, val id: String) : EnvioResult
+    data class Enviada(val codigoPedido: String, val id: String) : EnvioResult
     data class Fallo(val mensaje: String) : EnvioResult
     /** No hay sesión: el carrito se conserva y se pide acceder. */
     data object SinSesion : EnvioResult
@@ -168,7 +168,7 @@ class OrdersRepository(
                 }
             )
 
-            EnvioResult.Enviada(folio = creada.folio ?: 0L, id = id)
+            EnvioResult.Enviada(codigoPedido = creada.codigoPedido.orEmpty(), id = id)
         } catch (e: Exception) {
             solicitudId?.let { huerfana ->
                 runCatching {
@@ -181,16 +181,16 @@ class OrdersRepository(
     }
 
     /**
-     * Inserta la cabecera y devuelve lo justo: el id y el folio.
+     * Inserta la cabecera y devuelve lo justo: el id y el código del pedido.
      *
      * Pide esas dos columnas y no `select()` a secas, que significa `*`. Con permisos
      * por columna —que es como se protege el margen de la tienda— pedir todas las
      * columnas devuelve 403 aunque solo se vayan a leer dos. Y son dos: el id para
-     * cobrar, el folio para enseñarlo.
+     * cobrar, el código para enseñarlo.
      */
     private suspend fun insertarCabecera(fila: NuevaSolicitudDto): SolicitudDto =
         supabase.from(SupabaseConfig.ORDER_REQUESTS_TABLE)
-            .insert(fila) { select(Columns.raw("id, folio")) }
+            .insert(fila) { select(Columns.raw("id, codigo_pedido")) }
             .decodeSingle()
 
     /**
@@ -257,7 +257,7 @@ class OrdersRepository(
         conPago: Boolean,
     ): List<Solicitud>? = runCatching {
         val columnas = buildString {
-            append("id, folio, estado, total_estimado, created_at, motivo_rechazo, ")
+            append("id, codigo_pedido, estado, total_estimado, created_at, motivo_rechazo, ")
             if (conGuia) append("guia_numero, guia_rastreo_url, guia_paqueteria, ")
             if (conGuia) append("envio_costo, envio_descripcion, ")
             // 48_codigos.sql, en su propio escalón: pedirla junto a las del pago dejaría
@@ -283,7 +283,7 @@ class OrdersRepository(
                 val id = dto.id ?: return@mapNotNull null
                 Solicitud(
                     id = id,
-                    folio = dto.folio ?: 0L,
+                    codigoPedido = dto.codigoPedido.orEmpty(),
                     estado = dto.estado.orEmpty(),
                     totalArticulos = dto.totalEstimado,
                     fecha = soloFecha(dto.createdAt.orEmpty()),
@@ -320,7 +320,7 @@ private fun faltaLaColumna(raw: String): Boolean {
         "envio_costo" in m || "envio_entrega" in m ||
         "pago_estado" in m || "pago_total" in m ||
         "pago_metodo" in m || "pago_referencia" in m ||
-        "codigo_descuento" in m || "envio_gratis" in m ||
+        "codigo_descuento" in m || "envio_gratis" in m || "codigo_pedido" in m ||
         "cancelada_at" in m || "cancelacion_solicitada_at" in m ||
         "cancelada_por" in m ||
         "pago_marca" in m || "pago_ultimos4" in m

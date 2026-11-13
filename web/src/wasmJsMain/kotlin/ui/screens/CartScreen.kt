@@ -125,9 +125,9 @@ fun CartScreen(
     ContentScreen(title = "Mi solicitud") {
         // Acuse: ocupa la pantalla entera porque es el final del camino, y mezclarlo con
         // un carrito ya vacío haría dudar de si se envió.
-        state.folioEnviado?.let { folio ->
+        state.codigoEnviado?.let { codigo ->
             Acuse(
-                folio = folio,
+                codigo = codigo,
                 total = state.totalEnviado,
                 pagando = state.idEnviada != null && state.pagando == state.idEnviada,
                 errorPago = state.errorPago,
@@ -932,7 +932,7 @@ private fun Paso(signo: String, onClick: () -> Unit) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Acuse(
-    folio: Long,
+    codigo: String,
     total: Double,
     pagando: Boolean,
     errorPago: String?,
@@ -956,7 +956,7 @@ private fun Acuse(
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Folio #$folio",
+            text = "Pedido $codigo",
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
@@ -971,7 +971,7 @@ private fun Acuse(
 
         if (WhatsAppConfig.isConfigured) {
             Button(
-                onClick = { openInNewTab(WhatsAppConfig.enlaceParaPedido(folio)) },
+                onClick = { openInNewTab(WhatsAppConfig.enlaceParaPedido(codigo)) },
                 shape = MaterialTheme.shapes.extraLarge,
                 modifier = Modifier.padding(top = PassionTheme.spacing.s4),
             ) {

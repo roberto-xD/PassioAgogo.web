@@ -107,7 +107,9 @@ data class NuevoItemDto(
 @Serializable
 data class SolicitudDto(
     val id: String? = null,
-    val folio: Long? = null,
+    // El folio ya no se le concede al cliente (52_codigo_pedido.sql): es consecutivo
+    // y delata cuántos pedidos lleva la tienda. Lo que ve es `codigo_pedido`.
+    @SerialName("codigo_pedido") val codigoPedido: String? = null,
     val estado: String? = null,
     @SerialName("total_estimado") val totalEstimado: Double = 0.0,
     @SerialName("created_at") val createdAt: String? = null,
@@ -148,7 +150,8 @@ data class ItemSolicitudDto(
 /** Solicitud lista para pintarse en el historial. */
 data class Solicitud(
     val id: String,
-    val folio: Long,
+    /** Los cuatro caracteres que ve y dicta el cliente. No es el folio. */
+    val codigoPedido: String,
     val estado: String,
     /** Solo los artículos: es lo que calcula el trigger de la base. */
     val totalArticulos: Double,

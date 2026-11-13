@@ -228,8 +228,8 @@ fun App() {
     // Enviada la solicitud, el teléfono que se escribió al pedir se queda en el perfil
     // para no volver a pedirlo. Se hace al enviar y no al teclear: hasta ese momento es
     // un campo a medias, no el contacto de nadie.
-    LaunchedEffect(cartState.folioEnviado) {
-        if (cartState.folioEnviado != null) {
+    LaunchedEffect(cartState.codigoEnviado) {
+        if (cartState.codigoEnviado != null) {
             authViewModel.recordarTelefono(cartState.telefono)
         }
     }

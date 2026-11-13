@@ -12,7 +12,8 @@ import kotlinx.serialization.Serializable
  */
 data class Acuse(
     val id: String,
-    val folio: Long,
+    /** Los cuatro caracteres que ve y dicta el cliente. No es el folio. */
+    val codigoPedido: String,
     val fecha: String,
     val estado: String,
     val entrega: MetodoEntrega,
@@ -84,7 +85,7 @@ data class ArticuloAcuse(
 @Serializable
 data class AcuseDto(
     val id: String? = null,
-    val folio: Long? = null,
+    @SerialName("codigo_pedido") val codigoPedido: String? = null,
     val estado: String? = null,
     @SerialName("total_estimado") val totalEstimado: Double = 0.0,
     @SerialName("created_at") val createdAt: String? = null,

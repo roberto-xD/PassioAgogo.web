@@ -83,13 +83,13 @@ data class CartUiState(
     val autenticado: Boolean = false,
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null,
-    /** Folio de la solicitud recién enviada; con él se enseña el acuse. */
-    val folioEnviado: Long? = null,
+    /** Código de la solicitud recién enviada; con él se enseña el acuse. */
+    val codigoEnviado: String? = null,
     /**
      * Id de la solicitud recién enviada, para poder cobrarla sin salir del acuse.
      *
-     * Va aparte del folio porque son dos cosas con dos usos: el folio es lo que se le
-     * enseña a la persona y lo que dice por WhatsApp; el id es lo que identifica la
+     * Va aparte del código porque son dos cosas con dos usos: el código es lo que se
+     * le enseña a la persona y lo que dice por WhatsApp; el id es lo que identifica la
      * solicitud para `crear-pago`.
      */
     val idEnviada: String? = null,
@@ -539,7 +539,7 @@ class CartViewModel(
     /** Se vuelve del acuse al carrito, o se descarta el aviso de sesión. */
     fun reset() = _uiState.update {
         it.copy(
-            folioEnviado = null,
+            codigoEnviado = null,
             idEnviada = null,
             pideSesion = false,
             errorMessage = null,
@@ -555,17 +555,17 @@ class CartViewModel(
      */
     fun pagar(solicitudId: String) {
         if (solicitudId.isBlank() || _uiState.value.pagando != null) return
-        scope.launch { cobrar(solicitudId, folioSiFalla = null) }
+        scope.launch { cobrar(solicitudId, codigoSiFalla = null) }
     }
 
     /**
      * Abre el cobro. Lo usan el botón del historial y el carrito encadenado.
      *
-     * [folioSiFalla] solo llega desde el carrito: es el folio de la solicitud que
+     * [codigoSiFalla] solo llega desde el carrito: es el código de la solicitud que
      * acabamos de crear, para poder enseñar el acuse si el cobro no abre. Desde el
      * historial no hace falta, porque de ahí no nos movemos.
      */
-    private suspend fun cobrar(solicitudId: String, folioSiFalla: Long?) {
+    private suspend fun cobrar(solicitudId: String, codigoSiFalla: String?) {
         _uiState.update { it.copy(pagando = solicitudId, errorPago = null) }
 
         when (val resultado = payments.abrirCobro(solicitudId)) {
@@ -578,14 +578,14 @@ class CartViewModel(
                 it.copy(
                     pagando = null,
                     errorPago = resultado.mensaje,
-                    folioEnviado = it.folioEnviado ?: folioSiFalla,
+                    codigoEnviado = it.codigoEnviado ?: codigoSiFalla,
                 )
             }
             PagoResult.SinSesion -> _uiState.update {
                 it.copy(
                     pagando = null,
                     pideSesion = true,
-                    folioEnviado = it.folioEnviado ?: folioSiFalla,
+                    codigoEnviado = it.codigoEnviado ?: codigoSiFalla,
                 )
             }
         }
@@ -693,7 +693,7 @@ class CartViewModel(
                             // Pago, enseñar «solicitud enviada» un instante antes de
                             // que la página se vaya es un parpadeo que no informa de
                             // nada.
-                            folioEnviado = if (conPago) null else resultado.folio,
+                            codigoEnviado = if (conPago) null else resultado.codigoPedido,
                             idEnviada = resultado.id,
                             totalEnviado = total,
                             solicitudes = null,
@@ -703,7 +703,7 @@ class CartViewModel(
                     // Si el cobro no se puede abrir, el acuse aparece entonces: la
                     // solicitud existe, y dejar el carrito vacío con un error suelto
                     // haría pensar que se perdió.
-                    if (conPago) cobrar(resultado.id, folioSiFalla = resultado.folio)
+                    if (conPago) cobrar(resultado.id, codigoSiFalla = resultado.codigoPedido)
                 }
                 is EnvioResult.Fallo -> _uiState.update {
                     it.copy(isSubmitting = false, errorMessage = resultado.mensaje)

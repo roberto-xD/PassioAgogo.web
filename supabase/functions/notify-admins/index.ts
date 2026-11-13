@@ -150,8 +150,15 @@ export function construirMensaje(
     if (!anterior) {
       return {
         titulo: "Nueva solicitud de pedido",
-        cuerpo: `#${record.folio} · ${record.cliente_nombre}`,
-        data: { tipo: "solicitud", id: String(record.id ?? "") },
+        // El folio ordena y el código es con el que el cliente va a escribir por
+        // WhatsApp. Van los dos: sin el código hay que buscarlo cuando llegue el
+        // mensaje, y sin el folio se pierde el orden de la cola.
+        cuerpo: `#${record.folio} · ${record.codigo_pedido ?? "?"} · ${record.cliente_nombre}`,
+        data: {
+          tipo: "solicitud",
+          id: String(record.id ?? ""),
+          codigo: String(record.codigo_pedido ?? ""),
+        },
         locationId: null,
       };
     }
@@ -162,12 +169,14 @@ export function construirMensaje(
       const cobrado = Number(record.pago_total ?? 0);
       return {
         titulo: "Cancelación pedida · hay que devolver",
-        cuerpo: `#${record.folio} · ${record.cliente_nombre}` +
+        cuerpo: `#${record.folio} · ${record.codigo_pedido ?? "?"} · ` +
+          `${record.cliente_nombre}` +
           (cobrado > 0 ? ` · $${cobrado.toFixed(2)}` : ""),
         data: {
           tipo: "cancelacion_pedida",
           id: String(record.id ?? ""),
           folio: String(record.folio ?? ""),
+          codigo: String(record.codigo_pedido ?? ""),
         },
         locationId: null,
       };
@@ -186,11 +195,12 @@ export function construirMensaje(
     ) {
       return {
         titulo: "Solicitud cancelada por el cliente",
-        cuerpo: `#${record.folio} · ${record.cliente_nombre}`,
+        cuerpo: `#${record.folio} · ${record.codigo_pedido ?? "?"} · ${record.cliente_nombre}`,
         data: {
           tipo: "cancelacion",
           id: String(record.id ?? ""),
           folio: String(record.folio ?? ""),
+          codigo: String(record.codigo_pedido ?? ""),
         },
         locationId: null,
       };

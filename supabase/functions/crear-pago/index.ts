@@ -163,6 +163,7 @@ interface FilaSolicitud {
   pago_orden_id: string | null;
   pago_total: number | null;
   codigo_descuento: string | null;
+  codigo_pedido: string | null;
   cancelada_at: string | null;
   cancelacion_solicitada_at: string | null;
   order_request_items: Renglon[] | null;
@@ -406,7 +407,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const { data: filaSolicitud, error: errorSolicitud } = await supabase
     .from("order_requests")
     .select(
-      "id, folio, created_by, cliente_nombre, cliente_email, total_estimado, " +
+      "id, folio, codigo_pedido, created_by, cliente_nombre, cliente_email, " +
+        "total_estimado, " +
         "envio_costo, envio_descripcion, metodo_entrega, " +
         "pago_estado, pago_orden_id, pago_total, codigo_descuento, " +
         "cancelada_at, cancelacion_solicitada_at, " +
@@ -563,7 +565,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       title: CONCEPTO,
       quantity: 1,
       unit_price: dinero(totalArticulos - descuento.monto),
-      external_code: `solicitud-${solicitud.folio ?? ""}`,
+      // El código y no el folio: esto viaja a Mercado Pago y la persona lo ve en su
+      // comprobante. El folio es consecutivo y no es asunto de quien compra
+      // (52_codigo_pedido.sql).
+      external_code: `pedido-${solicitud.codigo_pedido ?? ""}`,
     },
   ];
   if (envio > 0) {

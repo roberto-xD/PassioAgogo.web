@@ -28,8 +28,13 @@ begin;
 revoke select on order_requests from authenticated;
 
 grant select (
-  -- Identidad y estado
-  id, folio, estado, total_estimado, created_at, motivo_rechazo,
+  -- Identidad y estado.
+  --
+  -- `folio` **ya no**: es consecutivo, y enseñárselo al cliente cuenta cuántos
+  -- pedidos lleva la tienda y a qué ritmo entran. Lo sustituye `codigo_pedido`
+  -- (52_codigo_pedido.sql), que va en la lista condicional de abajo porque llega
+  -- en un script posterior a este.
+  id, estado, total_estimado, created_at, motivo_rechazo,
   -- Lo que escribió al pedir. Es suyo: puede leerlo.
   cliente_nombre, cliente_telefono, cliente_email, notas, created_by,
   -- Entrega
@@ -65,8 +70,9 @@ declare
   v_col text;
 begin
   foreach v_col in array array[
-    'envio_gratis',  -- 48_codigos.sql: el envio lo cubrio un codigo
-    'order_id'       -- 49_envios_admin_rpc.sql: el pedido en que se convirtio
+    'envio_gratis',   -- 48_codigos.sql: el envio lo cubrio un codigo
+    'order_id',       -- 49_envios_admin_rpc.sql: el pedido en que se convirtio
+    'codigo_pedido'   -- 52_codigo_pedido.sql: lo que ve el cliente en vez del folio
   ] loop
     if exists (
       select 1 from information_schema.columns

@@ -380,7 +380,7 @@ private fun Encabezado(acuse: Acuse, esperando: Boolean) {
             ),
             verticalArrangement = Arrangement.spacedBy(PassionTheme.spacing.s1),
         ) {
-            DatoDelTitular("Pedido ", "#${acuse.folio}")
+            DatoDelTitular("Pedido ", acuse.codigoPedido)
             Text(
                 text = acuse.fecha,
                 color = PassionTheme.semantics.onBackgroundMuted,
@@ -641,7 +641,7 @@ private fun Pago(acuse: Acuse, esperando: Boolean, statement: String) {
         }
 
         // La referencia es su comprobante: es lo que sirve para reclamar en Mercado
-        // Pago, donde nuestro folio no significa nada.
+        // Pago, donde nuestro código no significa nada.
         if (acuse.pagoReferencia.isNotBlank()) {
             var copiado by remember(acuse.id) { mutableStateOf(false) }
             Row(
@@ -756,7 +756,7 @@ private fun Contacto(acuse: Acuse) {
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier
                 .clip(MaterialTheme.shapes.extraSmall)
-                .clickable { openInNewTab(WhatsAppConfig.enlaceParaPedido(acuse.folio)) }
+                .clickable { openInNewTab(WhatsAppConfig.enlaceParaPedido(acuse.codigoPedido)) }
                 .padding(vertical = PassionTheme.spacing.s1),
         )
     }

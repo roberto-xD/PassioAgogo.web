@@ -148,7 +148,7 @@ private fun Tarjeta(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Folio #${solicitud.folio}",
+                text = "Pedido ${solicitud.codigoPedido}",
                 color = PassionTheme.semantics.onBackgroundStrong,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
@@ -221,7 +221,7 @@ private fun Tarjeta(
             )
             EnlaceWhatsApp(
                 texto = "Preguntar por WhatsApp",
-                enlace = WhatsAppConfig.enlaceParaPedido(solicitud.folio),
+                enlace = WhatsAppConfig.enlaceParaPedido(solicitud.codigoPedido),
             )
         }
 
@@ -237,7 +237,7 @@ private fun Tarjeta(
             )
             EnlaceWhatsApp(
                 texto = "Escribir por WhatsApp",
-                enlace = WhatsAppConfig.enlaceParaDevolucion(solicitud.folio),
+                enlace = WhatsAppConfig.enlaceParaDevolucion(solicitud.codigoPedido),
             )
         }
 
@@ -310,9 +310,9 @@ private fun Cancelacion(
                 EnlaceWhatsApp(
                     texto = "Escribir por WhatsApp",
                     enlace = if (aviso.estado == CancelacionEstado.Solicitada) {
-                        WhatsAppConfig.enlaceParaDevolucion(solicitud.folio)
+                        WhatsAppConfig.enlaceParaDevolucion(solicitud.codigoPedido)
                     } else {
-                        WhatsAppConfig.enlaceParaCancelacion(solicitud.folio)
+                        WhatsAppConfig.enlaceParaCancelacion(solicitud.codigoPedido)
                     },
                 )
             }
@@ -363,11 +363,11 @@ private fun Cancelacion(
                 Paragraph(
                     "Tu pedido ya tiene guía y puede estar en camino, así que desde " +
                         "aquí ya no se puede cancelar. Escríbenos por WhatsApp con tu " +
-                        "folio y lo vemos contigo."
+                        "código y lo vemos contigo."
                 )
                 EnlaceWhatsApp(
                     texto = "Escribir por WhatsApp",
-                    enlace = WhatsAppConfig.enlaceParaCancelacion(solicitud.folio),
+                    enlace = WhatsAppConfig.enlaceParaCancelacion(solicitud.codigoPedido),
                 )
                 Spacer(Modifier.height(PassionTheme.spacing.s3))
                 PassionButton(
@@ -471,7 +471,7 @@ private fun Pago(solicitud: Solicitud, pagando: Boolean, onPagar: () -> Unit) {
     )
 
     // La referencia es su comprobante: es el número que sirve para reclamar en Mercado
-    // Pago si algo no cuadra, y ahí no vale el folio nuestro.
+    // Pago si algo no cuadra, y ahí no vale el código nuestro.
     if (pago == EstadoPago.Aprobado && solicitud.pagoReferencia.isNotBlank()) {
         var copiado by remember(solicitud.id) { mutableStateOf(false) }
         Row(verticalAlignment = Alignment.CenterVertically) {
