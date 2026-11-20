@@ -79,8 +79,11 @@ neutra, sin logos ni descripciones del contenido. Trabajamos con las paquetería
 cobertura a tu código postal, y el envío sale con el servicio que tú elegiste: no lo
 cambiamos por otro sin avisarte.
 
-En cuanto tu pedido sale, el número de guía y el enlace de rastreo aparecen en tu cuenta,
-y te los mandamos también por WhatsApp.
+Preparamos tu pedido en uno o dos días hábiles, y en cuanto sale el número de guía y el
+enlace de rastreo aparecen en tu cuenta; te los mandamos también por WhatsApp.
+
+El envío es gratis a partir de $1,500 de compra, y si estás por Perisur, San Lázaro o
+Roma Sur podemos entregártelo en persona de lunes a viernes por la tarde.
 
 ## Contacto
 

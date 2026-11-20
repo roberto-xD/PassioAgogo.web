@@ -11,8 +11,8 @@ actualizado: 2026-11-18
 
 ## 1. Titular del sitio
 
-Este sitio web es operado por Roberto Gutiérrez C, con domicilio en ⟦DECIDIR: domicilio
-fiscal o de operación que se quiera publicar⟧ (en adelante, «Passion à gogo»,
+Este sitio web es operado por Roberto A. Gutiérrez C., con domicilio en ⟦DECIDIR:
+domicilio fiscal o de operación que se quiera publicar⟧ (en adelante, «Passion à gogo»,
 «nosotros»). Para cualquier asunto relacionado con estos términos puedes escribirnos
 desde la sección Contacto o a contacto@passionagogo.com.
 
@@ -152,24 +152,26 @@ cotización: no lo cambiamos por otro sin avisarte.
 **Empaque discreto.** Caja o sobre neutro, sellado, sin logotipos ni descripción del
 contenido. En la etiqueta solo van los datos que la paquetería necesita para entregarlo.
 
-**Plazos.** El plazo que se muestra en la cotización es el que estima la paquetería y
-empieza a contar cuando el paquete sale, no cuando pagas.
-⟦DECIDIR: plazos reales de preparación —p. ej. «preparamos tu pedido en 1-2 días
-hábiles»— y si hay diferencia entre CDMX y el resto del país⟧
+**Plazos.** Preparamos tu pedido en **1 o 2 días hábiles**, tanto para la Ciudad de
+México como para el resto del país. A eso se suma el plazo de la paquetería, que es el
+que se muestra en la cotización: ese empieza a contar cuando el paquete sale, no cuando
+pagas.
 
 **Seguimiento.** En cuanto la guía existe, su número y su enlace de rastreo aparecen en
 tu historial, y te avisamos por WhatsApp en la misma conversación.
 
 **Dirección incorrecta o entrega fallida.** Si el paquete vuelve porque la dirección era
-incorrecta, estaba incompleta o nadie pudo recibirlo después de los intentos de la
-paquetería, ⟦DECIDIR: ¿el reenvío lo cubre el cliente, la tienda, o se reembolsa el
-producto menos el envío?⟧.
+incorrecta, estaba incompleta o nadie pudo recibirlo tras los intentos de la paquetería,
+el pedido se trata como una cancelación: te reembolsamos el importe de los productos y se
+descuenta el costo del envío, que la paquetería ya cobró por el viaje. Antes de llegar a
+eso te escribiremos por WhatsApp para intentar resolverlo.
 
-**Entrega personal.** ⟦DECIDIR: zona, horarios y condiciones en que se ofrece
-`metodo_entrega = 'personal'`, y si tiene costo⟧
+**Entrega personal.** Disponible en las zonas de **Perisur, San Lázaro y Roma Sur**, de
+lunes a viernes de 14:00 a 19:00 h. Si eliges esta opción no hay costo de envío y
+acordamos el punto y la hora por WhatsApp.
 
-**Envío gratis.** Puede cubrirlo un código promocional. ⟦DECIDIR: si además existe un
-monto mínimo de compra permanente que lo active⟧
+**Envío gratis.** El envío no se cobra cuando lo cubre un código promocional o cuando tu
+pedido alcanza un mínimo de compra de **$1,500.00 MXN** en productos, antes del envío.
 
 ## 12. Códigos, regalos y ruleta
 
@@ -190,49 +192,49 @@ Condiciones generales, salvo que el propio código indique otra cosa:
 
 ## 13. Cancelación y reembolso
 
-Puedes pedir la cancelación de un pedido desde tu historial, con el botón «Cancelar esta
-solicitud». Lo que ocurre depende de en qué punto esté:
+Las condiciones completas están en la página **Cancelaciones, devoluciones y garantías**,
+que forma parte de estos términos. Lo esencial:
 
-- **Sin pagar.** Se cancela de inmediato. No hay cargo y no hay nada que devolver.
-- **Pagado, sin guía generada.** Registramos tu solicitud y detenemos la preparación. El
-  reembolso se procesa por la misma vía del cobro, a través de Mercado Pago, y el pedido
-  queda cancelado cuando el dinero sale. El tiempo que tarda en reflejarse en tu cuenta
-  depende de tu banco, no de nosotros: lo habitual es de ⟦DECIDIR: plazo que Mercado Pago
-  indique para reembolsos según método de pago⟧.
+- **Sin pagar.** Se cancela de inmediato desde el botón «Cancelar esta solicitud» de tu
+  historial. No hay cargo.
+- **Pagado, sin guía generada.** Registramos tu solicitud, detenemos la preparación y
+  procesamos el reembolso por la misma vía del cobro. El pedido queda cancelado cuando el
+  dinero sale. Lo que tarda en reflejarse depende de tu banco: habitualmente entre 3 y 10
+  días hábiles.
 - **Con guía generada.** Escríbenos antes de hacer nada. Si el paquete no ha salido,
   cancelamos la guía y procesamos el reembolso. Si ya salió, lo que corresponde es una
-  devolución (sección 14), no una cancelación.
+  devolución, no una cancelación.
 
 Nunca reembolsamos un pedido que tenga una guía activa: primero se cancela la guía. Es
 una comprobación del sistema, no un criterio: así no puede ocurrir que te devolvamos el
 dinero de un paquete que ya va en camino.
 
 Si pagaste con un código de descuento, el reembolso es del importe que efectivamente
-pagaste.
+pagaste. Si lo prefieres, puedes optar por un cupón por el 100 % del valor más un bono
+adicional para usar en la tienda.
 
 ## 14. Devoluciones, cambios y garantía
 
-**Derecho de revocación.** Conforme al artículo 56 de la Ley Federal de Protección al
-Consumidor, el contrato se perfecciona a los cinco días hábiles contados desde la entrega
-del producto, y durante ese plazo puedes revocar tu consentimiento sin responsabilidad,
-siempre que el producto no haya sido usado. Para ejercerlo escríbenos a
-contacto@passionagogo.com indicando el código de tu pedido.
+Las condiciones completas, por categoría de producto, están en la página
+**Cancelaciones, devoluciones y garantías**, que forma parte de estos términos. En
+resumen:
 
-**Productos de higiene íntima.** Por razones de salud e higiene, un producto de uso
-íntimo cuyo empaque o sello de seguridad haya sido abierto no puede devolverse ni
-cambiarse, salvo que presente un defecto de fabricación.
-⟦DECIDIR: confirmar esta postura con revisión legal, porque es la que más fricción
-genera y la que más conviene tener bien respaldada⟧
-
-**Producto defectuoso, dañado o equivocado.** Si lo que recibes llega roto, no funciona o
-no es lo que pediste, escríbenos dentro de ⟦DECIDIR: plazo, p. ej. 5 días naturales⟧
-desde la entrega con fotos del producto y del empaque. Nos hacemos cargo: reponemos el
-producto o te reembolsamos el importe completo, incluido el envío, y el costo de la
-recolección corre por nuestra cuenta.
-
-**Garantía.** Los productos conservan la garantía que otorgue su fabricante.
-⟦DECIDIR: confirmar el plazo legal de garantía vigente —hay una reforma de 2026 que según
-la prensa lo sube de 60 a 90 días— y cómo se tramita⟧
+- **Derecho de revocación.** El artículo 56 de la LFPC te da cinco días hábiles desde la
+  entrega para revocar tu consentimiento sin responsabilidad. Lo respetamos siempre que
+  el producto siga cerrado, con su empaque y su sello de seguridad intactos.
+- **Higiene.** Abierto el sello, el producto es de uso personal: a partir de ahí solo
+  procede cambio o reembolso por defecto de fábrica. Los consumibles —lubricantes,
+  aceites, estimulantes, limpiadores y preservativos— son venta final salvo que lleguen
+  dañados o caducos de origen.
+- **Lencería.** Admite cambio de talla si la prenda no se usó ni se lavó y conserva
+  etiquetas, empaque y protector higiénico; el envío del cambio corre por tu cuenta.
+- **Garantía.** Los dispositivos electrónicos y recargables tienen garantía mínima de 90
+  días naturales desde la entrega, conforme al artículo 77 de la LFPC, más la garantía
+  extendida que ofrezca el fabricante. La página detalla qué cubre y qué la invalida —en
+  particular el uso de cargadores de carga rápida y de lubricantes de silicón sobre
+  silicón o elastómero—.
+- **Producto defectuoso, dañado o equivocado.** Nos hacemos cargo: reponemos o
+  reembolsamos, y la guía de retorno y de reenvío la pagamos nosotros.
 
 ## 15. Facturación
 

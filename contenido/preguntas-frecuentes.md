@@ -58,12 +58,21 @@ real de lo que pediste y de tu código postal. Antes de pagar te mostramos las o
 disponibles con su precio y su plazo, y tú eliges cuál quieres. El envío sale con la
 paquetería que elegiste, no con otra.
 
+## ¿Cuándo es gratis el envío?
+
+Cuando lo cubre un código promocional, o cuando tu pedido alcanza **$1,500.00 MXN** en
+productos, antes del envío.
+
 ## ¿Cuánto tarda en llegar?
 
-El plazo que verás en la cotización es el que estima la paquetería y empieza a contar
-cuando el paquete sale, no cuando pagas.
-⟦DECIDIR: añadir el tiempo real de preparación y, si aplica, la diferencia entre CDMX y
-el resto del país⟧
+Preparamos tu pedido en 1 o 2 días hábiles, igual para la Ciudad de México que para el
+resto del país. A eso se suma el plazo de la paquetería que elegiste, que es el que viste
+en la cotización y que empieza a contar cuando el paquete sale, no cuando pagas.
+
+## ¿Hacen entrega personal?
+
+Sí, en las zonas de **Perisur, San Lázaro y Roma Sur**, de lunes a viernes de 14:00 a
+19:00 h. No tiene costo de envío y acordamos el punto y la hora por WhatsApp.
 
 ## ¿Cómo sigo mi pedido?
 
@@ -91,23 +100,64 @@ esté:
 ## ¿Cómo funcionan los reembolsos?
 
 Se procesan por la misma vía del cobro, a través de Mercado Pago, y el pedido queda
-cancelado cuando el dinero sale. El tiempo que tarda en reflejarse en tu cuenta depende
-de tu banco. Nunca reembolsamos un pedido con una guía activa: primero se cancela la
-guía, para que no ocurra que te devolvamos el dinero de un paquete que ya va en camino.
+cancelado cuando el dinero sale. Una vez aprobado, lo que tarda en reflejarse depende de
+tu banco: habitualmente entre 3 y 10 días hábiles. Si lo prefieres, puedes optar por un
+cupón por el 100 % del valor más un bono adicional para usar en la tienda.
 
-## ¿Puedo devolver un producto?
+Nunca reembolsamos un pedido con una guía activa: primero se cancela la guía, para que no
+ocurra que te devolvamos el dinero de un paquete que ya va en camino.
 
-La ley te da cinco días hábiles desde la entrega para revocar la compra sin
-responsabilidad, siempre que el producto no haya sido usado. Por razones de salud e
-higiene, un producto de uso íntimo cuyo empaque o sello de seguridad esté abierto no
-puede devolverse ni cambiarse, salvo defecto de fabricación.
-⟦DECIDIR: confirmar la redacción final de esta postura con revisión legal⟧
+## ¿Puedo devolver un producto si cambié de opinión?
+
+Si sigue cerrado, sí: la ley te da cinco días hábiles desde la entrega para revocar la
+compra sin responsabilidad, y lo respetamos siempre que el empaque y el sello de
+seguridad estén intactos.
+
+Si ya lo abriste, no. Por higiene y seguridad, un producto de uso íntimo con el sello
+roto se considera de uso personal y solo se cambia o reembolsa por defecto de fábrica.
+Los consumibles —lubricantes, aceites, estimulantes, limpiadores y preservativos— son
+venta final, salvo que lleguen dañados o caducos.
+
+## ¿Puedo cambiar una prenda de talla?
+
+Sí, dentro de los primeros ⟦DECIDIR: 7 o 15⟧ días naturales desde la entrega, si la
+prenda no se usó ni se lavó y conserva sus etiquetas, su empaque original y su protector
+higiénico adhesivo intacto. El envío del cambio corre por tu cuenta.
+
+## ¿Qué garantía tienen los productos?
+
+Los dispositivos electrónicos y recargables tienen **90 días naturales de garantía**
+desde que recibes el pedido, conforme al artículo 77 de la LFPC. Si el fabricante ofrece
+una garantía mayor —uno, dos o diez años—, la puedes hacer válida con él presentando tu
+comprobante, y te ayudamos a gestionar el contacto.
+
+Cubre fallas de encendido, baterías que no retienen carga, botones o motores que dejan de
+responder sin golpes ni humedad, y productos que lleguen rotos, derramados, incompletos o
+distintos a lo que pediste.
+
+## ¿Qué cosas invalidan la garantía?
+
+Cuatro, y conviene conocerlas antes de usar el producto:
+
+- Cargar el dispositivo con un cargador de **carga rápida** de celular o con un adaptador
+  de más voltaje del indicado. La mayoría piden un puerto USB estándar de 5 V / 1 A.
+- Usar **lubricante a base de silicón o aceite** en juguetes de silicón grado médico o de
+  elastómero (TPE/TPR): deforma o derrite la superficie. Con esos materiales, lubricante
+  a base de agua.
+- **Sumergir** un equipo que solo resiste salpicaduras (IPX4 o IPX5), o cargarlo estando
+  húmedo.
+- **Daño físico:** caídas, golpes, rasgaduras por uñas u objetos punzantes, o abrir el
+  dispositivo.
 
 ## ¿Y si llega dañado o no es lo que pedí?
 
-Escríbenos con fotos del producto y del empaque y nos hacemos cargo: reponemos el
-producto o te reembolsamos el importe completo, incluido el envío. La recolección corre
-por nuestra cuenta.
+Escríbenos con el código de tu pedido y fotos del empaque y del producto, o un video de
+15 a 30 segundos donde se vea el dispositivo conectado a su cargador y la falla concreta.
+Revisamos la evidencia en un máximo de 48 horas hábiles.
+
+Confirmado el defecto, eliges entre reposición por uno nuevo idéntico o el reembolso
+íntegro. Si hace falta que nos devuelvas el artículo, la guía de retorno y la de reenvío
+las pagamos nosotros.
 
 ## ¿Quién puede ver mi dirección?
 
@@ -146,8 +196,8 @@ que hace falta enviar y a qué correo⟧
 
 ## ¿Tienen tienda física?
 
-⟦DECIDIR: confirmar. Hoy la venta es en línea con envío a todo México, y existe la opción
-de entrega personal: hay que precisar zona y condiciones⟧
+No. La venta es en línea, con envío a todo México, y además hacemos entrega personal en
+Perisur, San Lázaro y Roma Sur de lunes a viernes por la tarde.
 
 ## ¿Hay que ser mayor de edad?
 
