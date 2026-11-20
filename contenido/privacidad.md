@@ -11,8 +11,8 @@ actualizado: 2026-11-18
 
 ## 1. Responsable del tratamiento
 
-Roberto A. Gutiérrez C., con domicilio en ⟦DECIDIR: domicilio que se publique, el mismo
-que en los Términos⟧, es responsable del tratamiento de los datos personales recabados a
+Roberto A. Gutiérrez C., con domicilio en Velo de Novia 16, Los Ángeles Iztapalapa,
+Ciudad de México, es responsable del tratamiento de los datos personales recabados a
 través de este sitio. Puedes contactarnos en contacto@passionagogo.com.
 
 ## 2. Lo primero: puedes mirar sin dejar rastro

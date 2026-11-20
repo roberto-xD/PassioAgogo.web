@@ -11,10 +11,10 @@ actualizado: 2026-11-18
 
 ## 1. Titular del sitio
 
-Este sitio web es operado por Roberto A. Gutiérrez C., con domicilio en ⟦DECIDIR:
-domicilio fiscal o de operación que se quiera publicar⟧ (en adelante, «Passion à gogo»,
-«nosotros»). Para cualquier asunto relacionado con estos términos puedes escribirnos
-desde la sección Contacto o a contacto@passionagogo.com.
+Este sitio web es operado por Roberto A. Gutiérrez C., con domicilio en Velo de Novia 16,
+Los Ángeles Iztapalapa, Ciudad de México (en adelante, «Passion à gogo», «nosotros»).
+Para cualquier asunto relacionado con estos términos puedes escribirnos desde la sección
+Contacto o a contacto@passionagogo.com.
 
 ## 2. Objeto
 
@@ -238,9 +238,12 @@ resumen:
 
 ## 15. Facturación
 
-⟦DECIDIR: si se emite CFDI. Si sí: en qué plazo desde la compra se puede solicitar, qué
-datos hace falta enviar y a qué correo; si no, decirlo con claridad para no dejar la duda
-abierta⟧
+Por ahora no emitimos comprobante fiscal (CFDI). Estamos trabajando en habilitarlo y lo
+anunciaremos en esta misma página cuando esté disponible.
+
+Mientras tanto, el comprobante de tu compra es el recibo que emite Mercado Pago por el
+cobro, junto con el detalle del pedido que queda en tu cuenta. Si necesitas factura para
+una compra, escríbenos antes de hacerla.
 
 ## 16. Propiedad intelectual
 

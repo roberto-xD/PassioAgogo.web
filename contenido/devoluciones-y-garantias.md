@@ -68,7 +68,7 @@ limpiadores y preservativos son venta final, salvo que lleguen dañados o caduco
 origen.
 
 **Lencería y prendas íntimas.** Aceptamos cambio de talla dentro de los primeros
-⟦DECIDIR: 7 o 15⟧ días naturales posteriores a la entrega, únicamente si la prenda no ha
+15 días naturales posteriores a la entrega, únicamente si la prenda no ha
 sido usada ni lavada, conserva sus etiquetas originales adheridas y su empaque original en
 buen estado, y mantiene intacto el protector higiénico adhesivo. Los gastos de envío del
 cambio de talla corren por cuenta del cliente.
@@ -170,7 +170,7 @@ Para cualquier duda, aclaración o seguimiento sobre esta política:
 
 - Correo: contacto@passionagogo.com
 - WhatsApp: +52 55 1387 8451
-- Horario de atención: ⟦DECIDIR: horario real de atención⟧
+- Horario de atención: todos los días, de 9:00 a 21:00 h
 
 Si no quedas conforme con nuestra respuesta, puedes acudir a la Procuraduría Federal del
 Consumidor (PROFECO).

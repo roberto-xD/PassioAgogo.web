@@ -53,23 +53,27 @@ Convenciones del cuerpo:
 
 ## Lo que falta decidir antes de publicar
 
-Los borradores llevan marcas `⟦DECIDIR: …⟧` allí donde hace falta una decisión tuya o un
-dato que no está en el código. Ninguna está inventada. Son:
+Los borradores llevaban marcas `⟦DECIDIR: …⟧` allí donde hacía falta una decisión del
+titular o un dato que no está en el código, en lugar de inventarlo.
 
-| Marca | Dónde | Qué hace falta |
-|---|---|---|
-| Cambio de talla | devoluciones, FAQ | 7 o 15 días naturales para lencería |
-| Horario de atención | devoluciones | Horario real de atención a clientes |
-| Facturación | términos, FAQ | Si se emite CFDI, en qué plazo y con qué datos |
-| Domicilio publicado | términos, privacidad | Qué domicilio se publica; hoy figuraba uno particular |
-| Razón social y RFC | términos, devoluciones | Nombre exacto de la persona física, y RFC si se factura |
+**No queda ninguna.** Todas se resolvieron el 20 de noviembre de 2026:
 
-Decididas el 20/11/2026: preparación en 1-2 días hábiles (igual CDMX y resto del país);
-entrega fallida tratada como cancelación con reembolso del producto menos el envío;
-entrega personal en Perisur, San Lázaro y Roma Sur de lunes a viernes de 14:00 a 19:00 h;
-envío gratis por código o por compra mínima de $1,500 MXN; garantía de 90 días naturales
-en dispositivos; evaluación de evidencia en 48 h hábiles; reembolso reflejado en 3-10 días
-hábiles según el banco.
+- Preparación del pedido en 1-2 días hábiles, igual para la CDMX que para el resto del
+  país.
+- Entrega fallida: se trata como cancelación, con reembolso del producto menos el envío.
+- Entrega personal en Perisur, San Lázaro y Roma Sur, de lunes a viernes de 14:00 a
+  19:00 h.
+- Envío gratis por código promocional o por compra mínima de $1,500 MXN.
+- Cambio de talla en lencería: 15 días naturales.
+- Garantía de 90 días naturales en dispositivos; evaluación de la evidencia en 48 h
+  hábiles; reembolso reflejado entre 3 y 10 días hábiles según el banco.
+- Atención todos los días de 9:00 a 21:00 h.
+- Facturación: todavía no se emite CFDI, y el texto lo dice con esas palabras.
+- Titular: Roberto A. Gutiérrez C., con domicilio en Velo de Novia 16, Los Ángeles
+  Iztapalapa, Ciudad de México, que es a la vez el domicilio fiscal. Publicarlo es lo que
+  exigen la LFPC y la LFPDPPP; si en algún momento se quiere dejar de exponer un
+  domicilio particular, la salida es un domicilio fiscal distinto (oficina virtual o
+  buzón), no omitirlo del aviso.
 
 ## Pendiente en código
 

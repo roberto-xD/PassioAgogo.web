@@ -120,7 +120,7 @@ venta final, salvo que lleguen dañados o caducos.
 
 ## ¿Puedo cambiar una prenda de talla?
 
-Sí, dentro de los primeros ⟦DECIDIR: 7 o 15⟧ días naturales desde la entrega, si la
+Sí, dentro de los primeros 15 días naturales desde la entrega, si la
 prenda no se usó ni se lavó y conserva sus etiquetas, su empaque original y su protector
 higiénico adhesivo intacto. El envío del cambio corre por tu cuenta.
 
@@ -191,8 +191,9 @@ usaste un código, el código vuelve a quedar disponible para ti.
 
 ## ¿Emiten factura?
 
-⟦DECIDIR: responder sí o no con claridad. Si se emite CFDI: plazo para solicitarla, datos
-que hace falta enviar y a qué correo⟧
+Todavía no. Estamos trabajando en habilitar la facturación; mientras tanto, tu
+comprobante de la compra es el recibo de Mercado Pago y el detalle del pedido en tu
+cuenta. Si la necesitas, escríbenos antes de comprar y te decimos cómo vamos.
 
 ## ¿Tienen tienda física?
 
