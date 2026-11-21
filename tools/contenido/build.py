@@ -109,6 +109,10 @@ def bloques_de(cuerpo, ruta):
     bloques = []
     destino = "ambos"
     parrafo = []
+    # Una línea suelta continúa el bloque anterior solo si viene pegada a él.
+    # Sin esto, el párrafo que sigue a una lista —separado por una línea en
+    # blanco— se metía dentro de la última viñeta y desaparecía como párrafo.
+    tras_blanco = True
 
     def cerrar_parrafo():
         nonlocal parrafo, destino
@@ -122,7 +126,10 @@ def bloques_de(cuerpo, ruta):
 
         if not pelada:
             cerrar_parrafo()
+            tras_blanco = True
             continue
+
+        venia_de_blanco, tras_blanco = tras_blanco, False
 
         if pelada in ("{solo-web}", "{solo-app}"):
             cerrar_parrafo()
@@ -162,10 +169,17 @@ def bloques_de(cuerpo, ruta):
 
         # Continuación: una viñeta o una tarjeta partida en varias líneas
         # pertenece al bloque anterior, no abre uno nuevo.
-        if not parrafo and bloques and bloques[-1].tipo in ("vineta", "numero"):
+        if not parrafo and not venia_de_blanco and bloques and bloques[-1].tipo in (
+            "vineta", "numero"
+        ):
             bloques[-1].texto += " " + pelada
             continue
-        if not parrafo and bloques and bloques[-1].tipo == "tarjeta":
+        if not parrafo and bloques and bloques[-1].tipo == "tarjeta" and not bloques[-1].extra:
+            # El cuerpo de la tarjeta sí llega tras una línea en blanco: es el
+            # párrafo que sigue al `###`, y solo el primero.
+            bloques[-1].extra = pelada
+            continue
+        if not parrafo and not venia_de_blanco and bloques and bloques[-1].tipo == "tarjeta":
             bloques[-1].extra = (bloques[-1].extra + " " + pelada).strip()
             continue
 
