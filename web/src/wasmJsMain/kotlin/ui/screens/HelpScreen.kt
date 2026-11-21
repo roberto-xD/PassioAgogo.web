@@ -1,32 +1,16 @@
 package ui.screens
 
 import androidx.compose.runtime.Composable
-import ui.components.ContentScreen
-import ui.components.Paragraph
-import ui.components.SectionTitle
+import ui.content.DocumentoScreen
+import ui.content.Textos
 
+/**
+ * Preguntas frecuentes.
+ *
+ * El texto vive en `contenido/preguntas-frecuentes.md`; ver [TermsScreen] para
+ * cómo se genera. Su página web además emite datos estructurados `FAQPage`:
+ * cada `##` del Markdown es una pregunta, así que conviene que los encabezados
+ * sigan estando redactados como tales.
+ */
 @Composable
-fun HelpScreen() {
-    ContentScreen(title = "Ayuda") {
-        Paragraph("Preguntas frecuentes sobre el uso de Passion à gogo.")
-        SectionTitle("¿Cómo busco productos?")
-        Paragraph(
-            "Entra a la sección Catálogo para ver los productos disponibles y puedes filtrar " +
-                "por categoría. Próximamente también podrás hacer tu pedido directamente"
-        )
-        SectionTitle("¿Los precios están actualizados?")
-        Paragraph(
-            "Mostramos la información más reciente disponible, pero algunos precios finales pueden " +
-                "estar pendientes de actualizar."
-        )
-        SectionTitle("¿Necesito una cuenta?")
-        Paragraph(
-            "Por ahora no. El inicio de sesión llegará en una próxima versión para funciones " +
-                "personalizadas."
-        )
-        SectionTitle("¿Cómo reporto un problema?")
-        Paragraph("Escríbenos desde la sección Contacto y te ayudamos.")
-        SectionTitle("¿El sitio utiliza cookies?")
-        Paragraph("No. No utilizamos ningún tipo de rastreador o cookies, tu historial está seguro")
-    }
-}
+fun HelpScreen() = DocumentoScreen(Textos.preguntasFrecuentes)

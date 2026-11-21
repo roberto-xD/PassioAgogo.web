@@ -4,6 +4,8 @@ titulo: Cancelaciones, devoluciones y garantías
 title_tag: Cancelaciones, devoluciones y garantías · Passion à gogo
 descripcion: Política de Passion à gogo: cancelación antes del envío, devoluciones por higiene, garantía de 90 días en dispositivos y cómo reportar una falla.
 pantalla: DevolucionesScreen
+menu: Devoluciones y garantías
+ruta_app: devoluciones
 actualizado: 2026-11-20
 ---
 

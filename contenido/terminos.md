@@ -4,10 +4,10 @@ titulo: Términos y condiciones
 title_tag: Términos y condiciones · Passion à gogo
 descripcion: Condiciones de compra en Passion à gogo: pedidos, pago, envíos a todo México, cancelaciones, reembolsos y devoluciones.
 pantalla: TermsScreen
+menu: Términos
+ruta_app: terminos
 actualizado: 2026-11-18
 ---
-
-Última actualización: 18 de noviembre de 2026.
 
 ## 1. Titular del sitio
 

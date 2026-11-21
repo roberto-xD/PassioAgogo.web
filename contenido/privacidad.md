@@ -4,10 +4,10 @@ titulo: Aviso de privacidad
 title_tag: Aviso de privacidad · Passion à gogo
 descripcion: Qué datos trata Passion à gogo, cómo se cifra tu dirección de entrega, con quién se comparten y cómo ejercer tus derechos ARCO.
 pantalla: PrivacyScreen
+menu: Privacidad
+ruta_app: privacidad
 actualizado: 2026-11-18
 ---
-
-Última actualización: 18 de noviembre de 2026.
 
 ## 1. Responsable del tratamiento
 

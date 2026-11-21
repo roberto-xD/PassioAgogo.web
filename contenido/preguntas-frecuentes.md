@@ -4,6 +4,8 @@ titulo: Preguntas frecuentes
 title_tag: Preguntas frecuentes · Passion à gogo
 descripcion: Cómo comprar en Passion à gogo: pagos, envíos discretos a todo México, plazos, seguimiento, cancelaciones, reembolsos y privacidad.
 pantalla: HelpScreen
+menu: Preguntas frecuentes
+ruta_app: ayuda
 actualizado: 2026-11-18
 ---
 

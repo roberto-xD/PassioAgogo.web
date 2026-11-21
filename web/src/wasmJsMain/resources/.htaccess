@@ -33,6 +33,15 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # --- Dominio canónico ---------------------------------------------------
+    # Las dos variantes servían el sitio con un 200, así que los buscadores veían
+    # dos sitios iguales y repartían las señales entre ambos. Esta regla elige
+    # uno. Si se cambia de opinión, hay que cambiarla también en DOMINIO, dentro
+    # de tools/contenido/build.py, y volver a generar: el canonical, el sitemap
+    # y el robots.txt llevan el dominio escrito.
+    RewriteCond %{HTTP_HOST} ^passionagogo\.com$ [NC]
+    RewriteRule ^(.*)$ https://www.passionagogo.com/$1 [R=301,L]
+
     RewriteCond %{HTTP:Accept-Encoding} br
     RewriteCond %{REQUEST_FILENAME}.br -f
     RewriteRule ^(.*)$ $1.br [QSA,L]

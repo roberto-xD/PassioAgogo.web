@@ -1,15 +1,21 @@
 # `contenido/` — los textos públicos, en un solo sitio
 
 Aquí vive el texto de las páginas informativas y legales. **Esta carpeta es la fuente
-única**: de aquí saldrán las dos salidas que hoy tendrían que escribirse dos veces.
+única**: de aquí salen las dos salidas que si no habría que escribir dos veces.
 
 ```
-contenido/*.md  ──┬──►  páginas HTML estáticas  (lo que leen Google y las IAs)
-                  └──►  textos para las pantallas Compose  (lo que lee el cliente en la app)
+contenido/*.md  ──┬──►  sitio/                        lo que leen Google y las IAs
+                  └──►  ui/content/Textos.kt          lo que lee el cliente en la app
 ```
 
-Mientras el generador no exista, estos archivos son **el borrador a revisar**. Nada de lo
-que hay aquí está publicado todavía.
+Las genera [`tools/contenido/build.py`](../tools/contenido/README.md):
+
+```sh
+python3 tools/contenido/build.py
+```
+
+**Edita siempre el Markdown, nunca las salidas.** `Textos.kt` lleva un aviso en la
+primera línea y lo que se escriba ahí se pierde en la siguiente generación.
 
 ## Por qué
 
@@ -77,8 +83,6 @@ titular o un dato que no está en el código, en lugar de inventarlo.
 
 ## Pendiente en código
 
-- **`DevolucionesScreen`** no existe. La página `devoluciones-y-garantias.md` tiene URL
-  propia en la web, pero en la app necesita su pantalla y su entrada de navegación.
 - **Reembolso de pagos en efectivo.** El webhook ya reconoce las fichas de OXXO
   (`ticket`), pero `reembolsar` llama a la API de reembolsos de Mercado Pago, que para un
   pago en efectivo no puede devolver el dinero a su origen. El texto dice «lo acordaremos

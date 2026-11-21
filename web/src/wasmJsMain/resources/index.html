@@ -3,8 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Passion à gogo</title>
-    <meta name="description" content="Passion à gogo — tu catálogo de productos en un solo lugar.">
+    <title>Passion à gogo · Bienestar sexual con envío discreto a todo México</title>
+    <meta name="description" content="Tienda mexicana de bienestar sexual: catálogo elegido a mano, fichas claras, pago seguro y envío discreto a todo México. Envío gratis desde $1,500.">
+
+    <!-- Dominio canónico. El .htaccess redirige la variante sin www; esto se lo dice
+         además a quien llegue por otra vía. Si cambia el dominio, cambia también en
+         tools/contenido/build.py (DOMINIO) y en la regla del .htaccess. -->
+    <link rel="canonical" href="https://www.passionagogo.com/">
+    <meta name="rating" content="adult">
+
+    <!-- Tarjeta al compartir el enlace en WhatsApp, Instagram o Facebook. Sin esto
+         se pega una URL pelada. -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Passion à gogo">
+    <meta property="og:locale" content="es_MX">
+    <meta property="og:title" content="Passion à gogo · Bienestar sexual con envío discreto a todo México">
+    <meta property="og:description" content="Catálogo elegido a mano, fichas claras, pago seguro y envío discreto a todo México.">
+    <meta property="og:url" content="https://www.passionagogo.com/">
+    <meta property="og:image" content="https://www.passionagogo.com/favicon.svg">
+    <meta name="twitter:card" content="summary">
+
+    <!-- Datos estructurados de la tienda. Es lo que une este sitio con los perfiles
+         de redes como una sola entidad; falta añadir esos perfiles en sameAs. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "OnlineStore",
+      "name": "Passion à gogo",
+      "url": "https://www.passionagogo.com/",
+      "logo": "https://www.passionagogo.com/favicon.svg",
+      "email": "contacto@passionagogo.com",
+      "telephone": "+525513878451",
+      "currenciesAccepted": "MXN",
+      "areaServed": { "@type": "Country", "name": "México" },
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Ciudad de México",
+        "addressCountry": "MX"
+      }
+    }
+    </script>
     <!-- Icono de la pestaña. Reemplaza favicon.svg por el logo real cuando lo tengas;
          para máxima compatibilidad (Safari antiguo, accesos directos móviles) añade
          también un favicon.png de 180x180 y decláralo abajo. -->
@@ -81,6 +119,26 @@
 </head>
 <body>
 <div id="loading">Cargando…</div>
+<!--
+  Las páginas de texto, en HTML, para quien no ejecuta JavaScript.
+
+  No es un adorno de accesibilidad: los rastreadores de las IAs de búsqueda
+  (GPTBot, ClaudeBot, PerplexityBot) leen el HTML tal y como sale del servidor y
+  no ejecutan nada, así que esta lista es el único camino que tienen desde la
+  portada hacia el resto del sitio. La app se dibuja en un canvas y no les deja
+  ni una palabra ni un enlace.
+
+  `main()` lo borra antes de montar Compose, igual que al mensaje de carga, para
+  que nadie lo vea: ComposeViewport añade su canvas sin limpiar el <body>, así
+  que lo que quede aquí se queda en pantalla.
+-->
+<nav id="enlaces-sin-js">
+    <a href="/nosotros/">Nosotros</a>
+    <a href="/preguntas-frecuentes/">Preguntas frecuentes</a>
+    <a href="/devoluciones-y-garantias/">Cancelaciones, devoluciones y garantías</a>
+    <a href="/terminos/">Términos y condiciones</a>
+    <a href="/privacidad/">Aviso de privacidad</a>
+</nav>
 <!-- Contenedor del widget de Turnstile. Vacío salvo que se requiera interacción;
      va sobre el canvas para que el reto sea visible y clicable si aparece. -->
 <div id="turnstile-host"></div>

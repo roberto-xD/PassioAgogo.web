@@ -4,6 +4,8 @@ titulo: Nosotros
 title_tag: Nosotros · Passion à gogo
 descripcion: Passion à gogo es una tienda mexicana de bienestar sexual: catálogo elegido a mano, información honesta y envíos discretos a todo México.
 pantalla: AboutScreen
+menu: Nosotros
+ruta_app: nosotros
 actualizado: 2026-11-18
 ---
 
@@ -90,6 +92,9 @@ Roma Sur podemos entregártelo en persona de lunes a viernes por la tarde.
 ¿Dudas, sugerencias o no sabes por dónde empezar? Escríbenos y te respondemos sin
 juicios.
 
+{solo-web}
 - contacto@passionagogo.com
+{solo-web}
 - WhatsApp: 55 1387 8451
+{solo-web}
 - Ciudad de México

@@ -61,6 +61,7 @@ import ui.screens.AccountScreen
 import ui.screens.SECCION_HISTORIAL
 import ui.screens.CareScreen
 import ui.screens.ContactScreen
+import ui.screens.DevolucionesScreen
 import ui.screens.EventDetailScreen
 import ui.screens.EventsScreen
 import ui.screens.HelpScreen
@@ -95,6 +96,9 @@ fun main() {
     // Quitamos el placeholder de carga para que no ocupe el viewport (height:100vh)
     // y empuje el canvas de Compose fuera de la vista.
     document.getElementById("loading")?.remove()
+    // Los enlaces a las páginas de texto: existen en el HTML para los rastreadores
+    // que no ejecutan JavaScript, y se van antes de que nadie los vea.
+    document.getElementById("enlaces-sin-js")?.remove()
     ComposeViewport(document.body!!) {
         App()
     }
@@ -532,6 +536,7 @@ fun App() {
                         )
                         Screen.Terms -> TermsScreen()
                         Screen.Privacy -> PrivacyScreen()
+                        Screen.Returns -> DevolucionesScreen()
                         Screen.Help -> HelpScreen()
                     }
                 }

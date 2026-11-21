@@ -26,7 +26,16 @@ enum class Screen(val route: String, val title: String) {
     Login("acceder", "Acceder"),
     Account("cuenta", "Mi cuenta"),
     Terms("terminos", "Términos y condiciones"),
-    Privacy("privacidad", "Política de privacidad"),
+    Privacy("privacidad", "Aviso de privacidad"),
+    /**
+     * Cancelaciones, devoluciones y garantías.
+     *
+     * Separada de [Terms] a propósito: se llega a ella con una duda concreta
+     * —un juguete que no enciende, una talla que no es— y dentro de los
+     * términos quedaría enterrada. Su página web es `/devoluciones-y-garantias/`.
+     */
+    Returns("devoluciones", "Devoluciones y garantías"),
+    /** El título es corto porque es una entrada del menú; la pantalla se titula sola. */
     Help("ayuda", "Ayuda");
 
     companion object {

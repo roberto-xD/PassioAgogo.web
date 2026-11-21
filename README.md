@@ -36,10 +36,23 @@ El punto de entrada es `web/src/wasmJsMain/kotlin/com/smartbe/web/Main.kt`
 
 ## Despliegue
 
-Sube **todo** el contenido de `web/build/dist/wasmJs/productionExecutable/` a la raíz
-pública del sitio (en cPanel, normalmente `public_html/`). No hace falta configurar
-reescrituras: la app usa hash routing (`#/catalogo`), así que el servidor solo sirve
-`index.html`.
+Son dos cosas, a la misma raíz pública del sitio (en cPanel, normalmente `public_html/`):
+
+1. **Todo** el contenido de `web/build/dist/wasmJs/productionExecutable/` — la app.
+2. **Todo** el contenido de [`sitio/`](sitio/) — las páginas de texto en HTML, el
+   `robots.txt` y el `sitemap.xml`. Va versionado ya generado, así que subirlo no
+   necesita ninguna herramienta.
+
+No hace falta configurar reescrituras: la app usa hash routing (`#/catalogo`), así que el
+servidor solo sirve `index.html`, y las páginas de `sitio/` son carpetas con su propio
+`index.html`. Por eso tampoco chocan: `/terminos/` es un archivo de verdad y
+`/#/terminos` sigue siendo la pantalla de la app.
+
+Las páginas de `sitio/` existen porque la app se dibuja en un `<canvas>` y no deja ni una
+palabra en el HTML: sin ellas, ningún buscador ni ninguna IA de búsqueda puede leer las
+políticas ni nada del sitio. Se generan con
+[`tools/contenido/build.py`](tools/contenido/README.md) desde los Markdown de
+`contenido/`, que son también la fuente del texto de las pantallas Compose.
 
 ⚠️ **El servidor debe entregar los `.wasm` con el MIME `application/wasm`.** Si no, el
 navegador rechaza el módulo y la página se queda en "Cargando…" con este error en

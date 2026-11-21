@@ -19,7 +19,7 @@ import ui.navigation.Screen
 import ui.theme.PassionTheme
 
 private val LegalItems =
-    listOf(Screen.Terms, Screen.Privacy, Screen.Help, Screen.Contact)
+    listOf(Screen.Terms, Screen.Privacy, Screen.Returns, Screen.Help, Screen.Contact)
 
 @Composable
 fun Footer(onNavigate: (Screen) -> Unit) {

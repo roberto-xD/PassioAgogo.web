@@ -1,0 +1,5 @@
+# Passion à gogo
+User-agent: *
+Allow: /
+
+Sitemap: https://www.passionagogo.com/sitemap.xml
