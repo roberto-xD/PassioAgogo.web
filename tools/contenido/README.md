@@ -45,6 +45,13 @@ con una entrada por cada `##`. Un bloque con una marca `⟦…⟧` sin resolver 
 de los datos estructurados: no tiene sentido publicar algo a medio decidir como un dato
 que los buscadores van a citar.
 
+Sobre el `FAQPage`, para que nadie lo espere: **Google dejó de mostrar el resultado
+enriquecido de FAQ el 7 de mayo de 2026**, así que no va a salir el acordeón de preguntas
+en los resultados. Se mantiene porque el marcado sigue siendo válido, Google lo sigue
+usando para entender la página, y es de lo más legible que hay para las IAs de búsqueda,
+que son el público que de verdad nos faltaba. No confundirlo con los fragmentos de reseña
+de producto, que son otra cosa y siguen vivos: eso es lo que persigue la fase 2.
+
 ## El formato del Markdown
 
 Las convenciones están en `contenido/README.md`. Dos detalles que viven aquí:
