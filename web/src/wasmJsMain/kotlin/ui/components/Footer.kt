@@ -21,6 +21,18 @@ import ui.theme.PassionTheme
 private val LegalItems =
     listOf(Screen.Terms, Screen.Privacy, Screen.Returns, Screen.Help, Screen.Contact)
 
+/**
+ * Los perfiles de la marca.
+ *
+ * Van en el pie, enlazados, además de en el `sameAs` de los datos estructurados
+ * del HTML: es lo que le dice a un buscador que esta web y esas cuentas son la
+ * misma marca. Hasta ahora el sitio no enlazaba a ninguna.
+ */
+private val Redes = listOf(
+    "Instagram" to "https://www.instagram.com/passioagogo",
+    "Facebook" to "https://www.facebook.com/passioagogo",
+)
+
 @Composable
 fun Footer(onNavigate: (Screen) -> Unit) {
     Column(
@@ -46,6 +58,15 @@ fun Footer(onNavigate: (Screen) -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     textDecoration = TextDecoration.Underline,
                     modifier = Modifier.clickable { onNavigate(screen) },
+                )
+            }
+            Redes.forEach { (nombre, url) ->
+                Text(
+                    text = nombre,
+                    color = PassionTheme.semantics.onBackgroundMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier.clickable { openInNewTab(url) },
                 )
             }
         }

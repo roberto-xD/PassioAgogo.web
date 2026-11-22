@@ -23,8 +23,10 @@
     <meta property="og:image" content="https://www.passionagogo.com/favicon.svg">
     <meta name="twitter:card" content="summary">
 
-    <!-- Datos estructurados de la tienda. Es lo que une este sitio con los perfiles
-         de redes como una sola entidad; falta añadir esos perfiles en sameAs. -->
+    <!-- Datos estructurados de la tienda. `sameAs` es lo que une este sitio con los
+         perfiles de redes como una sola entidad y no tres cosas sueltas que se
+         llaman parecido. Las cuentas son «passioagogo» y el dominio
+         «passionagogo.com»: la n de diferencia es así, no es una errata. -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -40,7 +42,11 @@
         "@type": "PostalAddress",
         "addressLocality": "Ciudad de México",
         "addressCountry": "MX"
-      }
+      },
+      "sameAs": [
+        "https://www.instagram.com/passioagogo",
+        "https://www.facebook.com/passioagogo"
+      ]
     }
     </script>
     <!-- Icono de la pestaña. Reemplaza favicon.svg por el logo real cuando lo tengas;
@@ -138,6 +144,8 @@
     <a href="/devoluciones-y-garantias/">Cancelaciones, devoluciones y garantías</a>
     <a href="/terminos/">Términos y condiciones</a>
     <a href="/privacidad/">Aviso de privacidad</a>
+    <a href="https://www.instagram.com/passioagogo" rel="me">Instagram</a>
+    <a href="https://www.facebook.com/passioagogo" rel="me">Facebook</a>
 </nav>
 <!-- Contenedor del widget de Turnstile. Vacío salvo que se requiera interacción;
      va sobre el canvas para que el reto sea visible y clicable si aparece. -->

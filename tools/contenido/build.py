@@ -37,8 +37,14 @@ DOMINIO = "https://www.passionagogo.com"
 MARCA = "Passion à gogo"
 CORREO = "contacto@passionagogo.com"
 WHATSAPP = "+525513878451"
-INSTAGRAM = ""  # ⟦PENDIENTE⟧ URL del perfil, para `sameAs` del JSON-LD
-FACEBOOK = ""   # ⟦PENDIENTE⟧ idem
+# Los perfiles. Van al `sameAs` del JSON-LD y al pie de cada página: son lo que
+# le dice a un buscador que esta web y esas cuentas son la misma marca, en vez
+# de tres cosas sueltas que casualmente se llaman igual.
+#
+# Ojo con el nombre: las cuentas son «passioagogo» y el dominio
+# «passionagogo.com», con una n de diferencia. No es una errata de aquí.
+INSTAGRAM = "https://www.instagram.com/passioagogo"
+FACEBOOK = "https://www.facebook.com/passioagogo"
 
 # Orden del menú de las páginas estáticas.
 ORDEN = [
@@ -263,6 +269,22 @@ def cuerpo_html(bloques):
     return "\n".join(salida)
 
 
+def redes_html():
+    """Los perfiles, enlazados de verdad en el pie.
+
+    El `sameAs` del JSON-LD por sí solo es una afirmación; un enlace que se
+    puede seguir es lo que de verdad une la web con las cuentas.
+    """
+    enlaces = []
+    if INSTAGRAM:
+        enlaces.append(f'<a href="{INSTAGRAM}" rel="me">Instagram</a>')
+    if FACEBOOK:
+        enlaces.append(f'<a href="{FACEBOOK}" rel="me">Facebook</a>')
+    if not enlaces:
+        return ""
+    return " Síguenos en " + " y ".join(enlaces) + "."
+
+
 def jsonld_organizacion():
     same_as = [u for u in (INSTAGRAM, FACEBOOK) if u]
     campos = [
@@ -412,7 +434,7 @@ footer.sitio nav {{ display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12
   <p>{marca} · Tienda de bienestar sexual para personas mayores de 18 años ·
   Envíos discretos a todo México desde la Ciudad de México.</p>
   <p>Escríbenos a <a href="mailto:{correo}">{correo}</a> o por
-  <a href="https://wa.me/{whatsapp_url}">WhatsApp</a>.</p>
+  <a href="https://wa.me/{whatsapp_url}">WhatsApp</a>.{redes}</p>
 </footer>
 </body>
 </html>
@@ -458,6 +480,7 @@ def escribir_paginas(docs):
             marca=html.escape(MARCA),
             correo=CORREO,
             whatsapp_url=WHATSAPP.lstrip("+"),
+            redes=redes_html(),
             menu=menu_html(docs, slug),
             cuerpo=cuerpo_html(bloques),
             ruta_app=meta.get("ruta_app", ""),
