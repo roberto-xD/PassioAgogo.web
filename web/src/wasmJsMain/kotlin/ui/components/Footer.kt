@@ -27,10 +27,15 @@ private val LegalItems =
  * Van en el pie, enlazados, además de en el `sameAs` de los datos estructurados
  * del HTML: es lo que le dice a un buscador que esta web y esas cuentas son la
  * misma marca. Hasta ahora el sitio no enlazaba a ninguna.
+ *
+ * La de Facebook es larga porque la página no tiene nombre de usuario:
+ * `facebook.com/passioagogo` no existe. Esta es la dirección a la que el propio
+ * Facebook redirige desde el enlace con el id numérico. **Si se cambia aquí, hay
+ * que cambiarla también en `tools/contenido/build.py` y en `index.html`.**
  */
 private val Redes = listOf(
     "Instagram" to "https://www.instagram.com/passioagogo",
-    "Facebook" to "https://www.facebook.com/passioagogo",
+    "Facebook" to "https://www.facebook.com/people/Passion-%C3%A0-gogo/61559870680376/",
 )
 
 @Composable

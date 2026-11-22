@@ -41,10 +41,16 @@ WHATSAPP = "+525513878451"
 # le dice a un buscador que esta web y esas cuentas son la misma marca, en vez
 # de tres cosas sueltas que casualmente se llaman igual.
 #
-# Ojo con el nombre: las cuentas son «passioagogo» y el dominio
+# Ojo con el nombre: la cuenta de Instagram es «passioagogo» y el dominio
 # «passionagogo.com», con una n de diferencia. No es una errata de aquí.
+#
+# La de Facebook no tiene nombre de usuario: `facebook.com/passioagogo` no
+# existe y daba error. Se usa la dirección a la que el propio Facebook
+# redirige desde `profile.php?id=61559870680376`, que lleva el nombre de la
+# marca y responde sin saltos. Si algún día se le asigna un nombre de usuario,
+# cambiar esta línea por la dirección corta.
 INSTAGRAM = "https://www.instagram.com/passioagogo"
-FACEBOOK = "https://www.facebook.com/passioagogo"
+FACEBOOK = "https://www.facebook.com/people/Passion-%C3%A0-gogo/61559870680376/"
 
 # Orden del menú de las páginas estáticas.
 ORDEN = [
