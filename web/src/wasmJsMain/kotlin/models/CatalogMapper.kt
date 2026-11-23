@@ -91,6 +91,16 @@ fun buildCatalogCards(bundle: CatalogBundle): List<PGDataCard> {
                     precioLista = formatPrice(base),
                     precioFinal = formatPrice(final),
                     hasOffert = final < base,
+                    // La foto de la presentación se guarda como URL (53_variant_imagen)
+                    // y aquí se convierte en posición. Se compara contra la lista
+                    // **cruda** del producto, no contra las ya resueltas: en la base
+                    // suele haber nombres de archivo del bucket, no URLs completas.
+                    // Si no está en la lista, -1: el carrusel no se mueve.
+                    imagenIndice = variant.imagen
+                        ?.trim()
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let { product.imagenes.indexOf(it) }
+                        ?: -1,
                 )
             }
         )

@@ -48,6 +48,10 @@ private const val AUTO_ADVANCE_MS = 4_000L
  * @param externalNavigation contador que quien iza el estado incrementa al mover el
  *   carrusel por su cuenta. Reinicia la cuenta atrás del pase automático, igual que hacen
  *   las flechas; sin él, una miniatura recién pulsada podía saltar sola al instante.
+ * @param pausado detiene el pase automático mientras valga `true`, sin tocar lo demás:
+ *   las flechas, los puntos y el gesto siguen funcionando. Lo usan las fichas cuando la
+ *   persona elige una presentación: a partir de ahí el carrusel enseña la foto de esa
+ *   presentación, y seguir pasando solo se la llevaría de delante.
  * @param background lo que se ve alrededor de una foto que no llena el marco. Negro por
  *   omisión, que es lo que hace resaltar la imagen en un diálogo oscurecido; la ficha de
  *   sección lo aclara para que el panel se lea como parte de la página.
@@ -59,6 +63,7 @@ fun ZoomableImageCarousel(
     modifier: Modifier = Modifier,
     pagerState: PagerState = rememberPagerState(pageCount = { images.size }),
     externalNavigation: Int = 0,
+    pausado: Boolean = false,
     background: Color = Color.Black,
 ) {
     if (images.isEmpty()) return
@@ -79,8 +84,8 @@ fun ZoomableImageCarousel(
 
     // El efecto se rearranca al cambiar la pausa o al navegar a mano, nunca durante su
     // propia animación: así no puede cancelarse a sí mismo a media transición.
-    LaunchedEffect(images.size, isHovered, manualNavigation, externalNavigation, zoomed) {
-        if (images.size < 2 || isHovered || zoomed) return@LaunchedEffect
+    LaunchedEffect(images.size, isHovered, manualNavigation, externalNavigation, zoomed, pausado) {
+        if (images.size < 2 || isHovered || zoomed || pausado) return@LaunchedEffect
         while (true) {
             delay(AUTO_ADVANCE_MS)
             pagerState.animateScrollToPage((pagerState.currentPage + 1) % images.size)

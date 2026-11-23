@@ -157,6 +157,33 @@ private fun ProductoEnEscaparate(
         scope.launch { pagerState.animateScrollToPage(indice) }
     }
 
+    // La presentación elegida vive aquí, y no dentro de la tarjeta de información, porque
+    // ahora manda sobre dos cosas a la vez: el precio que se muestra y la foto que enseña
+    // el carrusel. Arranca en la del precio anunciado, que es la más barata.
+    var elegida by remember(product) {
+        mutableStateOf(
+            product.variants.firstOrNull { it.id == product.variantId }
+                ?: product.variants.firstOrNull()
+        )
+    }
+
+    // El pase automático se detiene en cuanto alguien elige una presentación con foto
+    // propia: a partir de ahí el carrusel está enseñando algo concreto que esa persona
+    // pidió ver, y seguir pasando solo se lo quitaría de delante. No se reanuda: las
+    // flechas, los puntos y las miniaturas siguen funcionando para quien quiera seguir
+    // mirando.
+    var pausado by remember(product) { mutableStateOf(false) }
+
+    val elegirVariante: (PGVariant) -> Unit = { variante ->
+        elegida = variante
+        // Sin foto asignada —o con una que ya no está entre las del producto— el
+        // carrusel se queda donde esté: mejor eso que llevarlo a una foto equivocada.
+        if (variante.imagenIndice in images.indices) {
+            pausado = true
+            irA(variante.imagenIndice)
+        }
+    }
+
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val enFila = maxWidth >= SIDE_BY_SIDE_MIN_WIDTH
 
@@ -178,10 +205,13 @@ private fun ProductoEnEscaparate(
                     product = product,
                     pagerState = pagerState,
                     saltos = saltos,
+                    pausado = pausado,
                     modifier = Modifier.weight(1.4f),
                 )
                 TarjetaDeInformacion(
                     product = product,
+                    elegida = elegida,
+                    onElegir = elegirVariante,
                     onAddToCart = onAddToCart,
                     modifier = Modifier.weight(1f).widthIn(min = 300.dp),
                 )
@@ -198,6 +228,7 @@ private fun ProductoEnEscaparate(
                     product = product,
                     pagerState = pagerState,
                     saltos = saltos,
+                    pausado = pausado,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 // En vertical la tira se tumba: una columna de miniaturas al lado
@@ -207,7 +238,13 @@ private fun ProductoEnEscaparate(
                     actual = pagerState.currentPage,
                     onSelect = irA,
                 )
-                TarjetaDeInformacion(product, onAddToCart, Modifier.fillMaxWidth())
+                TarjetaDeInformacion(
+                    product = product,
+                    elegida = elegida,
+                    onElegir = elegirVariante,
+                    onAddToCart = onAddToCart,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }
@@ -219,6 +256,7 @@ private fun PanelDeImagen(
     product: PGDataCard,
     pagerState: androidx.compose.foundation.pager.PagerState,
     saltos: Int,
+    pausado: Boolean,
     modifier: Modifier,
 ) {
     val forma = MaterialTheme.shapes.medium
@@ -243,6 +281,7 @@ private fun PanelDeImagen(
                 modifier = Modifier.fillMaxSize(),
                 pagerState = pagerState,
                 externalNavigation = saltos,
+                pausado = pausado,
                 // El panel es parte de la página, no un visor a oscuras: el negro del
                 // diálogo abriría un agujero en medio del escaparate.
                 background = PassionTheme.semantics.imagePlaceholder,
@@ -314,20 +353,13 @@ private fun Miniatura(url: String, seleccionada: Boolean, onClick: () -> Unit) {
 @Composable
 private fun TarjetaDeInformacion(
     product: PGDataCard,
+    elegida: PGVariant?,
+    onElegir: (PGVariant) -> Unit,
     onAddToCart: (PGDataCard, PGVariant?) -> Unit,
     modifier: Modifier,
 ) {
     val forma = MaterialTheme.shapes.medium
     val semantics = PassionTheme.semantics
-
-    // La presentación elegida: arranca en la del precio anunciado, que es la más
-    // barata. `remember(product)` la reinicia al abrir la ficha de otro producto.
-    var elegida by remember(product) {
-        mutableStateOf(
-            product.variants.firstOrNull { it.id == product.variantId }
-                ?: product.variants.firstOrNull()
-        )
-    }
 
     Column(
         modifier = modifier
@@ -371,7 +403,7 @@ private fun TarjetaDeInformacion(
         VariantPicker(
             variants = product.variants,
             selectedId = elegida?.id.orEmpty(),
-            onSelect = { elegida = it },
+            onSelect = onElegir,
             modifier = Modifier.padding(top = PassionTheme.spacing.s4),
         )
 

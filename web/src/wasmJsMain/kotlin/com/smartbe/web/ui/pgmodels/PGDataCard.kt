@@ -33,6 +33,18 @@ data class PGVariant(
     val precioLista: String = "",
     val precioFinal: String = "",
     val hasOffert: Boolean = false,
+    /**
+     * Qué foto del producto enseña esta presentación: su posición en `images`.
+     *
+     * `-1` cuando no tiene ninguna asignada, o cuando la asignada no está entre las
+     * fotos del producto. En los dos casos elegir esta presentación deja el carrusel
+     * donde esté, que es mejor que llevarlo a una foto equivocada.
+     *
+     * Es una posición y no una URL porque el carrusel pasa páginas por número, y
+     * resolverla una sola vez —en el mapeador, que es quien tiene la lista cruda—
+     * evita tener que comparar URLs ya resueltas cada vez que se toca una chip.
+     */
+    val imagenIndice: Int = -1,
 )
 
 data class PGDataCard(

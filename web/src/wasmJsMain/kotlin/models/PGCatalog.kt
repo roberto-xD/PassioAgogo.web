@@ -48,6 +48,13 @@ data class VariantDto(
     val attributes: JsonObject? = null,
     /** Rótulo escrito a mano (29_variant_titulo). Vacío: se deduce de los atributos. */
     val titulo: String? = null,
+    /**
+     * Foto de esta presentación (53_variant_imagen), tal y como está en
+     * `products.imagenes`: el nombre del archivo en el bucket o una URL absoluta,
+     * **sin resolver**. Quien la resuelve es el mapeador, que es también quien la
+     * convierte en la posición dentro del carrusel.
+     */
+    val imagen: String? = null,
 )
 
 /**

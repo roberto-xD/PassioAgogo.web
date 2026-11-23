@@ -11,6 +11,21 @@ import models.CategoryRefDto
 import models.ProductDto
 import models.PromotionDto
 
+/** Columnas de la variante que existen desde siempre. */
+private val VARIANTES_SIEMPRE = listOf("id", "sku", "precio_venta", "activo", "attributes")
+
+/**
+ * Columnas de la variante que llegaron con un script posterior, **de la más antigua a
+ * la más reciente**.
+ *
+ * El orden importa: al degradar se sueltan por el final, así que una base a medio
+ * actualizar conserva lo que sí tiene. Al añadir una columna nueva, va al final.
+ */
+private val VARIANTES_OPCIONALES = listOf(
+    "titulo",  // 29_variant_titulo
+    "imagen",  // 53_variant_imagen
+)
+
 class CatalogRepository(
     supabaseProvider: () -> SupabaseClient = ::createSupabase,
 ) {
@@ -32,12 +47,14 @@ class CatalogRepository(
             return@toResultFlow NetworkResult.Success(CatalogBundle())
         }
 
-        // `titulo` es columna nueva (29_variant_titulo): si el script no se ha corrido,
-        // PostgREST rechaza la consulta entera con un 400 y el catálogo se quedaría en
-        // blanco. Se reintenta sin ella y los rótulos vuelven a deducirse de los
-        // atributos, que es como funcionaba antes.
-        val products = leerProductos(conTitulo = true) ?: leerProductos(conTitulo = false)
-        ?: emptyList()
+        // Las columnas de [VARIANTES_OPCIONALES] llegaron después: si su script no se
+        // ha corrido, PostgREST rechaza la consulta entera con un 400 y el catálogo se
+        // quedaría en blanco. Se reintenta soltando la más reciente, y luego la
+        // siguiente, hasta quedarse con las de siempre. Lo único que se pierde es la
+        // función que trajo cada una.
+        val products = (VARIANTES_OPCIONALES.size downTo 0)
+            .firstNotNullOfOrNull { cuantas -> leerProductos(VARIANTES_OPCIONALES.take(cuantas)) }
+            ?: emptyList()
 
         // Promociones vigentes hoy (el RLS ya limita a activas para anon).
         val now = nowIso()
@@ -87,12 +104,9 @@ class CatalogRepository(
     }
 
     /** El catálogo, o `null` si la consulta no pasó. */
-    private suspend fun leerProductos(conTitulo: Boolean): List<ProductDto>? = runCatching {
-        val variantes = if (conTitulo) {
-            "product_variants(id, sku, precio_venta, activo, attributes, titulo)"
-        } else {
-            "product_variants(id, sku, precio_venta, activo, attributes)"
-        }
+    private suspend fun leerProductos(opcionales: List<String>): List<ProductDto>? = runCatching {
+        val variantes = (VARIANTES_SIEMPRE + opcionales).joinToString(", ")
+            .let { "product_variants($it)" }
         supabase.from(SupabaseConfig.PRODUCTS_TABLE)
             .select(
                 columns = Columns.raw(

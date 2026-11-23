@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import kotlinx.coroutines.launch
 import network.WhatsAppConfig
 import ui.pgmodels.PGDataCard
 import ui.pgmodels.PGVariant
@@ -39,6 +43,10 @@ import ui.theme.PassionTheme
  *
  * La llamada a la acción abre WhatsApp con el mensaje ya redactado. No envía nada por sí
  * sola: deja la conversación preparada para que la persona pulse enviar.
+ *
+ * El estado del carrusel y la presentación elegida viven aquí porque el diálogo los
+ * reparte entre sus dos paneles: la chip se pulsa en el de información y la foto que
+ * destapa se enseña en el de la imagen.
  */
 @Composable
 fun ProductDetailDialog(
@@ -46,17 +54,58 @@ fun ProductDetailDialog(
     onDismiss: () -> Unit,
     onAddToCart: (PGDataCard, PGVariant?) -> Unit = { _, _ -> },
 ) {
+    val images = product.images.ifEmpty {
+        listOfNotNull(product.urlImage.takeIf { it.isNotBlank() })
+    }
+    val pagerState = rememberPagerState(pageCount = { images.size.coerceAtLeast(1) })
+    val scope = rememberCoroutineScope()
+    var saltos by remember(product) { mutableStateOf(0) }
+
+    // Igual que en la ficha de sección: al elegir una presentación con foto propia, el
+    // carrusel va a esa foto y deja de pasar solo. Las flechas y los puntos siguen ahí
+    // para quien quiera seguir mirando.
+    var pausado by remember(product) { mutableStateOf(false) }
+
+    // Arranca en la del precio anunciado, la más barata.
+    var elegida by remember(product) {
+        mutableStateOf(
+            product.variants.firstOrNull { it.id == product.variantId }
+                ?: product.variants.firstOrNull()
+        )
+    }
+
     DetailDialogShell(
         onDismiss = onDismiss,
-        imagePane = { modifier -> ProductImages(product, modifier) },
-        infoPane = { ProductInfo(product, onAddToCart) },
+        imagePane = { modifier ->
+            ProductImages(product, images, pagerState, saltos, pausado, modifier)
+        },
+        infoPane = {
+            ProductInfo(
+                product = product,
+                elegida = elegida,
+                onElegir = { variante ->
+                    elegida = variante
+                    if (variante.imagenIndice in images.indices) {
+                        pausado = true
+                        saltos++
+                        scope.launch { pagerState.animateScrollToPage(variante.imagenIndice) }
+                    }
+                },
+                onAddToCart = onAddToCart,
+            )
+        },
     )
 }
 
 @Composable
-private fun ProductImages(product: PGDataCard, modifier: Modifier) {
-    val images = product.images.ifEmpty { listOfNotNull(product.urlImage.takeIf { it.isNotBlank() }) }
-
+private fun ProductImages(
+    product: PGDataCard,
+    images: List<String>,
+    pagerState: PagerState,
+    saltos: Int,
+    pausado: Boolean,
+    modifier: Modifier,
+) {
     if (images.isEmpty()) {
         Box(
             modifier = modifier.background(PassionTheme.semantics.imagePlaceholder),
@@ -75,20 +124,19 @@ private fun ProductImages(product: PGDataCard, modifier: Modifier) {
         images = images,
         contentDescription = product.productTittle.ifBlank { "Imagen del producto" },
         modifier = modifier,
+        pagerState = pagerState,
+        externalNavigation = saltos,
+        pausado = pausado,
     )
 }
 
 @Composable
 private fun ColumnScope.ProductInfo(
     product: PGDataCard,
+    elegida: PGVariant?,
+    onElegir: (PGVariant) -> Unit,
     onAddToCart: (PGDataCard, PGVariant?) -> Unit,
 ) {
-    // La presentación elegida: arranca en la del precio anunciado, la más barata.
-    // `remember(product)` la reinicia al abrir otra ficha.
-    var elegida by remember(product) {
-        mutableStateOf(product.variants.firstOrNull { it.id == product.variantId }
-            ?: product.variants.firstOrNull())
-    }
     val semantics = PassionTheme.semantics
 
     if (product.productBrand.isNotBlank()) {
@@ -132,7 +180,7 @@ private fun ColumnScope.ProductInfo(
     VariantPicker(
         variants = product.variants,
         selectedId = elegida?.id.orEmpty(),
-        onSelect = { elegida = it },
+        onSelect = onElegir,
         modifier = Modifier.padding(top = PassionTheme.spacing.s4),
     )
 
