@@ -130,6 +130,9 @@ private fun ColumnScope.ContactForm(
             "automatizado de mensajes.",
         color = PassionTheme.semantics.onBackgroundSubtle,
         style = MaterialTheme.typography.bodySmall,
+        // Aire bajo la última línea: es la que queda contra el borde redondeado del
+        // diálogo cuando el formulario se desplaza, y pegada ahí parece cortada.
+        modifier = Modifier.padding(bottom = PassionTheme.spacing.s3),
     )
 }
 

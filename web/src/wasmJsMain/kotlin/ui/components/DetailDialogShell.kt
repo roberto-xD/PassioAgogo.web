@@ -47,6 +47,15 @@ private val SIDE_BY_SIDE_MIN_WIDTH = 720.dp
 private val FORM_DIALOG_MAX_WIDTH = 560.dp
 
 /**
+ * Parte de la ventana que puede ocupar de alto, como mucho.
+ *
+ * Relativo y no un número fijo: con un tope de 620 dp, en un móvil el formulario de
+ * contacto se pasaba por poco y aparecía cortado a media frase nada más abrirse. Lo que
+ * sobre de aquí sigue desplazándose, pero en un teléfono normal ya no sobra nada.
+ */
+private const val FORM_DIALOG_MAX_HEIGHT_FRACTION = 0.9f
+
+/**
  * Armazón de un diálogo de una sola columna, con título.
  *
  * Hermano de [DetailDialogShell]: comparte el aspecto —la misma superficie redondeada,
@@ -69,62 +78,70 @@ fun FormDialogShell(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Surface(
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surface,
-            // El tope va **antes** del porcentaje, no después: `fillMaxWidth` fija el
-            // ancho mínimo además del máximo, así que un `widthIn` detrás no puede
-            // recortarlo y el diálogo salía a 92 % de la ventana. Puesto delante,
-            // acota la restricción que recibe el porcentaje: 92 % de 560 en una
-            // pantalla ancha, y 92 % de la pantalla en un móvil, que es lo buscado.
-            modifier = Modifier
-                .widthIn(max = FORM_DIALOG_MAX_WIDTH)
-                .fillMaxWidth(0.92f),
-        ) {
-            Box {
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = 620.dp)
-                        .verticalScroll(rememberScrollState())
-                        .padding(PassionTheme.spacing.s6),
-                ) {
-                    Text(
-                        text = titulo,
-                        color = PassionTheme.semantics.onBackgroundStrong,
-                        style = MaterialTheme.typography.headlineSmall,
-                        // Hueco a la derecha para no quedar debajo del botón de cierre.
-                        modifier = Modifier.padding(
-                            end = PassionTheme.spacing.s8,
-                            bottom = PassionTheme.spacing.s3,
-                        ),
-                    )
-                    contenido()
-                }
+        // Mide la ventana para poder acotar el alto en proporción a ella.
+        BoxWithConstraints {
+            val altoMaximo = maxHeight * FORM_DIALOG_MAX_HEIGHT_FRACTION
 
-                LocalSnackbarHostState.current?.let { host ->
-                    SnackbarHost(
-                        hostState = host,
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surface,
+                // El tope va **antes** del porcentaje, no después: `fillMaxWidth` fija el
+                // ancho mínimo además del máximo, así que un `widthIn` detrás no puede
+                // recortarlo y el diálogo salía a 92 % de la ventana. Puesto delante,
+                // acota la restricción que recibe el porcentaje: 92 % de 560 en una
+                // pantalla ancha, y 92 % de la pantalla en un móvil, que es lo buscado.
+                modifier = Modifier
+                    .widthIn(max = FORM_DIALOG_MAX_WIDTH)
+                    .fillMaxWidth(0.92f),
+            ) {
+                Box {
+                    Column(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(PassionTheme.spacing.s4),
-                    )
-                }
+                            .heightIn(max = altoMaximo)
+                            .verticalScroll(rememberScrollState())
+                            .padding(PassionTheme.spacing.s6),
+                    ) {
+                        Text(
+                            text = titulo,
+                            color = PassionTheme.semantics.onBackgroundStrong,
+                            style = MaterialTheme.typography.headlineSmall,
+                            // Hueco a la derecha para no quedar debajo del cierre.
+                            modifier = Modifier.padding(
+                                end = PassionTheme.spacing.s8,
+                                bottom = PassionTheme.spacing.s3,
+                            ),
+                        )
+                        contenido()
+                    }
 
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(PassionTheme.spacing.s3)
-                        .size(36.dp)
-                        .clip(MaterialTheme.shapes.extraLarge)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
-                        .clickable(onClick = onDismiss),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "×",  // U+00D7: Poppins no trae U+2715 y saldria un cuadro vacio
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.titleMedium,
-                    )
+                    LocalSnackbarHostState.current?.let { host ->
+                        SnackbarHost(
+                            hostState = host,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(PassionTheme.spacing.s4),
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(PassionTheme.spacing.s3)
+                            .size(36.dp)
+                            .clip(MaterialTheme.shapes.extraLarge)
+                            .background(
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                            )
+                            .clickable(onClick = onDismiss),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            // U+00D7: Poppins no trae U+2715 y saldria un cuadro vacio
+                            text = "×",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
                 }
             }
         }
