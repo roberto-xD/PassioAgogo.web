@@ -72,9 +72,14 @@ fun FormDialogShell(
         Surface(
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface,
+            // El tope va **antes** del porcentaje, no después: `fillMaxWidth` fija el
+            // ancho mínimo además del máximo, así que un `widthIn` detrás no puede
+            // recortarlo y el diálogo salía a 92 % de la ventana. Puesto delante,
+            // acota la restricción que recibe el porcentaje: 92 % de 560 en una
+            // pantalla ancha, y 92 % de la pantalla en un móvil, que es lo buscado.
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .widthIn(max = FORM_DIALOG_MAX_WIDTH),
+                .widthIn(max = FORM_DIALOG_MAX_WIDTH)
+                .fillMaxWidth(0.92f),
         ) {
             Box {
                 Column(
