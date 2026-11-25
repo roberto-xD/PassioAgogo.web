@@ -1,5 +1,6 @@
 package ui.screens
 
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -16,93 +17,120 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import ui.components.ContentScreen
+import ui.components.FormDialogShell
 import ui.components.FormField
 import ui.components.Paragraph
 import ui.theme.PassionTheme
 import viewmodel.ContactUiState
 import viewmodel.MAX_MENSAJE
 
+/**
+ * El formulario de contacto, en un diálogo.
+ *
+ * Dejó de ser una pantalla con su entrada en la barra: escribirnos no es un destino al
+ * que se va, es algo que se hace sin perder de vista lo que se estaba leyendo. Ahora se
+ * abre desde el botón flotante de Nosotros y se cierra donde estabas.
+ *
+ * La ruta `#/contacto` sigue existiendo —está enlazada desde el pie y desde las páginas
+ * de `sitio/`— y lo que hace es abrir Nosotros con este diálogo ya desplegado.
+ */
 @Composable
-fun ContactScreen(
+fun ContactDialog(
     state: ContactUiState,
     onNombreChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onMensajeChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onReset: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    ContentScreen(title = "Contacto") {
+    FormDialogShell(titulo = "Escríbenos", onDismiss = onDismiss) {
         if (state.sent) {
             SentConfirmation(onReset)
-            return@ContentScreen
+            return@FormDialogShell
         }
-
-        Paragraph(
-            "¿Tienes dudas, sugerencias o quieres vender con nosotros? Escríbenos y te " +
-                "respondemos lo antes posible."
-        )
-        Spacer(Modifier.height(PassionTheme.spacing.s3))
-
-        FormField(
-            value = state.nombre,
-            onValueChange = onNombreChange,
-            label = "Nombre",
-        )
-        FormField(
-            value = state.email,
-            onValueChange = onEmailChange,
-            label = "Correo electrónico",
-            keyboardType = KeyboardType.Email,
-        )
-        FormField(
-            value = state.mensaje,
-            onValueChange = onMensajeChange,
-            label = "Mensaje",
-            singleLine = false,
-            modifier = Modifier.heightIn(min = 140.dp),
-            supportingText = "${state.mensaje.length} / $MAX_MENSAJE",
-        )
-
-        if (state.errorMessage != null) {
-            Text(
-                text = state.errorMessage,
-                color = PassionTheme.semantics.danger,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = PassionTheme.spacing.s2),
-            )
-        }
-
-        Spacer(Modifier.height(PassionTheme.spacing.s4))
-        Button(
-            onClick = onSubmit,
-            enabled = state.canSubmit,
-            shape = MaterialTheme.shapes.extraLarge,
-        ) {
-            if (state.isSending) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Text(
-                        "Enviando…",
-                        modifier = Modifier.padding(start = PassionTheme.spacing.s2),
-                    )
-                }
-            } else {
-                Text("Enviar mensaje", style = MaterialTheme.typography.labelLarge)
-            }
-        }
-
-        Spacer(Modifier.height(PassionTheme.spacing.s4))
-        Text(
-            text = "Este sitio está protegido por Cloudflare Turnstile para evitar el envío " +
-                "automatizado de mensajes.",
-            color = PassionTheme.semantics.onBackgroundSubtle,
-            style = MaterialTheme.typography.bodySmall,
+        ContactForm(
+            state = state,
+            onNombreChange = onNombreChange,
+            onEmailChange = onEmailChange,
+            onMensajeChange = onMensajeChange,
+            onSubmit = onSubmit,
         )
     }
+}
+
+@Composable
+private fun ColumnScope.ContactForm(
+    state: ContactUiState,
+    onNombreChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    onMensajeChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
+    Paragraph(
+        "¿Tienes dudas, sugerencias o quieres vender con nosotros? Escríbenos y te " +
+            "respondemos lo antes posible."
+    )
+    Spacer(Modifier.height(PassionTheme.spacing.s3))
+
+    FormField(
+        value = state.nombre,
+        onValueChange = onNombreChange,
+        label = "Nombre",
+    )
+    FormField(
+        value = state.email,
+        onValueChange = onEmailChange,
+        label = "Correo electrónico",
+        keyboardType = KeyboardType.Email,
+    )
+    FormField(
+        value = state.mensaje,
+        onValueChange = onMensajeChange,
+        label = "Mensaje",
+        singleLine = false,
+        modifier = Modifier.heightIn(min = 140.dp),
+        supportingText = "${state.mensaje.length} / $MAX_MENSAJE",
+    )
+
+    if (state.errorMessage != null) {
+        Text(
+            text = state.errorMessage,
+            color = PassionTheme.semantics.danger,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = PassionTheme.spacing.s2),
+        )
+    }
+
+    Spacer(Modifier.height(PassionTheme.spacing.s4))
+    Button(
+        onClick = onSubmit,
+        enabled = state.canSubmit,
+        shape = MaterialTheme.shapes.extraLarge,
+    ) {
+        if (state.isSending) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    "Enviando…",
+                    modifier = Modifier.padding(start = PassionTheme.spacing.s2),
+                )
+            }
+        } else {
+            Text("Enviar mensaje", style = MaterialTheme.typography.labelLarge)
+        }
+    }
+
+    Spacer(Modifier.height(PassionTheme.spacing.s4))
+    Text(
+        text = "Este sitio está protegido por Cloudflare Turnstile para evitar el envío " +
+            "automatizado de mensajes.",
+        color = PassionTheme.semantics.onBackgroundSubtle,
+        style = MaterialTheme.typography.bodySmall,
+    )
 }
 
 @Composable

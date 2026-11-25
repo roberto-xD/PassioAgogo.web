@@ -43,6 +43,89 @@ val LocalSnackbarHostState = compositionLocalOf<SnackbarHostState?> { null }
 /** Por debajo de este ancho no caben imagen e información una al lado de la otra. */
 private val SIDE_BY_SIDE_MIN_WIDTH = 720.dp
 
+/** Ancho máximo del diálogo de una sola columna; más allá el texto se lee peor. */
+private val FORM_DIALOG_MAX_WIDTH = 560.dp
+
+/**
+ * Armazón de un diálogo de una sola columna, con título.
+ *
+ * Hermano de [DetailDialogShell]: comparte el aspecto —la misma superficie redondeada,
+ * el mismo botón de cierre en la esquina, el mismo avisador repintado dentro— pero sin
+ * panel de imagen, porque lo que enseña es un formulario y no una fotografía. Se alza
+ * sobre el contenido en lugar de ocupar una pantalla entera, que es lo que hace el
+ * formulario de contacto desde que vive dentro de Nosotros.
+ *
+ * El alto no se fija: crece con el contenido hasta donde cabe, y a partir de ahí se
+ * desplaza. Un formulario de tres campos en un diálogo de alto fijo deja medio diálogo
+ * vacío.
+ */
+@Composable
+fun FormDialogShell(
+    titulo: String,
+    onDismiss: () -> Unit,
+    contenido: @Composable ColumnScope.() -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .widthIn(max = FORM_DIALOG_MAX_WIDTH),
+        ) {
+            Box {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 620.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(PassionTheme.spacing.s6),
+                ) {
+                    Text(
+                        text = titulo,
+                        color = PassionTheme.semantics.onBackgroundStrong,
+                        style = MaterialTheme.typography.headlineSmall,
+                        // Hueco a la derecha para no quedar debajo del botón de cierre.
+                        modifier = Modifier.padding(
+                            end = PassionTheme.spacing.s8,
+                            bottom = PassionTheme.spacing.s3,
+                        ),
+                    )
+                    contenido()
+                }
+
+                LocalSnackbarHostState.current?.let { host ->
+                    SnackbarHost(
+                        hostState = host,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(PassionTheme.spacing.s4),
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(PassionTheme.spacing.s3)
+                        .size(36.dp)
+                        .clip(MaterialTheme.shapes.extraLarge)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
+                        .clickable(onClick = onDismiss),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "×",  // U+00D7: Poppins no trae U+2715 y saldria un cuadro vacio
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+            }
+        }
+    }
+}
+
 /**
  * Armazón común de los diálogos de detalle (galería y producto).
  *

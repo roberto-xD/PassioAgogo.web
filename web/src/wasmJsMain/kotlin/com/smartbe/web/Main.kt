@@ -60,14 +60,13 @@ import ui.screens.AboutScreen
 import ui.screens.AccountScreen
 import ui.screens.SECCION_HISTORIAL
 import ui.screens.CareScreen
-import ui.screens.ContactScreen
+import ui.screens.ContactDialog
 import ui.screens.DevolucionesScreen
 import ui.screens.EventDetailScreen
 import ui.screens.EventsScreen
-import ui.screens.HelpScreen
 import ui.screens.HomeScreen
 import ui.screens.LoginScreen
-import ui.screens.PodcastScreen
+import ui.screens.PestanaNosotros
 import ui.screens.CartScreen
 import ui.screens.PrivacyScreen
 import ui.screens.SectionProductScreen
@@ -385,9 +384,14 @@ fun App() {
                     LocalSnackbarHostState provides snackbarHostState,
                 ) {
                     when (current) {
-                        Screen.Home -> HomeScreen(
+                        // `#/podcast` ya no tiene pantalla propia: su reproductor vive
+                        // al pie de Inicio. La ruta sigue respondiendo —hay enlaces
+                        // sueltos por ahí— y aterriza aquí.
+                        Screen.Home, Screen.Podcast -> HomeScreen(
                             galleryState = galleryState,
                             onExploreCatalog = { navigate(Screen.Catalog) },
+                            ruletaVisible = wheelState.visible,
+                            onOpenWheel = { navigate(Screen.Wheel) },
                         )
                         // Misma pantalla para el catálogo general y para una sección: lo
                         // único que cambia es el ámbito, que ya resolvió el ViewModel.
@@ -425,9 +429,30 @@ fun App() {
                                 onAddToCart = { producto, variante -> cartViewModel.add(producto, variante) },
                             )
                         }
-                        Screen.About -> AboutScreen()
+                        // Nosotros recoge tres entradas que antes iban sueltas en la
+                        // barra. Las tres rutas siguen siendo distintas —el pie y las
+                        // páginas de `sitio/` enlazan a cada una— y cada una abre esta
+                        // pantalla en el estado que le toca.
+                        Screen.About, Screen.Help, Screen.Contact -> AboutScreen(
+                            pestanaInicial = if (current == Screen.Help) {
+                                PestanaNosotros.Ayuda
+                            } else {
+                                PestanaNosotros.Conocenos
+                            },
+                            abrirContacto = current == Screen.Contact,
+                            dialogoContacto = { cerrar ->
+                                ContactDialog(
+                                    state = contactState,
+                                    onNombreChange = contactViewModel::updateNombre,
+                                    onEmailChange = contactViewModel::updateEmail,
+                                    onMensajeChange = contactViewModel::updateMensaje,
+                                    onSubmit = contactViewModel::submit,
+                                    onReset = contactViewModel::reset,
+                                    onDismiss = cerrar,
+                                )
+                            },
+                        )
                         Screen.Video -> VideoScreen()
-                        Screen.Podcast -> PodcastScreen()
                         // Con identificador en la URL se abre la ficha; sin él, el listado.
                         Screen.Events -> if (route.id != null) {
                             EventDetailScreen(
@@ -443,14 +468,6 @@ fun App() {
                             state = wheelState,
                             onSpin = wheelViewModel::spin,
                             onLanded = wheelViewModel::onLanded,
-                        )
-                        Screen.Contact -> ContactScreen(
-                            state = contactState,
-                            onNombreChange = contactViewModel::updateNombre,
-                            onEmailChange = contactViewModel::updateEmail,
-                            onMensajeChange = contactViewModel::updateMensaje,
-                            onSubmit = contactViewModel::submit,
-                            onReset = contactViewModel::reset,
                         )
                         Screen.Login -> LoginScreen(
                             state = authState,
@@ -537,7 +554,6 @@ fun App() {
                         Screen.Terms -> TermsScreen()
                         Screen.Privacy -> PrivacyScreen()
                         Screen.Returns -> DevolucionesScreen()
-                        Screen.Help -> HelpScreen()
                     }
                 }
 
