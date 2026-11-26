@@ -350,6 +350,16 @@ private fun mensajeDeError(raw: String): String {
             "Tu cuenta no tiene permiso para enviar solicitudes. Escríbenos y lo revisamos."
         "foreign key" in m || "violates foreign key" in m ->
             "Alguno de los productos ya no está disponible. Quítalo e inténtalo de nuevo."
+        // Un código, una solicitud: lo impone `idx_order_requests_codigo` (43), y es
+        // lo que evita que dos carritos abiertos a la vez gasten el mismo premio.
+        // Sin este caso, chocar con él se veía como «no se pudo enviar», que no dice
+        // qué pasó ni cómo salir.
+        "idx_order_requests_codigo" in m ->
+            "Ese código ya está aplicado a otra solicitud. Ábrela en tu historial para " +
+                "pagarla, o cancélala y el código vuelve a quedar libre."
+        "duplicate key" in m || "ya existe la llave" in m ->
+            "Esa solicitud ya se había registrado. Revisa tu historial antes de volver " +
+                "a enviarla."
         "failed to fetch" in m || "network" in m ->
             "No se pudo conectar. Revisa tu conexión e inténtalo de nuevo."
         else -> "No se pudo enviar la solicitud. Inténtalo de nuevo."
