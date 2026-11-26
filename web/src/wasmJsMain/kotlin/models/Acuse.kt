@@ -30,6 +30,13 @@ data class Acuse(
      * como «todavía no se ha cotizado».
      */
     val envioGratis: Boolean = false,
+    /** El cupón aplicado. Vacío si no se usó ninguno. */
+    val codigoDescuento: String = "",
+    /** Lo que descontó, en porcentaje y en pesos. Cero hasta que se abre el cobro. */
+    val descuentoPct: Int = 0,
+    val descuentoMonto: Double = 0.0,
+    /** El producto de regalo que daba el cupón, si daba alguno. */
+    val regalo: String = "",
     val pagoEstado: String,
     val pagoTotal: Double,
     val pagoMetodo: String,
@@ -48,9 +55,25 @@ data class Acuse(
 
     val tieneEnvio: Boolean get() = envioCosto > 0.0
 
-    /** Lo que se va a pagar. Tras pagar, lo que Mercado Pago dice que se cobró. */
+    /** Se usó un cupón, se sepa ya o no cuánto descontó. */
+    val tieneCupon: Boolean get() = codigoDescuento.isNotBlank()
+
+    /** Qué hizo el cupón, con las mismas palabras que el carrito y el historial. */
+    val detalleCupon: String
+        get() = detalleDeCupon(descuentoPct, descuentoMonto, regalo, envioGratis)
+
+    /**
+     * Lo que se va a pagar. Tras pagar, lo que Mercado Pago dice que se cobró.
+     *
+     * Antes de pagar hay que restar el cupón: si no, esta pantalla anunciaba un total
+     * que no era el que iba a aparecer en la caja.
+     */
     val total: Double
-        get() = if (pagoTotal > 0.0) pagoTotal else totalArticulos + envioCosto
+        get() = if (pagoTotal > 0.0) {
+            pagoTotal
+        } else {
+            (totalArticulos - descuentoMonto).coerceAtLeast(0.0) + envioCosto
+        }
 
     /**
      * ¿Seguimos esperando a saber?
@@ -94,6 +117,12 @@ data class AcuseDto(
     @SerialName("envio_descripcion") val envioDescripcion: String? = null,
     @SerialName("envio_entrega") val envioEntrega: String? = null,
     @SerialName("envio_gratis") val envioGratis: Boolean = false,
+    // El cupón (43_codigo_descuento). El importe lo escribe `crear-pago` al abrir el
+    // cobro, así que puede haber código sin importe todavía.
+    @SerialName("codigo_descuento") val codigoDescuento: String? = null,
+    @SerialName("descuento_pct") val descuentoPct: Int? = null,
+    @SerialName("descuento_monto") val descuentoMonto: Double? = null,
+    val regalo: String? = null,
     @SerialName("pago_estado") val pagoEstado: String? = null,
     @SerialName("pago_total") val pagoTotal: Double? = null,
     @SerialName("pago_metodo") val pagoMetodo: String? = null,

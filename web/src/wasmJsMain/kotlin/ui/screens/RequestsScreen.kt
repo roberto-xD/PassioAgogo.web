@@ -164,12 +164,31 @@ private fun Tarjeta(
             modifier = Modifier.padding(top = PassionTheme.spacing.s1),
         )
 
+        // Subtotal, cupón, envío y total: en ese orden y cada uno en su renglón.
+        // Antes aquí había una sola cifra llamada «Total estimado» que no restaba el
+        // cupón, así que encima de «Pagado $25» se leía «Total estimado $250» y no
+        // había forma de entender de dónde salía la diferencia.
         Text(
-            text = "Total estimado: ${formatPrice(solicitud.total)}",
+            text = "Subtotal: ${formatPrice(solicitud.totalArticulos)}",
             color = PassionTheme.semantics.onBackgroundStrong,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = PassionTheme.spacing.s2),
         )
+
+        if (solicitud.tieneCupon) {
+            Text(
+                text = "Cupón: ${solicitud.codigoDescuento}" +
+                    solicitud.detalleCupon.takeIf { it.isNotBlank() }
+                        ?.let { " · $it" }.orEmpty() +
+                    // El importe solo existe desde que se abre el cobro. Antes de eso
+                    // se enseña el cupón sin cifra, que es lo único cierto.
+                    solicitud.descuentoMonto.takeIf { it > 0.0 }
+                        ?.let { " · −${formatPrice(it)}" }.orEmpty(),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+
         // El total ya lleva el envío dentro, así que se dice cuánto es: una cifra que
         // no cuadra con la suma de los artículos invita a pensar que está mal.
         if (solicitud.envioGratis) {
@@ -186,6 +205,17 @@ private fun Tarjeta(
                     " · ${formatPrice(solicitud.envioCosto)}",
                 color = PassionTheme.semantics.onBackgroundSubtle,
                 style = MaterialTheme.typography.bodySmall,
+            )
+        }
+
+        // El total solo cuando difiere del subtotal: sin cupón ni envío sería la misma
+        // cifra dos veces seguidas, que se lee como un error.
+        if (solicitud.total != solicitud.totalArticulos) {
+            Text(
+                text = "Total: ${formatPrice(solicitud.total)}",
+                color = PassionTheme.semantics.onBackgroundStrong,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
             )
         }
 

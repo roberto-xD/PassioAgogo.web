@@ -243,16 +243,18 @@ class OrdersRepository(
         // con un 400 y el historial se quedaría en blanco: se va quitando de atrás hacia
         // adelante hasta dar con lo que la base sí tiene. Peor es una pantalla vacía que
         // una sin el número de guía.
-        return leerSolicitudes(conCancelacion = true, conGratis = true, conGuia = true, conPago = true)
-            ?: leerSolicitudes(conCancelacion = false, conGratis = true, conGuia = true, conPago = true)
-            ?: leerSolicitudes(conCancelacion = false, conGratis = false, conGuia = true, conPago = true)
-            ?: leerSolicitudes(conCancelacion = false, conGratis = false, conGuia = true, conPago = false)
-            ?: leerSolicitudes(conCancelacion = false, conGratis = false, conGuia = false, conPago = false)
+        return leerSolicitudes(true, true, true, true, true)
+            ?: leerSolicitudes(false, true, true, true, true)
+            ?: leerSolicitudes(false, false, true, true, true)
+            ?: leerSolicitudes(false, false, false, true, true)
+            ?: leerSolicitudes(false, false, false, true, false)
+            ?: leerSolicitudes(false, false, false, false, false)
     }
 
     private suspend fun leerSolicitudes(
         conCancelacion: Boolean,
         conGratis: Boolean,
+        conCupon: Boolean,
         conGuia: Boolean,
         conPago: Boolean,
     ): List<Solicitud>? = runCatching {
@@ -263,6 +265,9 @@ class OrdersRepository(
             // 48_codigos.sql, en su propio escalón: pedirla junto a las del pago dejaría
             // sin estado de cobro a una base donde ese script todavía no se ha corrido.
             if (conGratis) append("envio_gratis, ")
+            // 43_codigo_descuento.sql: más viejo que el resto, así que es de los
+            // últimos que se sueltan al ir degradando.
+            if (conCupon) append("codigo_descuento, descuento_pct, descuento_monto, regalo, ")
             // 51_cancelacion.sql, por lo mismo y en el escalón de más arriba: es lo
             // último que llegó, así que es lo primero que se suelta.
             if (conCancelacion) {
@@ -295,6 +300,10 @@ class OrdersRepository(
                     envioCosto = dto.envioCosto ?: 0.0,
                     envioDescripcion = dto.envioDescripcion.orEmpty(),
                     envioGratis = dto.envioGratis,
+                    codigoDescuento = dto.codigoDescuento.orEmpty(),
+                    descuentoPct = dto.descuentoPct ?: 0,
+                    descuentoMonto = dto.descuentoMonto ?: 0.0,
+                    regalo = dto.regalo.orEmpty(),
                     pagoEstado = dto.pagoEstado.orEmpty(),
                     pagoTotal = dto.pagoTotal ?: 0.0,
                     pagoMetodo = dto.pagoMetodo.orEmpty(),

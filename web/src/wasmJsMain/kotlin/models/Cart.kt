@@ -125,6 +125,14 @@ data class SolicitudDto(
     @SerialName("envio_descripcion") val envioDescripcion: String? = null,
     // El envío promocional (48_codigos.sql).
     @SerialName("envio_gratis") val envioGratis: Boolean = false,
+    // El cupón aplicado (43_codigo_descuento). El código se manda al crear la
+    // solicitud; el porcentaje y el importe los escribe `crear-pago` al abrir el
+    // cobro, así que una solicitud que nunca llegó al pago tiene el código y no el
+    // importe. Hay que pintarlo contando con eso.
+    @SerialName("codigo_descuento") val codigoDescuento: String? = null,
+    @SerialName("descuento_pct") val descuentoPct: Int? = null,
+    @SerialName("descuento_monto") val descuentoMonto: Double? = null,
+    val regalo: String? = null,
     // La cancelación (51_cancelacion.sql).
     @SerialName("cancelada_at") val canceladaAt: String? = null,
     @SerialName("cancelacion_solicitada_at") val cancelacionSolicitadaAt: String? = null,
@@ -162,6 +170,13 @@ data class Solicitud(
     val envioDescripcion: String = "",
     /** El envío lo cubrió un código: no se cobró y la paquetería la escogió la tienda. */
     val envioGratis: Boolean = false,
+    /** El cupón aplicado. Vacío si no se usó ninguno. */
+    val codigoDescuento: String = "",
+    /** Lo que descontó, en porcentaje y en pesos. Cero hasta que se abre el cobro. */
+    val descuentoPct: Int = 0,
+    val descuentoMonto: Double = 0.0,
+    /** El producto de regalo que daba el cupón, si daba alguno. */
+    val regalo: String = "",
     /** Número de rastreo. Vacío mientras el pedido no se haya convertido en paquete. */
     val guiaNumero: String = "",
     val guiaRastreoUrl: String = "",
@@ -186,6 +201,9 @@ data class Solicitud(
     val tieneGuia: Boolean get() = guiaNumero.isNotBlank()
     val tieneEnvio: Boolean get() = envioCosto > 0.0
 
+    /** Se usó un cupón, se sepa ya o no cuánto descontó. */
+    val tieneCupon: Boolean get() = codigoDescuento.isNotBlank()
+
     val pago: EstadoPago get() = EstadoPago.desde(pagoEstado)
 
     /**
@@ -203,15 +221,19 @@ data class Solicitud(
             // Una cancelada no se cobra. Sin esto, el botón seguiría ahí: lo que la
             // cancelación cambia son columnas propias, no `estado`.
             !cerrada &&
-            total > 0.0
+            // Sobre los artículos y no sobre [total]: un cupón del 100 % deja el total
+            // en cero, y esa solicitud sí hay que poder cerrarla.
+            totalArticulos > 0.0
 
     /**
-     * Lo que de verdad va a pagar, artículos más envío.
+     * Lo que de verdad va a pagar: artículos, menos el cupón, más el envío.
      *
      * El trigger de la base solo suma artículos, así que enseñar `total_estimado` a
-     * secas daba una cifra que no era la que el cliente vio al enviar la solicitud.
+     * secas daba una cifra que no era la que el cliente vio al enviar la solicitud. Y
+     * sin restar el cupón tampoco cuadraba con lo que acabó pagando, que es la queja
+     * que trajo esto aquí: «Total estimado $250» encima de «Pagado $25».
      */
-    val total: Double get() = totalArticulos + envioCosto
+    val total: Double get() = (totalArticulos - descuentoMonto).coerceAtLeast(0.0) + envioCosto
 
     /** Está cancelada y cerrada: sin pago de por medio, o con el dinero ya devuelto. */
     val cancelada: Boolean get() = canceladaAt.isNotBlank()
@@ -249,6 +271,10 @@ data class Solicitud(
      * lo ya cancelado ni lo que la tienda no pudo atender.
      */
     val puedeCancelar: Boolean get() = !cerrada && estado != "rechazada"
+
+    /** Qué hizo el cupón, con las mismas palabras que el carrito. */
+    val detalleCupon: String
+        get() = detalleDeCupon(descuentoPct, descuentoMonto, regalo, envioGratis)
 
     /** Cómo se le cuenta el estado a quien la envió, no cómo se llama en la base. */
     val estadoLegible: String get() = when (estado) {
@@ -348,3 +374,31 @@ enum class EstadoPago(val clave: String, val etiqueta: String) {
             entries.firstOrNull { it.clave == clave?.trim() } ?: Ninguno
     }
 }
+
+/**
+ * Qué hizo el cupón, en una línea.
+ *
+ * Vive aquí, fuera de las pantallas, porque lo dicen tres: el carrito al aplicarlo, el
+ * historial y el acuse. Que las tres lo cuenten igual es lo que hace que la cifra
+ * pagada se entienda sin tener que sumar a mano.
+ *
+ * Puede quedar vacío: entre crear la solicitud y abrir el cobro existe el código pero
+ * todavía no el importe, porque quien lo calcula es `crear-pago`. Ahí se enseña el
+ * código solo, que es lo único cierto en ese momento.
+ */
+fun detalleDeCupon(
+    descuentoPct: Int,
+    descuentoMonto: Double,
+    regalo: String,
+    envioGratis: Boolean,
+): String = buildList {
+    if (descuentoPct > 0) {
+        add("$descuentoPct % de descuento en los productos")
+    } else if (descuentoMonto > 0.0) {
+        // Sin porcentaje pero con importe: un cupón de pesos, o uno viejo al que no se
+        // le guardó el porcentaje. Vale más decir cuánto que no decir nada.
+        add("descuento en los productos")
+    }
+    if (regalo.isNotBlank()) add("regalo: $regalo")
+    if (envioGratis) add("envío gratis")
+}.joinToString(" · ")

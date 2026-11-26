@@ -542,7 +542,28 @@ private fun Importes(acuse: Acuse, detalleAbierto: Boolean, onAlternar: () -> Un
             )
         }
 
-        FilaDato("Artículos", formatPrice(acuse.totalArticulos))
+        FilaDato("Subtotal", formatPrice(acuse.totalArticulos))
+
+        // Sin esto, el total de arriba no cuadraba con el subtotal y no había de dónde
+        // deducir la diferencia: la persona acababa de pagar 25 sobre unos artículos
+        // de 250 y la pantalla no mencionaba el cupón por ningún lado.
+        if (acuse.tieneCupon) {
+            FilaDato(
+                etiqueta = "Cupón: ${acuse.codigoDescuento}",
+                // El importe solo existe desde que se abre el cobro; antes de eso se
+                // enseña el cupón sin cifra.
+                valor = acuse.descuentoMonto.takeIf { it > 0.0 }
+                    ?.let { "−${formatPrice(it)}" }.orEmpty(),
+            )
+            if (acuse.detalleCupon.isNotBlank()) {
+                Text(
+                    text = acuse.detalleCupon,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+
         // Un cero en el renglón del envío se leería como «falta por cotizar». Si lo
         // cubrió un código, se dice.
         if (acuse.envioGratis) {

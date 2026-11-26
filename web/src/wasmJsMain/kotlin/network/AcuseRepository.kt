@@ -76,6 +76,10 @@ class AcuseRepository(
             // sin ese script se quedaría también sin el estado del cobro, que es lo
             // único que esta pantalla existe para contar.
             if (conGratis) append("envio_gratis, ")
+            // 43_codigo_descuento.sql. Va con `conGratis` y no en su propio escalón:
+            // es más viejo que el 48, así que una base que tiene `envio_gratis` tiene
+            // esto seguro.
+            if (conGratis) append("codigo_descuento, descuento_pct, descuento_monto, regalo, ")
             if (conPago) {
                 append("pago_estado, pago_total, pago_metodo, pago_referencia, ")
                 append("pago_ultimos4, pago_marca, ")
@@ -174,6 +178,10 @@ class AcuseRepository(
             envioDescripcion = dto.envioDescripcion.orEmpty(),
             envioEntrega = dto.envioEntrega.orEmpty(),
             envioGratis = dto.envioGratis,
+            codigoDescuento = dto.codigoDescuento.orEmpty(),
+            descuentoPct = dto.descuentoPct ?: 0,
+            descuentoMonto = dto.descuentoMonto ?: 0.0,
+            regalo = dto.regalo.orEmpty(),
             pagoEstado = dto.pagoEstado.orEmpty(),
             pagoTotal = dto.pagoTotal ?: 0.0,
             pagoMetodo = dto.pagoMetodo.orEmpty(),
