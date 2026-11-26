@@ -112,9 +112,16 @@
               state.status = 'ready';
               state.token = token;
             },
-            'error-callback': function () {
+            // Se guarda el código que da Cloudflare, no un texto genérico: es lo
+            // único que distingue «el contenedor no existe» de «este dominio no
+            // está dado de alta» (110200), y sin él un fallo de configuración se
+            // ve igual que un error de programación. Se escribe también en la
+            // consola porque el mensaje que ve la persona es, a propósito, vago.
+            'error-callback': function (codigo) {
               state.status = 'error';
-              state.error = 'turnstile-error';
+              state.error = 'turnstile-' + codigo;
+              console.warn('[Turnstile] error ' + codigo +
+                ' — 110200 = el dominio no está permitido para esta site key');
               return true;
             },
             'expired-callback': function () {

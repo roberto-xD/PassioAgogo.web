@@ -76,6 +76,11 @@ class ContactViewModel(
             val token = try {
                 requestTurnstileToken()
             } catch (e: TurnstileException) {
+                // El código de Cloudflare va a la consola; el mensaje de pantalla se
+                // queda vago a propósito, porque a quien escribe no le sirve de nada.
+                // «110200» significa que el dominio no está dado de alta para la site
+                // key: pasa al probar en localhost o en la IP de la red local.
+                println("PAG/turnstile: ${e.message}")
                 _uiState.update {
                     it.copy(
                         isSending = false,
