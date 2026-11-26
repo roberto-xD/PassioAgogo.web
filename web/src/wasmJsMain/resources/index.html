@@ -76,10 +76,35 @@
         var widgetId = null;
         var state = { status: 'idle', token: '', error: '' };
 
+        // El contenedor del widget, creándolo si hace falta.
+        //
+        // Hace falta casi siempre: ComposeViewport **vacía el <body>** al montar, así
+        // que el <div id="turnstile-host"> que está escrito más abajo en este archivo
+        // desaparece en cuanto arranca la aplicación. Antes no lo hacía, y por eso esto
+        // funcionaba sin más; tras subir Compose a 1.12, Turnstile fallaba con
+        // «Unable to find a container for "#turnstile-host"» y no se podía enviar el
+        // formulario de contacto.
+        //
+        // Se crea aquí, bajo demanda, en lugar de volver a ponerlo en el HTML: lo que
+        // se escriba ahí se lo lleva Compose otra vez. El id es el mismo, así que
+        // conserva su posición y su z-index de styles.css.
+        function ensureHost() {
+          var host = document.getElementById('turnstile-host');
+          if (host) return host;
+          host = document.createElement('div');
+          host.id = 'turnstile-host';
+          document.body.appendChild(host);
+          // El contenedor viejo ya no está, así que el widget que vivía dentro tampoco:
+          // hay que volver a crearlo.
+          widgetId = null;
+          return host;
+        }
+
         function ensureWidget(siteKey) {
+          var host = ensureHost();
           if (widgetId !== null) return true;
           if (!window.turnstile) return false;
-          widgetId = window.turnstile.render('#turnstile-host', {
+          widgetId = window.turnstile.render(host, {
             sitekey: siteKey,
             execution: 'execute',
             appearance: 'interaction-only',

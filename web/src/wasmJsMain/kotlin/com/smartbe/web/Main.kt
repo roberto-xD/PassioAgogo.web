@@ -91,12 +91,17 @@ private const val SESION_POLL_MS = 500L
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
-    // ComposeViewport añade su canvas al <body> sin borrar el contenido existente.
-    // Quitamos el placeholder de carga para que no ocupe el viewport (height:100vh)
-    // y empuje el canvas de Compose fuera de la vista.
+    // **ComposeViewport vacía el <body>**: desde Compose 1.12, todo lo que esté
+    // escrito en index.html desaparece en cuanto se monta la aplicación. Antes no era
+    // así, y el cambio se llevó por delante el contenedor de Turnstile, que estaba
+    // declarado en el HTML; por eso el helper de index.html lo crea él mismo ahora.
+    //
+    // Estas dos retiradas siguen aquí a propósito, no por inercia: ocurren **antes** de
+    // montar, así que el mensaje de carga no llega a empujar el canvas fuera de la
+    // vista con su height:100vh, y los enlaces para los rastreadores sin JavaScript no
+    // llegan a verse. Y si una versión futura de Compose dejara de vaciar el body,
+    // seguirían haciendo falta.
     document.getElementById("loading")?.remove()
-    // Los enlaces a las páginas de texto: existen en el HTML para los rastreadores
-    // que no ejecutan JavaScript, y se van antes de que nadie los vea.
     document.getElementById("enlaces-sin-js")?.remove()
     ComposeViewport(document.body!!) {
         App()
