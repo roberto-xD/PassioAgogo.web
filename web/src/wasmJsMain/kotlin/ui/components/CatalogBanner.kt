@@ -111,10 +111,16 @@ fun CatalogBanner(
     val hovered by interaction.collectIsHoveredAsState()
     val ctaScale by animateFloatAsState(if (hovered) 1.04f else 1f, tween(120), label = "ctaScale")
 
+    // El tope va en una caja interior, no sobre el `modifier` que llega.
+    //
+    // Si quien llama pasa `fillMaxWidth` —y la portada lo hace—, ese modificador fija
+    // el ancho del padre como mínimo y el `widthIn` de detrás ya no puede recortarlo:
+    // el banner salía a todo lo ancho mientras el de la ruleta se quedaba en sus 1200,
+    // y los dos juntos no cuadraban. Con la caja exterior centrando, da igual lo que
+    // llegue de fuera.
+    Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
     BoxWithConstraints(
-        modifier = modifier
-            // El tope antes de rellenar: al revés, `fillMaxWidth` fija el ancho del
-            // padre como mínimo y `widthIn` ya no puede recortarlo.
+        modifier = Modifier
             .widthIn(max = 1200.dp)
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
@@ -140,6 +146,7 @@ fun CatalogBanner(
                 PurplePane(compact = true, ctaScale = ctaScale, modifier = Modifier.fillMaxWidth())
             }
         }
+    }
     }
 }
 
