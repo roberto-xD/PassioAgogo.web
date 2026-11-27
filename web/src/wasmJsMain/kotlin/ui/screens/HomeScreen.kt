@@ -10,18 +10,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import network.MediaConfig
 import androidx.compose.runtime.remember
+import ui.components.CatalogBanner
 import ui.components.ImageCarousel
 import ui.components.PodcastBlock
 import ui.components.RuletaBanner
@@ -32,7 +30,10 @@ import viewmodel.GalleryUiState
 /**
  * La portada.
  *
- * Recoge dos cosas que antes tenían entrada propia en la barra: el podcast, que ahora
+ * El encabezado es [CatalogBanner]: una pieza con marco en lugar de cuatro cosas
+ * sueltas flotando sobre el fondo.
+ *
+ * Recoge además dos cosas que antes tenían entrada propia en la barra: el podcast, que ahora
  * cuelga del final de la página, y la ruleta, que se abre desde su botón flotante. Las
  * dos siguen teniendo ruta (`#/podcast` lleva aquí; `#/ruleta` sigue siendo su
  * pantalla), pero ya no gastan sitio en una barra donde las últimas entradas no las
@@ -59,56 +60,22 @@ fun HomeScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Spacer(Modifier.height(PassionTheme.spacing.s12))
-
-        if (MediaConfig.isLogoConfigured) {
-            AsyncImage(
-                model = MediaConfig.logoUrl,
-                contentDescription = "Passion à gogo · tienda para adultos",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .widthIn(max = 420.dp)
-                    .fillMaxWidth(),
-            )
-        } else {
-            // Respaldo si el logotipo no está disponible: la tipografía script de la marca.
-            Text(
-                text = "Passion à gogo",
-                color = MaterialTheme.colorScheme.primary,
-                style = PassionTheme.type.scriptAccent,
-                textAlign = TextAlign.Center,
-            )
-        }
-
-        Spacer(Modifier.height(PassionTheme.spacing.s6))
-        Text(
-            text = "Tu catálogo, en un solo lugar",
-            color = semantics.onBackgroundStrong,
-            style = MaterialTheme.typography.headlineSmall,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(PassionTheme.spacing.s6))
-        Text(
-            text = "Explora nuestro catálogo con calma y descubre las promociones vigentes, " +
-                "reunidas en una sola experiencia.",
-            color = semantics.onBackgroundMuted,
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(max = 460.dp),
-        )
         Spacer(Modifier.height(PassionTheme.spacing.s8))
-        Button(onClick = onExploreCatalog, shape = MaterialTheme.shapes.extraLarge) {
-            Text("Ver catálogo", style = MaterialTheme.typography.labelLarge)
-        }
 
-        // El banner de la ruleta, entre el encabezado y el carrusel.
+        // El encabezado, recogido en una pieza.
         //
-        // Va después del «Ver catálogo» y no pegado al logotipo a propósito: puesto
-        // arriba empuja la propuesta de la tienda y su botón fuera de la primera
-        // pantalla, y quien llega buscando el catálogo se encuentra antes con una
-        // promoción que con la tienda.
+        // Antes eran cuatro cosas sueltas flotando sobre el fondo —logotipo, titular,
+        // párrafo y botón—; ahora es un banner con su marco, hermano del de la ruleta
+        // que va justo debajo. Lleva dentro el mismo texto y el mismo destino.
+        CatalogBanner(
+            onClick = onExploreCatalog,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        // El banner de la ruleta, debajo del de catálogo: primero la tienda, después
+        // la promoción.
         if (ruletaVisible) {
-            Spacer(Modifier.height(PassionTheme.spacing.s10))
+            Spacer(Modifier.height(PassionTheme.spacing.s8))
             RuletaBanner(
                 onClick = onOpenWheel,
                 // Veinticuatro segundos de giro en bucle es justo lo que la

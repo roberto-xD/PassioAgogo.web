@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import models.WheelPrize
 import ui.theme.PassionTheme
-import ui.theme.RuletaColors
+import ui.theme.BannerColors
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.floor
@@ -158,7 +158,7 @@ fun FortuneWheel(
 
             prizes.forEachIndexed { indice, _ ->
                 drawArc(
-                    color = RuletaColors.Gajos[indice % RuletaColors.Gajos.size],
+                    color = BannerColors.Gajos[indice % BannerColors.Gajos.size],
                     startAngle = indice * sector,
                     sweepAngle = sector,
                     useCenter = true,
@@ -169,7 +169,7 @@ fun FortuneWheel(
 
             // El aro blanco, por encima del canto de los gajos.
             drawCircle(
-                color = RuletaColors.White,
+                color = BannerColors.White,
                 radius = radio - anillo / 2f,
                 center = center,
                 style = Stroke(width = anillo),
@@ -181,7 +181,7 @@ fun FortuneWheel(
             repeat(BOMBILLAS) { i ->
                 val angulo = i * (360f / BOMBILLAS) * PI.toFloat() / 180f
                 drawCircle(
-                    color = RuletaColors.White,
+                    color = BannerColors.White,
                     radius = radio * 0.022f,
                     center = Offset(
                         center.x + radioGajo * cos(angulo),
@@ -194,7 +194,7 @@ fun FortuneWheel(
                 val layout = measurer.measure(
                     text = AnnotatedString(premio.rotulo),
                     style = TextStyle(
-                        color = RuletaColors.TextoGajos[indice % RuletaColors.TextoGajos.size],
+                        color = BannerColors.TextoGajos[indice % BannerColors.TextoGajos.size],
                         fontSize = (radio * 0.13f).toSp(),
                         fontWeight = FontWeight.Bold,
                     ),
@@ -236,7 +236,7 @@ fun FortuneWheel(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val radio = size.minDimension / 2f
             drawCircle(
-                color = RuletaColors.FondoAro,
+                color = BannerColors.FondoAro,
                 radius = radio - 2.dp.toPx(),
                 center = center,
                 style = Stroke(width = 4.dp.toPx()),
@@ -257,15 +257,15 @@ fun FortuneWheel(
             enabled = canSpin,
             shape = CircleShape,
             colors = ButtonDefaults.buttonColors(
-                containerColor = RuletaColors.White,
-                contentColor = RuletaColors.Fondo,
-                disabledContainerColor = RuletaColors.White,
-                disabledContentColor = RuletaColors.Fondo.copy(alpha = 0.4f),
+                containerColor = BannerColors.White,
+                contentColor = BannerColors.Fondo,
+                disabledContainerColor = BannerColors.White,
+                disabledContentColor = BannerColors.Fondo.copy(alpha = 0.4f),
             ),
             contentPadding = PaddingValues(0.dp),
             modifier = Modifier
                 .size(96.dp)
-                .border(4.dp, RuletaColors.Yellow, CircleShape),
+                .border(4.dp, BannerColors.Yellow, CircleShape),
         ) {
             Text(
                 text = if (spinning) "…" else "GIRAR",

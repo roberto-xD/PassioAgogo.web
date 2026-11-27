@@ -174,13 +174,13 @@ val PassionDarkColorScheme = darkColorScheme(
 )
 
 /**
- * Paleta propia del banner de la ruleta.
+ * Paleta de las piezas promocionales: los banners y la pantalla de la ruleta.
  *
  * Va aparte de [PassionColors] a propósito: no son tokens de marca, son los colores de
- * una pieza promocional concreta —fondo oscuro y confeti saturado— que no deben acabar
- * usándose en el resto del sitio. Vienen tal cual del diseño del banner.
+ * unos escaparates concretos —fondos saturados y confeti— que no deben acabar usándose
+ * en el resto del sitio. Vienen tal cual de los diseños.
  */
-object RuletaColors {
+object BannerColors {
     val Fondo = Color(0xFF2A0B3D)
     val Pink = Color(0xFFFF3D8B)
     val PinkScript = Color(0xFFFF7AB6)

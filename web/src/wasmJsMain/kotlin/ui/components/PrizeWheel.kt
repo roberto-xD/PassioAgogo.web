@@ -41,7 +41,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import ui.theme.RuletaColors
+import ui.theme.BannerColors
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -52,12 +52,12 @@ private data class WheelSegment(val fill: Color, val icon: SegmentIcon, val icon
 
 /** Seis gajos, en sentido horario empezando arriba (como en el diseño). */
 private val Segments = listOf(
-    WheelSegment(RuletaColors.Pink, SegmentIcon.Percent, RuletaColors.White),
-    WheelSegment(RuletaColors.Yellow, SegmentIcon.Gift, RuletaColors.Fondo),
-    WheelSegment(RuletaColors.Teal, SegmentIcon.Percent, RuletaColors.Fondo),
-    WheelSegment(RuletaColors.Blue, SegmentIcon.Gift, RuletaColors.White),
-    WheelSegment(RuletaColors.Orange, SegmentIcon.Percent, RuletaColors.Fondo),
-    WheelSegment(RuletaColors.Violet, SegmentIcon.Gift, RuletaColors.White),
+    WheelSegment(BannerColors.Pink, SegmentIcon.Percent, BannerColors.White),
+    WheelSegment(BannerColors.Yellow, SegmentIcon.Gift, BannerColors.Fondo),
+    WheelSegment(BannerColors.Teal, SegmentIcon.Percent, BannerColors.Fondo),
+    WheelSegment(BannerColors.Blue, SegmentIcon.Gift, BannerColors.White),
+    WheelSegment(BannerColors.Orange, SegmentIcon.Percent, BannerColors.Fondo),
+    WheelSegment(BannerColors.Violet, SegmentIcon.Gift, BannerColors.White),
 )
 
 /** Icono «gift» (24×24, trazo) en path data SVG. */
@@ -115,10 +115,10 @@ internal fun PrizeWheel(
                 .align(Alignment.Center)
                 .size(hubSize + hubRing * 2)
                 .clip(CircleShape)
-                .background(RuletaColors.Fondo)
+                .background(BannerColors.Fondo)
                 .padding(hubRing)
                 .clip(CircleShape)
-                .background(RuletaColors.White),
+                .background(BannerColors.White),
             contentAlignment = Alignment.Center,
         ) {
             if (hubImageUrl.isNotBlank()) {
@@ -189,7 +189,7 @@ private fun WheelDisc(spinEnabled: Boolean, modifier: Modifier = Modifier) {
                 }
 
                 onDrawBehind {
-                    drawCircle(RuletaColors.White, radius = outerR, center = center)
+                    drawCircle(BannerColors.White, radius = outerR, center = center)
 
                     Segments.forEachIndexed { index, segment ->
                         val startFromTop = index * 60f
@@ -236,7 +236,7 @@ private fun WheelDisc(spinEnabled: Boolean, modifier: Modifier = Modifier) {
                     repeat(12) { i ->
                         val rad = (i * 30f) * PI.toFloat() / 180f
                         drawCircle(
-                            color = RuletaColors.White,
+                            color = BannerColors.White,
                             radius = dotRadius,
                             center = Offset(
                                 center.x + dotOrbit * cos(rad),
@@ -273,7 +273,7 @@ internal fun WheelPointer(modifier: Modifier = Modifier) {
             )
             close()
         }
-        drawPath(drop, RuletaColors.White)
-        drawCircle(RuletaColors.Pink, radius = 6f * sx, center = Offset(20f * sx, 16f * sy))
+        drawPath(drop, BannerColors.White)
+        drawCircle(BannerColors.Pink, radius = 6f * sx, center = Offset(20f * sx, 16f * sy))
     }
 }

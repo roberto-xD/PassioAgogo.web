@@ -48,7 +48,7 @@ import ui.components.copyToClipboard
 import ui.components.openInNewTab
 import ui.theme.PassionColors
 import ui.theme.PassionTheme
-import ui.theme.RuletaColors
+import ui.theme.BannerColors
 import viewmodel.WheelUiState
 
 /** Ancho máximo de la ruleta. Más grande no se lee mejor y deja el botón lejos. */
@@ -83,7 +83,7 @@ fun WheelScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(RuletaColors.Fondo)
+            .background(BannerColors.Fondo)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -192,13 +192,13 @@ private fun Ruleta(state: WheelUiState, onSpin: () -> Unit, onLanded: () -> Unit
 private fun ColumnScope.Copy(state: WheelUiState, enFila: Boolean) {
     Text(
         text = "RULETA DE PREMIOS",
-        color = RuletaColors.Fondo,
+        color = BannerColors.Fondo,
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.Bold,
         letterSpacing = 1.6.sp,
         modifier = Modifier
             .clip(MaterialTheme.shapes.extraLarge)
-            .background(RuletaColors.Yellow)
+            .background(BannerColors.Yellow)
             .padding(
                 horizontal = PassionTheme.spacing.s3,
                 vertical = PassionTheme.spacing.s1,
@@ -217,14 +217,14 @@ private fun ColumnScope.Copy(state: WheelUiState, enFila: Boolean) {
         ) {
             Text(
                 text = "Gira y gana",
-                color = RuletaColors.White,
+                color = BannerColors.White,
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
                 fontSize = tituloSize,
             )
             Text(
                 text = "tu premio",
-                color = RuletaColors.PinkScript,
+                color = BannerColors.PinkScript,
                 style = PassionTheme.type.scriptAccent,
                 fontSize = scriptSize,
             )
@@ -232,14 +232,14 @@ private fun ColumnScope.Copy(state: WheelUiState, enFila: Boolean) {
     } else {
         Text(
             text = "Gira y gana",
-            color = RuletaColors.White,
+            color = BannerColors.White,
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             fontSize = tituloSize,
         )
         Text(
             text = "tu premio",
-            color = RuletaColors.PinkScript,
+            color = BannerColors.PinkScript,
             style = PassionTheme.type.scriptAccent,
             fontSize = scriptSize,
         )
@@ -256,7 +256,7 @@ private fun ColumnScope.Copy(state: WheelUiState, enFila: Boolean) {
     Spacer(Modifier.height(PassionTheme.spacing.s4))
     Text(
         text = "Toca GIRAR para descubrir tu premio.",
-        color = RuletaColors.Yellow,
+        color = BannerColors.Yellow,
         style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.SemiBold,
     )
@@ -267,7 +267,7 @@ private fun ColumnScope.Copy(state: WheelUiState, enFila: Boolean) {
             text = mensaje,
             // Rosa y no el rojo de Material: sobre morado oscuro ese rojo se apaga, y
             // el rosa de esta paleta se lee sin romper la piel de la sección.
-            color = RuletaColors.PinkScript,
+            color = BannerColors.PinkScript,
             style = MaterialTheme.typography.bodyMedium,
         )
     }
@@ -313,7 +313,7 @@ private fun BasesDeLaPromocion(terms: List<WheelTerm>) {
 
     Text(
         text = "Bases de la promoción",
-        color = RuletaColors.Yellow,
+        color = BannerColors.Yellow,
         style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.SemiBold,
         textDecoration = TextDecoration.Underline,

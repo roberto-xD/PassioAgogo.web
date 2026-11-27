@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import ui.theme.RuletaColors
+import ui.theme.BannerColors
 
 /**
  * Un papelillo, colocado en proporción al área que lo contiene.
@@ -33,14 +33,14 @@ private data class Papel(
 )
 
 private val Papeles = listOf(
-    Papel(0.04f, 0.07f, 12.dp, 12.dp, RuletaColors.Yellow),
-    Papel(0.30f, 0.04f, 14.dp, 5.dp, RuletaColors.Pink, rotation = 30f),
-    Papel(0.93f, 0.09f, 11.dp, 11.dp, RuletaColors.Blue, rotation = 20f, corner = 3.dp),
-    Papel(0.12f, 0.82f, 10.dp, 10.dp, RuletaColors.Teal),
-    Papel(0.52f, 0.93f, 9.dp, 9.dp, RuletaColors.White),
-    Papel(0.70f, 0.88f, 14.dp, 5.dp, RuletaColors.Orange, rotation = -25f),
-    Papel(0.96f, 0.70f, 10.dp, 10.dp, RuletaColors.Violet, rotation = 40f, corner = 3.dp),
-    Papel(0.28f, 0.28f, 8.dp, 8.dp, RuletaColors.Yellow),
+    Papel(0.04f, 0.07f, 12.dp, 12.dp, BannerColors.Yellow),
+    Papel(0.30f, 0.04f, 14.dp, 5.dp, BannerColors.Pink, rotation = 30f),
+    Papel(0.93f, 0.09f, 11.dp, 11.dp, BannerColors.Blue, rotation = 20f, corner = 3.dp),
+    Papel(0.12f, 0.82f, 10.dp, 10.dp, BannerColors.Teal),
+    Papel(0.52f, 0.93f, 9.dp, 9.dp, BannerColors.White),
+    Papel(0.70f, 0.88f, 14.dp, 5.dp, BannerColors.Orange, rotation = -25f),
+    Papel(0.96f, 0.70f, 10.dp, 10.dp, BannerColors.Violet, rotation = 40f, corner = 3.dp),
+    Papel(0.28f, 0.28f, 8.dp, 8.dp, BannerColors.Yellow),
 )
 
 /**

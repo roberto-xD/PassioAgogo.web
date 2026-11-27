@@ -2,7 +2,6 @@ package ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,12 +30,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
@@ -54,7 +48,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import ui.theme.PassionColors
 import ui.theme.PassionTheme
-import ui.theme.RuletaColors
+import ui.theme.BannerColors
 
 /** Ancho a partir del cual se usa la variante de escritorio. */
 private val DesktopBreakpoint = 720.dp
@@ -121,7 +115,7 @@ internal fun RuletaBannerContent(
             .fillMaxWidth()
             .height(spec.height)
             .clip(shape)
-            .background(RuletaColors.Fondo)
+            .background(BannerColors.Fondo)
             .hoverable(interaction)
             .pointerHoverIcon(PointerIcon.Hand)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
@@ -176,14 +170,14 @@ private fun BannerCopy(spec: BannerSpec, ctaScale: Float) {
         fontSize = spec.titleSize,
         lineHeight = spec.titleSize * 1.05f,
         lineHeightStyle = tightLineHeight,
-        color = RuletaColors.White,
+        color = BannerColors.White,
     )
     val scriptStyle = TextStyle(
         fontFamily = alexBrush,
         fontSize = spec.scriptSize,
         lineHeight = spec.scriptSize,
         lineHeightStyle = tightLineHeight,
-        color = RuletaColors.PinkScript,
+        color = BannerColors.PinkScript,
     )
 
     Column(
@@ -216,9 +210,16 @@ private fun BannerCopy(spec: BannerSpec, ctaScale: Float) {
             modifier = Modifier.widthIn(max = 460.dp),
         )
 
-        CallToAction(
-            spec = spec,
+        PillCta(
+            text = spec.cta,
             fontFamily = poppins,
+            fontSize = spec.ctaSize,
+            background = BannerColors.Pink,
+            contentPadding = spec.ctaPadding,
+            glow = spec.ctaGlow,
+            gap = spec.ctaGap,
+            conFlecha = true,
+            arrowSize = spec.arrowSize,
             modifier = Modifier
                 .padding(top = spec.ctaExtraTop)
                 .graphicsLayer {
@@ -238,62 +239,13 @@ private fun Badge(spec: BannerSpec, fontFamily: FontFamily) {
             fontWeight = FontWeight.Bold,
             fontSize = spec.badgeSize,
             letterSpacing = 0.14.em,
-            color = RuletaColors.Fondo,
+            color = BannerColors.Fondo,
         ),
         modifier = Modifier
             .clip(RoundedCornerShape(percent = 50))
-            .background(RuletaColors.Yellow)
+            .background(BannerColors.Yellow)
             .padding(spec.badgePadding),
     )
-}
-
-@Composable
-private fun CallToAction(spec: BannerSpec, fontFamily: FontFamily, modifier: Modifier = Modifier) {
-    val glow = spec.ctaGlow
-    Row(
-        modifier = modifier
-            .drawBehind {
-                // Halo tipo box-shadow con spread (no ocupa espacio en el layout)
-                if (glow > 0.dp) {
-                    val g = glow.toPx()
-                    drawRoundRect(
-                        color = RuletaColors.Pink.copy(alpha = 0.25f),
-                        topLeft = Offset(-g, -g),
-                        size = Size(size.width + 2 * g, size.height + 2 * g),
-                        cornerRadius = CornerRadius(size.height / 2 + g),
-                    )
-                }
-            }
-            .clip(RoundedCornerShape(percent = 50))
-            .background(RuletaColors.Pink)
-            .heightIn(min = 44.dp)
-            .padding(spec.ctaPadding),
-        horizontalArrangement = Arrangement.spacedBy(spec.ctaGap),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BasicText(
-            text = spec.cta,
-            style = TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = spec.ctaSize,
-                color = RuletaColors.White,
-            ),
-        )
-        ArrowIcon(Modifier.size(spec.arrowSize), RuletaColors.White)
-    }
-}
-
-/** Flecha «→» (24×24, trazo 2.2). */
-@Composable
-private fun ArrowIcon(modifier: Modifier, color: Color) {
-    Canvas(modifier) {
-        val k = size.width / 24f
-        val stroke = 2.2f * k
-        drawLine(color, Offset(5f * k, 12f * k), Offset(19f * k, 12f * k), stroke, StrokeCap.Round)
-        drawLine(color, Offset(13f * k, 6f * k), Offset(19f * k, 12f * k), stroke, StrokeCap.Round)
-        drawLine(color, Offset(19f * k, 12f * k), Offset(13f * k, 18f * k), stroke, StrokeCap.Round)
-    }
 }
 
 internal data class Confetti(
@@ -378,14 +330,14 @@ internal data class BannerSpec(
             ctaExtraTop = 8.dp,
             arrowSize = 18.dp,
             confetti = listOf(
-                Confetti(700f, 30.dp, 14.dp, 14.dp, RuletaColors.Yellow),
-                Confetti(640f, 250.dp, 10.dp, 10.dp, RuletaColors.Teal),
-                Confetti(720f, 60.dp, 18.dp, 6.dp, RuletaColors.Pink, rotation = 30f),
-                Confetti(790f, 150.dp, 12.dp, 12.dp, RuletaColors.Blue, rotation = 20f, corner = 3.dp),
-                Confetti(1150f, 24.dp, 12.dp, 12.dp, RuletaColors.Yellow, rotation = 40f, corner = 3.dp),
-                Confetti(760f, 280.dp, 16.dp, 5.dp, RuletaColors.Orange, rotation = -25f),
-                Confetti(660f, 292.dp, 8.dp, 8.dp, RuletaColors.White),
-                Confetti(690f, 180.dp, 8.dp, 8.dp, RuletaColors.Yellow),
+                Confetti(700f, 30.dp, 14.dp, 14.dp, BannerColors.Yellow),
+                Confetti(640f, 250.dp, 10.dp, 10.dp, BannerColors.Teal),
+                Confetti(720f, 60.dp, 18.dp, 6.dp, BannerColors.Pink, rotation = 30f),
+                Confetti(790f, 150.dp, 12.dp, 12.dp, BannerColors.Blue, rotation = 20f, corner = 3.dp),
+                Confetti(1150f, 24.dp, 12.dp, 12.dp, BannerColors.Yellow, rotation = 40f, corner = 3.dp),
+                Confetti(760f, 280.dp, 16.dp, 5.dp, BannerColors.Orange, rotation = -25f),
+                Confetti(660f, 292.dp, 8.dp, 8.dp, BannerColors.White),
+                Confetti(690f, 180.dp, 8.dp, 8.dp, BannerColors.Yellow),
             ),
         )
 
@@ -422,11 +374,11 @@ internal data class BannerSpec(
             ctaExtraTop = 4.dp,
             arrowSize = 16.dp,
             confetti = listOf(
-                Confetti(18f, 18.dp, 10.dp, 10.dp, RuletaColors.Yellow),
-                Confetti(200f, 268.dp, 8.dp, 8.dp, RuletaColors.Teal),
-                Confetti(232f, 30.dp, 12.dp, 4.dp, RuletaColors.Pink, rotation = 30f),
-                Confetti(190f, 140.dp, 8.dp, 8.dp, RuletaColors.Blue, rotation = 20f, corner = 3.dp),
-                Confetti(160f, 22.dp, 6.dp, 6.dp, RuletaColors.White),
+                Confetti(18f, 18.dp, 10.dp, 10.dp, BannerColors.Yellow),
+                Confetti(200f, 268.dp, 8.dp, 8.dp, BannerColors.Teal),
+                Confetti(232f, 30.dp, 12.dp, 4.dp, BannerColors.Pink, rotation = 30f),
+                Confetti(190f, 140.dp, 8.dp, 8.dp, BannerColors.Blue, rotation = 20f, corner = 3.dp),
+                Confetti(160f, 22.dp, 6.dp, 6.dp, BannerColors.White),
             ),
         )
     }
