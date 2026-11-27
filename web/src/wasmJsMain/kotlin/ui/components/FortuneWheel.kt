@@ -102,9 +102,8 @@ fun FortuneWheel(
     // `remember` sin clave a propósito: recrear el `Animatable` al cambiar la lista de
     // premios cortaría un giro en marcha. La lista solo cambia al cargar, antes de que
     // nadie haya podido girar.
-    val rotation = remember {
-        Animatable(((ANGULO_AGUJA - sector / 2f) % 360f + 360f) % 360f)
-    }
+    val reposo = ((ANGULO_AGUJA - sector / 2f) % 360f + 360f) % 360f
+    val rotation = remember { Animatable(reposo) }
     val avisarFrenado by rememberUpdatedState(onLanded)
 
     LaunchedEffect(spinning, landingIndex) {
@@ -208,7 +207,12 @@ fun FortuneWheel(
                 // Los sectores de la mitad de abajo quedarían con el rótulo boca abajo.
                 // Se les da media vuelta más y se dibuja al otro lado del centro, que es
                 // donde ha ido a parar su sector.
-                val normalizado = ((giroBase % 360f) + 360f) % 360f
+                //
+                // Se suma [reposo] porque lo que decide si un rótulo se lee al derecho
+                // no es su ángulo dentro del disco, sino dónde acaba **en pantalla**, y
+                // el disco parte girado. Sin esto, el premio que queda bajo el puntero
+                // salía del revés: «%02» en vez de «20%».
+                val normalizado = (((giroBase + reposo) % 360f) + 360f) % 360f
                 val invertido = normalizado > 90f && normalizado < 270f
 
                 rotate(degrees = if (invertido) giroBase + 180f else giroBase, pivot = center) {
