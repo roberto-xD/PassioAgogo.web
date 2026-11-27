@@ -172,3 +172,24 @@ val PassionDarkColorScheme = darkColorScheme(
     errorContainer = PassionColors.Pink700,
     onErrorContainer = PassionColors.ErrorBg,
 )
+
+/**
+ * Paleta propia del banner de la ruleta.
+ *
+ * Va aparte de [PassionColors] a propósito: no son tokens de marca, son los colores de
+ * una pieza promocional concreta —fondo oscuro y confeti saturado— que no deben acabar
+ * usándose en el resto del sitio. Vienen tal cual del diseño del banner.
+ */
+object RuletaColors {
+    val Fondo = Color(0xFF2A0B3D)
+    val Pink = Color(0xFFFF3D8B)
+    val PinkScript = Color(0xFFFF7AB6)
+    val Yellow = Color(0xFFFFC300)
+    val Teal = Color(0xFF00BFA6)
+    val Blue = Color(0xFF3A86FF)
+    val Orange = Color(0xFFFF7A00)
+    val Violet = Color(0xFFB026FF)
+
+    /** Blanco puro: el del diseño, no el [PassionColors.Neutral0] de la marca. */
+    val White = Color(0xFFFFFFFF)
+}

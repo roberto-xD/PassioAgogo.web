@@ -50,6 +50,24 @@ object MediaConfig {
     val isLogoConfigured: Boolean
         get() = SupabaseConfig.isConfigured && LOGO_PATH.isNotBlank()
 
+    /**
+     * Imagen **cuadrada** para el centro de la ruleta del banner: el abanico de la
+     * marca, sin el texto.
+     *
+     * Vacío a propósito mientras no exista ese recorte en el bucket. [LOGO_PATH] no
+     * sirve aquí: es el logotipo completo, y metido en un círculo de 64 dp no se
+     * reconoce. Sin imagen, el centro queda como un círculo blanco limpio, que es
+     * mejor que un logotipo ilegible.
+     */
+    const val RULETA_HUB_PATH: String = ""
+
+    val ruletaHubUrl: String
+        get() = if (SupabaseConfig.isConfigured && RULETA_HUB_PATH.isNotBlank()) {
+            SupabaseConfig.publicStorageUrl(RULETA_HUB_PATH, MEDIA_BUCKET)
+        } else {
+            ""
+        }
+
     // ------------------------------------------------------------------
     // Podcast de la marca (Spotify)
     // ------------------------------------------------------------------

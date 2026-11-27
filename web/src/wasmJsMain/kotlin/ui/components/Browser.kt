@@ -115,3 +115,23 @@ fun isExternalUrl(url: String): Boolean =
 fun navigateToInternal(path: String) {
     window.location.hash = if (path.startsWith("#")) path else "#$path"
 }
+
+/**
+ * ¿El sistema pide menos movimiento?
+ *
+ * Es una preferencia de accesibilidad del sistema operativo, y quien la enciende suele
+ * tenerla por algo: mareo, vértigo o migraña con las animaciones. La ruleta del banner
+ * gira en bucle durante veinticuatro segundos sin parar nunca, que es exactamente lo
+ * que esa preferencia existe para evitar.
+ *
+ * Se consulta una sola vez, al componer: cambiarla a mitad de sesión es rarísimo y
+ * escuchar el cambio costaría más de lo que resuelve.
+ */
+fun prefiereMenosMovimiento(): Boolean = js(
+    """(function () {
+        try {
+            return !!(window.matchMedia &&
+                window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        } catch (e) { return false; }
+    })()"""
+)

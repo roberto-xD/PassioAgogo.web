@@ -1,7 +1,6 @@
 package ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,8 +21,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import network.MediaConfig
+import androidx.compose.runtime.remember
 import ui.components.ImageCarousel
 import ui.components.PodcastBlock
+import ui.components.RuletaBanner
+import ui.components.prefiereMenosMovimiento
 import ui.theme.PassionTheme
 import viewmodel.GalleryUiState
 
@@ -50,7 +51,6 @@ fun HomeScreen(
 ) {
     val semantics = PassionTheme.semantics
 
-    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -101,6 +101,24 @@ fun HomeScreen(
             Text("Ver catálogo", style = MaterialTheme.typography.labelLarge)
         }
 
+        // El banner de la ruleta, entre el encabezado y el carrusel.
+        //
+        // Va después del «Ver catálogo» y no pegado al logotipo a propósito: puesto
+        // arriba empuja la propuesta de la tienda y su botón fuera de la primera
+        // pantalla, y quien llega buscando el catálogo se encuentra antes con una
+        // promoción que con la tienda.
+        if (ruletaVisible) {
+            Spacer(Modifier.height(PassionTheme.spacing.s10))
+            RuletaBanner(
+                onClick = onOpenWheel,
+                // Veinticuatro segundos de giro en bucle es justo lo que la
+                // preferencia de menos movimiento existe para evitar.
+                spinEnabled = !remember { prefiereMenosMovimiento() },
+                hubImageUrl = MediaConfig.ruletaHubUrl,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
         if (galleryState.slides.isNotEmpty()) {
             Spacer(Modifier.height(PassionTheme.spacing.s12))
             Text(
@@ -118,21 +136,6 @@ fun HomeScreen(
         Spacer(Modifier.height(PassionTheme.spacing.s12))
         PodcastBlock(modifier = Modifier.fillMaxWidth())
 
-        // Hueco para que el botón flotante no tape el final del contenido.
         Spacer(Modifier.height(PassionTheme.spacing.s12))
-    }
-
-        if (ruletaVisible) {
-            ExtendedFloatingActionButton(
-                onClick = onOpenWheel,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(PassionTheme.spacing.s5),
-            ) {
-                Text("Gira y gana", style = MaterialTheme.typography.labelLarge)
-            }
-        }
     }
 }
