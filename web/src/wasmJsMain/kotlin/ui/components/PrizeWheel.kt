@@ -249,9 +249,15 @@ private fun WheelDisc(spinEnabled: Boolean, modifier: Modifier = Modifier) {
     )
 }
 
-/** Puntero en forma de gota (viewBox 40×48) con punto rosa. */
+/**
+ * Puntero en forma de gota (viewBox 40×48) con punto rosa.
+ *
+ * `internal` porque lo comparten el banner y la ruleta de la pantalla: son el mismo
+ * puntero del mismo diseño, y duplicar el path garantizaba que se separasen al primer
+ * retoque.
+ */
 @Composable
-private fun WheelPointer(modifier: Modifier = Modifier) {
+internal fun WheelPointer(modifier: Modifier = Modifier) {
     Canvas(modifier) {
         val sx = size.width / 40f
         val sy = size.height / 48f

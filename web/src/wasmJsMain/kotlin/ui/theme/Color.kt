@@ -192,4 +192,18 @@ object RuletaColors {
 
     /** Blanco puro: el del diseño, no el [PassionColors.Neutral0] de la marca. */
     val White = Color(0xFFFFFFFF)
+
+    /** Aro apenas más claro que [Fondo], para separar la ruleta del fondo. */
+    val FondoAro = Color(0xFF3F1458)
+
+    /**
+     * Los seis colores de los gajos, en el orden del diseño empezando arriba.
+     *
+     * Se recorren en bucle: con más de seis premios el séptimo vuelve al rosa. Con
+     * menos, sobran los de la cola y la ruleta sigue leyéndose.
+     */
+    val Gajos = listOf(Pink, Yellow, Teal, Blue, Orange, Violet)
+
+    /** Qué color de texto se lee encima de cada gajo de [Gajos]. */
+    val TextoGajos = listOf(White, Fondo, Fondo, White, Fondo, White)
 }

@@ -5,13 +5,16 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -25,9 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -40,7 +40,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import models.WheelPrize
 import ui.theme.PassionTheme
+import ui.theme.RuletaColors
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.sin
 
 /** Vueltas completas antes de empezar a frenar. Suficientes para no adivinar el destino. */
 private const val VUELTAS = 5
@@ -53,6 +57,12 @@ private const val VUELTA_LIBRE_MS = 900
 
 /** Dónde apunta la aguja, en grados: arriba del todo. */
 private const val ANGULO_AGUJA = 270f
+
+/** Parte del radio que ocupa el aro blanco del borde. */
+private const val ANILLO_BLANCO = 0.075f
+
+/** Bombillas repartidas por el aro. */
+private const val BOMBILLAS = 12
 
 /**
  * Ruleta de premios con giro animado.
@@ -119,11 +129,6 @@ fun FortuneWheel(
         contentAlignment = Alignment.Center,
     ) {
         val measurer = rememberTextMeasurer()
-        val colorPar = MaterialTheme.colorScheme.primary
-        val colorImpar = MaterialTheme.colorScheme.primaryContainer
-        val textoPar = MaterialTheme.colorScheme.onPrimary
-        val textoImpar = MaterialTheme.colorScheme.onPrimaryContainer
-        val borde = MaterialTheme.colorScheme.surface
 
         Canvas(
             modifier = Modifier
@@ -132,28 +137,44 @@ fun FortuneWheel(
                 .graphicsLayer { rotationZ = rotation.value },
         ) {
             val radio = size.minDimension / 2f
-            val esquina = Offset(center.x - radio, center.y - radio)
-            val lado = Size(radio * 2f, radio * 2f)
+            // El aro blanco se come parte del radio: los gajos se dibujan por dentro
+            // para que quede como un marco y no como un borde pegado.
+            val anillo = radio * ANILLO_BLANCO
+            val radioGajo = radio - anillo
+            val esquina = Offset(center.x - radioGajo, center.y - radioGajo)
+            val lado = Size(radioGajo * 2f, radioGajo * 2f)
 
-            prizes.forEachIndexed { indice, premio ->
+            prizes.forEachIndexed { indice, _ ->
                 drawArc(
-                    color = if (indice % 2 == 0) colorPar else colorImpar,
+                    color = RuletaColors.Gajos[indice % RuletaColors.Gajos.size],
                     startAngle = indice * sector,
                     sweepAngle = sector,
                     useCenter = true,
                     topLeft = esquina,
                     size = lado,
                 )
-                // Separador entre sectores: sin él, dos sectores del mismo color
-                // consecutivos —número impar de premios— se leen como uno solo.
-                drawArc(
-                    color = borde,
-                    startAngle = indice * sector,
-                    sweepAngle = sector,
-                    useCenter = true,
-                    topLeft = esquina,
-                    size = lado,
-                    style = Stroke(width = 2.dp.toPx()),
+            }
+
+            // El aro blanco, por encima del canto de los gajos.
+            drawCircle(
+                color = RuletaColors.White,
+                radius = radio - anillo / 2f,
+                center = center,
+                style = Stroke(width = anillo),
+            )
+
+            // Las bombillas van justo en la junta: medio círculo cae sobre el aro
+            // blanco y desaparece, y el medio que se ve recorta el gajo. Así se leen
+            // como muescas del aro y no como lunares sueltos.
+            repeat(BOMBILLAS) { i ->
+                val angulo = i * (360f / BOMBILLAS) * PI.toFloat() / 180f
+                drawCircle(
+                    color = RuletaColors.White,
+                    radius = radio * 0.022f,
+                    center = Offset(
+                        center.x + radioGajo * cos(angulo),
+                        center.y + radioGajo * sin(angulo),
+                    ),
                 )
             }
 
@@ -161,7 +182,7 @@ fun FortuneWheel(
                 val layout = measurer.measure(
                     text = AnnotatedString(premio.rotulo),
                     style = TextStyle(
-                        color = if (indice % 2 == 0) textoPar else textoImpar,
+                        color = RuletaColors.TextoGajos[indice % RuletaColors.TextoGajos.size],
                         fontSize = (radio * 0.13f).toSp(),
                         fontWeight = FontWeight.Bold,
                     ),
@@ -183,38 +204,51 @@ fun FortuneWheel(
                         topLeft = Offset(
                             x = center.x - layout.size.width / 2f,
                             y = if (invertido) {
-                                center.y + radio * 0.88f - layout.size.height
+                                center.y + radioGajo * 0.84f - layout.size.height
                             } else {
-                                center.y - radio * 0.88f
+                                center.y - radioGajo * 0.84f
                             },
                         ),
                     )
                 }
             }
+        }
 
-            // Aro exterior: le da borde a la ruleta y remata los sectores.
+        // Aro exterior, apenas más claro que el fondo: separa la ruleta de la sección
+        // sin meter otro color. No gira, así que va fuera del lienzo de arriba.
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val radio = size.minDimension / 2f
             drawCircle(
-                color = colorPar,
-                radius = radio - 1.dp.toPx(),
+                color = RuletaColors.FondoAro,
+                radius = radio - 2.dp.toPx(),
                 center = center,
-                style = Stroke(width = 6.dp.toPx()),
+                style = Stroke(width = 4.dp.toPx()),
             )
         }
 
-        // La aguja no gira: marca el sector premiado desde fuera.
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            aguja(color = colorPar, borde = borde)
-        }
+        // El puntero no gira: marca el sector premiado desde fuera. Es el mismo del
+        // banner, para que la ruleta de la portada y esta sean la misma ruleta.
+        WheelPointer(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = (-6).dp)
+                .size(34.dp, 40.dp),
+        )
 
         Button(
             onClick = onSpin,
             enabled = canSpin,
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = CircleShape,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary,
+                containerColor = RuletaColors.White,
+                contentColor = RuletaColors.Fondo,
+                disabledContainerColor = RuletaColors.White,
+                disabledContentColor = RuletaColors.Fondo.copy(alpha = 0.4f),
             ),
-            modifier = Modifier.size(96.dp),
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier
+                .size(96.dp)
+                .border(4.dp, RuletaColors.Yellow, CircleShape),
         ) {
             Text(
                 text = if (spinning) "…" else "GIRAR",
@@ -223,20 +257,4 @@ fun FortuneWheel(
             )
         }
     }
-}
-
-/** Triángulo apuntando hacia abajo, centrado en el borde superior. */
-private fun DrawScope.aguja(color: Color, borde: Color) {
-    val ancho = size.minDimension * 0.075f
-    val alto = size.minDimension * 0.085f
-    val cima = Offset(center.x, 0f)
-
-    val camino = Path().apply {
-        moveTo(cima.x - ancho / 2f, cima.y)
-        lineTo(cima.x + ancho / 2f, cima.y)
-        lineTo(cima.x, cima.y + alto)
-        close()
-    }
-    drawPath(path = camino, color = borde, style = Stroke(width = 6f))
-    drawPath(path = camino, color = color)
 }
