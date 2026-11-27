@@ -90,9 +90,22 @@ fun FortuneWheel(
 ) {
     if (prizes.isEmpty()) return
 
-    val rotation = remember { Animatable(0f) }
-    val avisarFrenado by rememberUpdatedState(onLanded)
     val sector = 360f / prizes.size
+
+    // En reposo, el primer premio queda centrado bajo el puntero.
+    //
+    // Es solo la postura de salida: los gajos se dibujan desde las 3 en punto, así que
+    // sin esto la ruleta quieta enseñaba una junta bajo la aguja en vez de un premio,
+    // que es lo que pide el diseño. El frenado no se entera —parte de `rotation.value`
+    // y calcula su objetivo en absoluto—, así que dónde se arranca le da igual.
+    //
+    // `remember` sin clave a propósito: recrear el `Animatable` al cambiar la lista de
+    // premios cortaría un giro en marcha. La lista solo cambia al cargar, antes de que
+    // nadie haya podido girar.
+    val rotation = remember {
+        Animatable(((ANGULO_AGUJA - sector / 2f) % 360f + 360f) % 360f)
+    }
+    val avisarFrenado by rememberUpdatedState(onLanded)
 
     LaunchedEffect(spinning, landingIndex) {
         if (!spinning) return@LaunchedEffect

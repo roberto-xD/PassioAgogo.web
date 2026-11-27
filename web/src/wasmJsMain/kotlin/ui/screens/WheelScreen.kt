@@ -166,13 +166,17 @@ private fun Ruleta(state: WheelUiState, onSpin: () -> Unit, onLanded: () -> Unit
                 }
             }
         } else {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
+            // El texto alineado a la izquierda y la ruleta centrada: apilarlo todo
+            // centrado deja el párrafo con los dos bordes irregulares y se lee peor.
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Copy(state, enFila = false)
                 Spacer(Modifier.height(PassionTheme.spacing.s6))
-                LaRueda(state, onSpin, onLanded)
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    LaRueda(state, onSpin, onLanded)
+                }
             }
         }
     }
