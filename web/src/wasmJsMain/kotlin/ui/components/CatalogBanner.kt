@@ -3,6 +3,7 @@ package ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -118,12 +119,20 @@ fun CatalogBanner(
     // el banner salía a todo lo ancho mientras el de la ruleta se quedaba en sus 1200,
     // y los dos juntos no cuadraban. Con la caja exterior centrando, da igual lo que
     // llegue de fuera.
+    // El filo del marco.
+    //
+    // El panel del logotipo es blanco y el fondo de la portada es `Purple50`, que es
+    // casi blanco: sin esta línea el banner se deshace por la derecha y no se ve dónde
+    // acaba la pieza. El de la ruleta no la necesita, que es oscuro sobre claro.
+    val borde = RoundedCornerShape(24.dp)
+
     Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
     BoxWithConstraints(
         modifier = Modifier
             .widthIn(max = 1200.dp)
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
+            .clip(borde)
+            .border(1.dp, PassionColors.Purple100, borde)
             .hoverable(interaction)
             .pointerHoverIcon(PointerIcon.Hand)
             .clickable(
@@ -142,7 +151,7 @@ fun CatalogBanner(
             }
         } else {
             Column(Modifier.fillMaxWidth()) {
-                LogoPane(Modifier.fillMaxWidth())
+                LogoPane(Modifier.fillMaxWidth(), compact = true)
                 PurplePane(compact = true, ctaScale = ctaScale, modifier = Modifier.fillMaxWidth())
             }
         }
@@ -225,11 +234,11 @@ private fun PurplePane(compact: Boolean, ctaScale: Float, modifier: Modifier) {
  * la tipografía de la marca, para que el panel no quede en blanco.
  */
 @Composable
-private fun LogoPane(modifier: Modifier) {
+private fun LogoPane(modifier: Modifier, compact: Boolean = false) {
     Box(
         modifier = modifier
             .background(BannerColors.White)
-            .padding(32.dp),
+            .padding(horizontal = 32.dp, vertical = if (compact) 24.dp else 32.dp),
         contentAlignment = Alignment.Center,
     ) {
         if (MediaConfig.isLogoConfigured) {
@@ -238,8 +247,10 @@ private fun LogoPane(modifier: Modifier) {
                 contentDescription = "Passion à gogo, tienda para adultos",
                 contentScale = ContentScale.Fit,
                 // Sin `aspectRatio` fijo: el recorte real del bucket no tiene por qué
-                // ser el del diseño, y forzarlo lo deformaría.
-                modifier = Modifier.widthIn(max = 340.dp).fillMaxWidth(),
+                // ser el del diseño, y forzarlo lo deformaría. En apilado se recorta el
+                // ancho: a toda anchura el logotipo crece de alto con ella y se come
+                // media pantalla antes de que se lea nada del banner.
+                modifier = Modifier.widthIn(max = if (compact) 260.dp else 340.dp).fillMaxWidth(),
             )
         } else {
             BasicText(
