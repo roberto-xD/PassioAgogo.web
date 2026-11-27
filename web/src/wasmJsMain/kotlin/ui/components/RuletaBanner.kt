@@ -83,7 +83,12 @@ fun RuletaBanner(
     spinEnabled: Boolean = true,
     hubImageUrl: String = "",
 ) {
-    BoxWithConstraints(modifier) {
+    // Centrado: el contenido se topa con `maxWidth` (1200 dp) antes que con el ancho
+    // de la página, y un `Box` alinea al inicio por omisión, así que toda la holgura
+    // se iba al lado derecho. En una ventana de 1400 eso son 24 dp a la izquierda y
+    // 172 a la derecha, que es justo lo que se veía: pegado al principio y despegado
+    // del final.
+    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.TopCenter) {
         val spec = if (maxWidth >= DesktopBreakpoint) BannerSpec.Desktop else BannerSpec.Mobile
         RuletaBannerContent(
             spec = spec,
