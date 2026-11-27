@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -93,10 +94,20 @@ internal fun PrizeWheel(
     hubImageUrl: String = "",
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier.size(size)) {
+    // `requiredSize` y no `size`: la ruleta tiene que mantenerse **cuadrada** aunque no
+    // quepa, porque el banner la recorta a propósito.
+    //
+    // Con `size`, el alto que le deja el banner manda: en escritorio son 380 dp de
+    // ruleta a partir de los 60 del borde superior dentro de un banner de 320, así que
+    // la caja se medía 380 × 260. El disco se dibuja sobre `minDimension`, de modo que
+    // encogía a 260 y se apoyaba arriba a la izquierda, mientras el centro y el puntero
+    // seguían alineándose al ancho completo: los tres dejaban de compartir eje. En
+    // móvil no pasaba porque 40 + 250 sí cabe en 300, que es lo que hacía que el fallo
+    // pareciera cosa del escritorio.
+    Box(modifier.requiredSize(size)) {
         WheelDisc(
             spinEnabled = spinEnabled,
-            modifier = Modifier.size(size),
+            modifier = Modifier.requiredSize(size),
         )
         // Centro: aro oscuro + círculo blanco con el logo (no gira)
         Box(
